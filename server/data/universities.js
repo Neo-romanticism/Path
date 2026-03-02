@@ -1,114 +1,102 @@
-// 대한민국 주요 대학 입결 기준 등급 및 시간당 골드 요율
-// Grade 1: 의치한약수 (100G/hr)
-// Grade 2: SKY + 과기원 (70G/hr)
-// Grade 3: 상위권 (50G/hr)
-// Grade 4: 중상위권 (35G/hr)
-// Grade 5: 중위권 / 지방 거점 국립대 (20G/hr)
-// Grade 6: 중하위권 (10G/hr)
-// Grade 7: 기타 / 광명상가급 (5G/hr)
+// 대학별 합격 백분위 데이터
+// 골드 공식:
+//   공부 골드: 모든 유저 동일 10G/hr
+//   세금(패시브): -log10((100 - 백분위) / 100) G/hr
 
-const GRADE_RATE = { 1: 100, 2: 70, 3: 50, 4: 35, 5: 20, 6: 10, 7: 5 };
+// 대학별 합격 백분위 (추정치, 추후 정밀 조정 가능)
+const UNIVERSITY_PERCENTILE = {
+    // 의치한약수 키워드는 별도 처리 (99.5~99.9%)
+    // SKY
+    '서울대학교': 99.5, '서울대': 99.5,
+    '연세대학교': 98.5, '연세대': 98.5,
+    '고려대학교': 98.0, '고려대': 98.0,
+    // 과기원
+    '카이스트': 99.0, 'KAIST': 99.0,
+    '포항공과대학교': 99.0, '포항공대': 99.0, 'POSTECH': 99.0,
+    '울산과학기술원': 97.0, 'UNIST': 97.0,
+    '광주과학기술원': 96.5, 'GIST': 96.5,
+    '대구경북과학기술원': 96.0, 'DGIST': 96.0,
+    // 상위권
+    '성균관대학교': 96.0, '성균관대': 96.0,
+    '한양대학교': 95.5, '한양대': 95.5,
+    '서강대학교': 95.0, '서강대': 95.0,
+    '이화여자대학교': 93.0, '이화여대': 93.0, '이화대': 93.0,
+    '서울시립대학교': 93.0, '서울시립대': 93.0, '시립대': 93.0,
+    // 중상위
+    '중앙대학교': 91.0, '중앙대': 91.0,
+    '경희대학교': 90.0, '경희대': 90.0,
+    '한국외국어대학교': 89.0, '한국외대': 89.0, '외대': 89.0,
+    '건국대학교': 88.0, '건국대': 88.0,
+    '동국대학교': 87.0, '동국대': 87.0,
+    '홍익대학교': 87.0, '홍익대': 87.0,
+    '숙명여자대학교': 86.0, '숙명여대': 86.0,
+    '인하대학교': 85.0, '인하대': 85.0,
+    '아주대학교': 84.0, '아주대': 84.0,
+    '한국항공대학교': 83.0, '한국항공대': 83.0, '항공대': 83.0,
+    // 중위권 / 지방 거점국립대
+    '부산대학교': 88.0, '부산대': 88.0,
+    '경북대학교': 86.0, '경북대': 86.0,
+    '전남대학교': 82.0, '전남대': 82.0,
+    '전북대학교': 80.0, '전북대': 80.0,
+    '충남대학교': 82.0, '충남대': 82.0,
+    '충북대학교': 78.0, '충북대': 78.0,
+    '강원대학교': 76.0, '강원대': 76.0,
+    '경상국립대학교': 77.0, '경상대': 77.0,
+    '제주대학교': 74.0, '제주대': 74.0,
+    '숭실대학교': 82.0, '숭실대': 82.0,
+    '국민대학교': 80.0, '국민대': 80.0,
+    '단국대학교': 78.0, '단국대': 78.0,
+    '세종대학교': 80.0, '세종대': 80.0,
+    '광운대학교': 77.0, '광운대': 77.0,
+    '한국공학대학교': 75.0, '한기대': 75.0,
+    // 중하위
+    '가천대학교': 72.0, '가천대': 72.0,
+    '덕성여자대학교': 70.0, '덕성여대': 70.0,
+    '성신여자대학교': 70.0, '성신여대': 70.0,
+    '서울여자대학교': 68.0, '서울여대': 68.0,
+    '동덕여자대학교': 66.0, '동덕여대': 66.0,
+    '명지대학교': 70.0, '명지대': 70.0,
+    '한성대학교': 68.0, '한성대': 68.0,
+    '경기대학교': 65.0, '경기대': 65.0,
+    '수원대학교': 60.0, '수원대': 60.0,
+    '인천대학교': 75.0, '인천대': 75.0,
+    '을지대학교': 65.0, '을지대': 65.0,
+    '삼육대학교': 58.0, '삼육대': 58.0,
+    '협성대학교': 50.0, '협성대': 50.0,
+    '한신대학교': 50.0, '한신대': 50.0,
+};
 
-// 의치한약수 키워드 (학교명 또는 학과명에 포함 시 Grade 1)
 const MED_KEYWORDS = ['의과대학', '의학과', '의예과', '치과대학', '치의학과', '치의예과',
     '한의과대학', '한의학과', '약학대학', '약학과', '수의과대학', '수의학과',
     '의대', '치대', '한의대', '약대', '수의대'];
 
-// 대학별 등급 목록
-const UNIVERSITY_LIST = [
-    // Grade 2 (70G/hr) - SKY + 과기원
-    { name: '서울대학교', grade: 2 }, { name: '서울대', grade: 2 },
-    { name: '연세대학교', grade: 2 }, { name: '연세대', grade: 2 },
-    { name: '고려대학교', grade: 2 }, { name: '고려대', grade: 2 },
-    { name: '카이스트', grade: 2 }, { name: 'KAIST', grade: 2 },
-    { name: '포항공과대학교', grade: 2 }, { name: '포항공대', grade: 2 }, { name: 'POSTECH', grade: 2 },
-    { name: '울산과학기술원', grade: 2 }, { name: 'UNIST', grade: 2 },
-    { name: '광주과학기술원', grade: 2 }, { name: 'GIST', grade: 2 },
-    { name: '대구경북과학기술원', grade: 2 }, { name: 'DGIST', grade: 2 },
+const STUDY_GOLD_PER_HR = 10;
 
-    // Grade 3 (50G/hr) - 상위권
-    { name: '성균관대학교', grade: 3 }, { name: '성균관대', grade: 3 },
-    { name: '한양대학교', grade: 3 }, { name: '한양대', grade: 3 },
-    { name: '서강대학교', grade: 3 }, { name: '서강대', grade: 3 },
-    { name: '이화여자대학교', grade: 3 }, { name: '이화여대', grade: 3 }, { name: '이화대', grade: 3 },
-    { name: '서울시립대학교', grade: 3 }, { name: '서울시립대', grade: 3 }, { name: '시립대', grade: 3 },
+function getPercentile(universityName) {
+    if (!universityName) return 50;
 
-    // Grade 4 (35G/hr) - 중상위권
-    { name: '중앙대학교', grade: 4 }, { name: '중앙대', grade: 4 },
-    { name: '경희대학교', grade: 4 }, { name: '경희대', grade: 4 },
-    { name: '한국외국어대학교', grade: 4 }, { name: '한국외대', grade: 4 }, { name: '외대', grade: 4 },
-    { name: '건국대학교', grade: 4 }, { name: '건국대', grade: 4 },
-    { name: '동국대학교', grade: 4 }, { name: '동국대', grade: 4 },
-    { name: '홍익대학교', grade: 4 }, { name: '홍익대', grade: 4 },
-    { name: '숙명여자대학교', grade: 4 }, { name: '숙명여대', grade: 4 },
-    { name: '인하대학교', grade: 4 }, { name: '인하대', grade: 4 },
-    { name: '아주대학교', grade: 4 }, { name: '아주대', grade: 4 },
-    { name: '항공대학교', grade: 4 }, { name: '한국항공대', grade: 4 },
-
-    // Grade 5 (20G/hr) - 중위권 / 지방 거점국립대
-    { name: '부산대학교', grade: 5 }, { name: '부산대', grade: 5 },
-    { name: '경북대학교', grade: 5 }, { name: '경북대', grade: 5 },
-    { name: '전남대학교', grade: 5 }, { name: '전남대', grade: 5 },
-    { name: '전북대학교', grade: 5 }, { name: '전북대', grade: 5 },
-    { name: '충남대학교', grade: 5 }, { name: '충남대', grade: 5 },
-    { name: '충북대학교', grade: 5 }, { name: '충북대', grade: 5 },
-    { name: '강원대학교', grade: 5 }, { name: '강원대', grade: 5 },
-    { name: '경상국립대학교', grade: 5 }, { name: '경상대', grade: 5 },
-    { name: '제주대학교', grade: 5 }, { name: '제주대', grade: 5 },
-    { name: '숭실대학교', grade: 5 }, { name: '숭실대', grade: 5 },
-    { name: '국민대학교', grade: 5 }, { name: '국민대', grade: 5 },
-    { name: '단국대학교', grade: 5 }, { name: '단국대', grade: 5 },
-    { name: '세종대학교', grade: 5 }, { name: '세종대', grade: 5 },
-    { name: '광운대학교', grade: 5 }, { name: '광운대', grade: 5 },
-    { name: '한국공학대학교', grade: 5 }, { name: '한기대', grade: 5 },
-
-    // Grade 6 (10G/hr) - 중하위권
-    { name: '가천대학교', grade: 6 }, { name: '가천대', grade: 6 },
-    { name: '덕성여자대학교', grade: 6 }, { name: '덕성여대', grade: 6 },
-    { name: '성신여자대학교', grade: 6 }, { name: '성신여대', grade: 6 },
-    { name: '서울여자대학교', grade: 6 }, { name: '서울여대', grade: 6 },
-    { name: '동덕여자대학교', grade: 6 }, { name: '동덕여대', grade: 6 },
-    { name: '명지대학교', grade: 6 }, { name: '명지대', grade: 6 },
-    { name: '한성대학교', grade: 6 }, { name: '한성대', grade: 6 },
-    { name: '경기대학교', grade: 6 }, { name: '경기대', grade: 6 },
-    { name: '수원대학교', grade: 6 }, { name: '수원대', grade: 6 },
-    { name: '인천대학교', grade: 6 }, { name: '인천대', grade: 6 },
-    { name: '을지대학교', grade: 6 }, { name: '을지대', grade: 6 },
-    { name: '삼육대학교', grade: 6 }, { name: '삼육대', grade: 6 },
-    { name: '서울신학대학교', grade: 6 },
-    { name: '협성대학교', grade: 6 }, { name: '협성대', grade: 6 },
-    { name: '한신대학교', grade: 6 }, { name: '한신대', grade: 6 },
-];
-
-/**
- * 대학명으로 등급과 시간당 골드 요율 반환
- * @param {string} universityName
- * @returns {{ grade: number, rate: number }}
- */
-function getUniversityInfo(universityName) {
-    if (!universityName) return { grade: 7, rate: 5 };
-
-    // 의치한약수 키워드 우선 확인 (학과 포함)
     for (const kw of MED_KEYWORDS) {
-        if (universityName.includes(kw)) return { grade: 1, rate: 100 };
+        if (universityName.includes(kw)) return 99.5;
     }
 
-    // 대학 목록에서 검색 (정확히 포함하는 경우)
-    for (const uni of UNIVERSITY_LIST) {
-        if (universityName.includes(uni.name) || uni.name.includes(universityName)) {
-            return { grade: uni.grade, rate: GRADE_RATE[uni.grade] };
+    for (const [name, pct] of Object.entries(UNIVERSITY_PERCENTILE)) {
+        if (universityName.includes(name) || name.includes(universityName)) {
+            return pct;
         }
     }
 
-    return { grade: 7, rate: 5 };
+    return 50;
 }
 
-/**
- * 토너먼트권 가격: 본인 대학 시간당 골드 × 14시간
- */
+function getTaxRate(universityName) {
+    const pct = getPercentile(universityName);
+    const ratio = (100 - pct) / 100;
+    if (ratio <= 0) return 5;
+    return -Math.log10(ratio);
+}
+
 function getTicketPrice(universityName) {
-    const { rate } = getUniversityInfo(universityName);
-    return rate * 14;
+    return STUDY_GOLD_PER_HR * 14;
 }
 
-module.exports = { getUniversityInfo, getTicketPrice, GRADE_RATE };
+module.exports = { getPercentile, getTaxRate, getTicketPrice, STUDY_GOLD_PER_HR };

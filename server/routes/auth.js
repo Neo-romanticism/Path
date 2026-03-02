@@ -1,10 +1,17 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../db');
+const { getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
 const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score';
+
+function addPercentile(user) {
+    if (!user) return user;
+    user.percentile = getPercentile(user.university);
+    return user;
+}
 
 router.post('/register', async (req, res) => {
     const { nickname, password, university } = req.body;
@@ -29,7 +36,7 @@ router.post('/register', async (req, res) => {
         );
         const user = result.rows[0];
         req.session.userId = user.id;
-        res.json({ ok: true, user });
+        res.json({ ok: true, user: addPercentile(user) });
     } catch (err) {
         console.error('register error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -56,7 +63,7 @@ router.post('/login', async (req, res) => {
         }
         req.session.userId = user.id;
         const { password_hash, ...safeUser } = user;
-        res.json({ ok: true, user: safeUser });
+        res.json({ ok: true, user: addPercentile(safeUser) });
     } catch (err) {
         console.error('login error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -78,7 +85,7 @@ router.get('/me', async (req, res) => {
             req.session.destroy();
             return res.status(401).json({ error: '유저를 찾을 수 없습니다.' });
         }
-        res.json({ user: result.rows[0] });
+        res.json({ user: addPercentile(result.rows[0]) });
     } catch (err) {
         console.error('me error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -98,7 +105,7 @@ router.post('/update-score', async (req, res) => {
             `UPDATE users SET mock_exam_score = $1 WHERE id = $2 RETURNING ${USER_FIELDS}`,
             [s, req.session.userId]
         );
-        res.json({ ok: true, user: result.rows[0] });
+        res.json({ ok: true, user: addPercentile(result.rows[0]) });
     } catch (err) {
         console.error('update-score error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });

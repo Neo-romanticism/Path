@@ -1,10 +1,9 @@
 const express = require('express');
 const pool = require('../db');
-const { getUniversityInfo } = require('../data/universities');
+const { getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
-// 전체 랭킹: 누적 공부 시간 기준
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
@@ -22,7 +21,7 @@ router.get('/', async (req, res) => {
 
         const rows = result.rows.map(u => ({
             ...u,
-            grade: getUniversityInfo(u.university).grade
+            percentile: getPercentile(u.university)
         }));
 
         res.json({ ranking: rows, total });
@@ -32,7 +31,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 오늘 랭킹
 router.get('/today', async (req, res) => {
     try {
         const result = await pool.query(
@@ -45,18 +43,13 @@ router.get('/today', async (req, res) => {
              ORDER BY today_sec DESC
              LIMIT 50`
         );
-        const rows = result.rows.map(u => ({
-            ...u,
-            grade: getUniversityInfo(u.university).grade
-        }));
-        res.json({ ranking: rows });
+        res.json({ ranking: result.rows });
     } catch (err) {
         console.error('ranking/today error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 });
 
-// 내 순위 (누적 공부 시간 기준)
 router.get('/me', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {

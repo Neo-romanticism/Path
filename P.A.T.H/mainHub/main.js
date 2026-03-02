@@ -11,25 +11,19 @@ let currentRankTab = 'total';
 const container = document.getElementById('world-container');
 const mapLayer  = document.getElementById('map-layer');
 
-// ── 대학 등급별 건물 설정 ─────────────────────────────────────────
-// 이미지는 사용자가 직접 교체 예정. 현재는 크기/밝기로 등급 구분
-const GRADE_BUILDING = {
-    1: { img: '/P.A.T.H/assets/castle_main.png', label: '의·치·한·약·수', sizePx: 480, brightness: 1.0 },
-    2: { img: '/P.A.T.H/assets/castle_main.png', label: 'SKY·과기원',      sizePx: 400, brightness: 0.9 },
-    3: { img: '/P.A.T.H/assets/castle_main.png', label: '상위권',           sizePx: 320, brightness: 0.8 },
-    4: { img: '/P.A.T.H/assets/hut.png',         label: '중상위권',         sizePx: 180, brightness: 0.95 },
-    5: { img: '/P.A.T.H/assets/hut.png',         label: '중위권',           sizePx: 145, brightness: 0.85 },
-    6: { img: '/P.A.T.H/assets/hut.png',         label: '중하위권',         sizePx: 115, brightness: 0.7 },
-    7: { img: '/P.A.T.H/assets/hut.png',         label: '일반',             sizePx: 90,  brightness: 0.55 }
-};
-
-// 서버에서 계산하지 않고 프론트에서도 grade 추정
-// (실제 grade는 서버가 반환, 여기선 표시용)
-function getGradeFromUser(user) {
-    return user.grade || 7;
+// ── 백분위 기반 건물 크기/밝기 ──────────────────────────────────────
+function getBuildingStyle(percentile) {
+    const pct = percentile || 50;
+    if (pct >= 99)  return { img: '/P.A.T.H/assets/castle_main.png', sizePx: 480, brightness: 1.0 };
+    if (pct >= 96)  return { img: '/P.A.T.H/assets/castle_main.png', sizePx: 380, brightness: 0.9 };
+    if (pct >= 90)  return { img: '/P.A.T.H/assets/castle_main.png', sizePx: 300, brightness: 0.8 };
+    if (pct >= 80)  return { img: '/P.A.T.H/assets/hut.png', sizePx: 180, brightness: 0.95 };
+    if (pct >= 70)  return { img: '/P.A.T.H/assets/hut.png', sizePx: 145, brightness: 0.85 };
+    if (pct >= 60)  return { img: '/P.A.T.H/assets/hut.png', sizePx: 115, brightness: 0.7 };
+    return { img: '/P.A.T.H/assets/hut.png', sizePx: 90, brightness: 0.55 };
 }
 
-// ── 초기화 ──────────────────────────────────────────────────────────
+// ── 초기화 ───────────────────────────────────────────────────────────
 async function initHub() {
     try {
         const [meRes, rankMeRes] = await Promise.all([
@@ -71,17 +65,16 @@ function updateHUD(user) {
 }
 
 function updateMyBuilding(user) {
-    const grade = getGradeFromUser(user);
-    const b = GRADE_BUILDING[grade] || GRADE_BUILDING[7];
+    const pct = user.percentile || 50;
+    const b = getBuildingStyle(pct);
     const img = document.getElementById('my-castle-img');
     img.src = b.img;
     img.style.width = b.sizePx + 'px';
     img.style.filter = `brightness(${b.brightness})`;
-    document.getElementById('my-castle-label').textContent =
-        (user.university || '내 영지') + ' · ' + b.label;
+    document.getElementById('my-castle-label').textContent = user.university || '내 영지';
 }
 
-// ── 랭킹 + 맵 ──────────────────────────────────────────────────────
+// ── 랭킹 + 맵 ───────────────────────────────────────────────────────
 async function loadRankingAndMap() {
     try {
         const r = await fetch('/api/ranking', { credentials: 'include' });
@@ -107,8 +100,7 @@ function renderOtherUsers(users) {
 
     others.forEach((user, i) => {
         const pos = positions[i] || { x: 1100 + i * 120, y: 1800 + i * 80 };
-        const grade = getGradeFromUser(user);
-        const b = GRADE_BUILDING[grade] || GRADE_BUILDING[7];
+        const b = getBuildingStyle(user.percentile);
         const displaySize = Math.floor(b.sizePx * 0.3);
 
         const div = document.createElement('div');
@@ -127,7 +119,7 @@ function renderOtherUsers(users) {
     });
 }
 
-// ── 랭킹 패널 ───────────────────────────────────────────────────────
+// ── 랭킹 패널 ────────────────────────────────────────────────────────
 async function loadRankPanel(tab) {
     const listEl = document.getElementById('rank-list');
     listEl.textContent = '로딩 중...';
@@ -144,13 +136,11 @@ async function loadRankPanel(tab) {
             const val = tab === 'today'
                 ? `<span style="color:#aaa">${secToHour(u.today_sec || 0)}</span>`
                 : `<span style="color:#aaa">${secToHour(u.total_sec || 0)}</span>`;
-            const grade = u.grade || 7;
-            const gradeColors = { 1:'#c9a84c', 2:'#c9a84c', 3:'#aaa', 4:'#888', 5:'#777', 6:'#666', 7:'#555' };
             return `<div class="rank-item ${isMe ? 'me' : ''}" onclick="focusUser(${u.id})">
                 <span class="rank-num">${i + 1}</span>
                 <div style="flex:1;min-width:0">
                     <div class="rank-nick">${u.nickname} ${u.is_studying ? '<span class="rank-studying">📖</span>' : ''}</div>
-                    <div class="rank-univ" style="color:${gradeColors[grade]}">${u.university || '-'}</div>
+                    <div class="rank-univ">${u.university || '-'}</div>
                 </div>
                 <div style="text-align:right">${val}</div>
             </div>`;
@@ -165,7 +155,7 @@ function switchRankTab(tab, btn) {
     loadRankPanel(tab);
 }
 
-// ── 알림 ────────────────────────────────────────────────────────────
+// ── 알림 ─────────────────────────────────────────────────────────────
 async function loadNotifBadge() {
     try {
         const r = await fetch('/api/notifications', { credentials: 'include' });
@@ -202,7 +192,7 @@ async function loadNotifPanel() {
     } catch (e) { listEl.textContent = '오류 발생'; }
 }
 
-// ── 영지 내부 (세금 + 티켓 구매 + 점수 등록) ──────────────────────────
+// ── 영지 내부 (세금 + 티켓 + 점수 등록) ───────────────────────────────
 async function openEstate() {
     try {
         const r = await fetch('/api/estate/tax', { credentials: 'include' });
@@ -212,11 +202,15 @@ async function openEstate() {
         body.innerHTML = `
             <div class="estate-section">
                 <div class="estate-label">🏫 영지</div>
-                <div class="estate-val">${data.university || '-'}</div>
+                <div class="estate-val">${data.university || '-'} <span style="color:var(--text-sub);font-size:10px">(백분위 ${data.percentile}%)</span></div>
             </div>
             <div class="estate-section">
-                <div class="estate-label">💰 영지 수입</div>
-                <div class="estate-val">${data.rate}G/hr · 미수령 <span style="color:var(--gold)">${data.pending.toLocaleString()}G</span></div>
+                <div class="estate-label">💰 영지 수입 (패시브)</div>
+                <div class="estate-val">${data.rate}G/hr · 미수령 <span style="color:var(--gold)">${data.pending}G</span></div>
+            </div>
+            <div class="estate-section">
+                <div class="estate-label">📖 공부 수입</div>
+                <div class="estate-val">10G/hr (전 유저 동일)</div>
             </div>
             <div class="estate-section">
                 <div class="estate-label">🪙 보유 골드</div>
@@ -232,7 +226,7 @@ async function openEstate() {
                 <div class="estate-label">📋 평가원 점수</div>
                 <div class="estate-val" style="display:flex;gap:6px;align-items:center">
                     <input type="number" id="score-input" value="${score}" min="0" max="600"
-                        placeholder="표준점수 합산 (0~600)"
+                        placeholder="표준점수 합산"
                         style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;width:130px;font-family:inherit;font-size:12px">
                     <button class="inline-btn" onclick="saveScore()">등록</button>
                 </div>
@@ -315,7 +309,7 @@ function openUserModal(user) {
             <div class="estate-val">${user.is_studying ? '📖 공부 중' : '휴식 중'}</div>
         </div>
         <div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text-sub);line-height:1.7">
-            ⚔️ 침략은 <strong style="color:var(--text)">평가원 모의고사 점수</strong>로 승패 결정<br>
+            ⚔️ <strong style="color:var(--text)">평가원 모의고사 점수</strong>로 승패 결정<br>
             🏆 승리 시 상대방 영지(대학)를 취득<br>
             🎟️ 토너먼트권 1장 소모 · 내 점수: <strong style="color:var(--gold)">${myScore > 0 ? myScore + '점' : '미등록'}</strong>
         </div>
@@ -326,7 +320,6 @@ function openUserModal(user) {
     const disabled = tickets < 1 || !hasScore;
     btn.disabled = disabled;
     btn.style.opacity = disabled ? '0.4' : '1';
-    btn.title = tickets < 1 ? '토너먼트권 없음' : !hasScore ? '점수 미등록 (내 영지에서 등록)' : '침략';
     document.getElementById('modal-user').classList.remove('hidden');
 }
 
@@ -349,8 +342,8 @@ async function doInvade() {
 
         const won = data.result === 'WIN';
         const msg = won
-            ? `⚔️ 침략 성공!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점\n\n🏫 영지 이전: ${data.defender_university}로 갈아탔습니다!`
-            : `🛡️ 침략 실패!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점\n\n더 높은 점수로 도전하세요.`;
+            ? `⚔️ 침략 성공!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점\n\n🏫 ${data.defender_university}(으)로 이전!`
+            : `🛡️ 침략 실패!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점`;
         alert(msg);
         currentUser = data.user;
         updateHUD(data.user);
@@ -395,7 +388,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
     el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
 });
 
-// ── 드래그 / 줌 ─────────────────────────────────────────────────────
+// ── 드래그 / 줌 ──────────────────────────────────────────────────────
 container.addEventListener('mousedown', startDrag);
 container.addEventListener('touchstart', e => startDrag(e.touches[0]), { passive: true });
 window.addEventListener('mouseup', endDrag);

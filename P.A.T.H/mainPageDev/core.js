@@ -9,7 +9,14 @@ const TimerEngine = {
         originalTime = timeLeft;
         isRunning = true;
 
-        fetch('/api/study/start', { method: 'POST', credentials: 'include' }).catch(() => {});
+        const targetSec = Math.floor(originalTime / 100);
+        fetch('/api/study/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ target_sec: targetSec })
+        }).catch(() => {});
+
         if (typeof WakeLockManager !== 'undefined') WakeLockManager.request();
 
         UI.updateTimer(timeLeft);
@@ -37,17 +44,12 @@ const TimerEngine = {
         isRunning = false;
         if (typeof WakeLockManager !== 'undefined') WakeLockManager.release();
 
-        const timeSpentSec = Math.floor((originalTime - timeLeft) / 100);
-        const earnedExp    = Math.floor(timeSpentSec / 60);
-        const originalSec  = Math.floor(originalTime / 100);
-
-        // 골드는 서버에서 대학 요율 기준으로 계산
-        const result = await StorageManager.addRewards(earnedExp, type, originalSec);
+        const result = await StorageManager.completeStudy(type);
 
         if (result?.user) UI.updateAssets(result.user);
-        UI.showResult(type, result?.earnedGold || 0, result?.earnedTicket || 0);
+        UI.showResult(type, result?.earnedGold || 0);
 
-        console.log(`P.A.T.H: 완료 [${type}] Gold: ${result?.earnedGold}, 시간: ${earnedExp}분`);
+        console.log(`P.A.T.H: 완료 [${type}] Gold: ${result?.earnedGold}`);
     }
 };
 

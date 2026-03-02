@@ -1,14 +1,11 @@
 const express = require('express');
 const pool = require('../db');
-const { getUniversityInfo, getTicketPrice } = require('../data/universities');
+const { getTaxRate, getTicketPrice, getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
-// 세금: 티어별 → 대학 등급별로 변경
-// Grade: 1→100, 2→70, 3→50, 4→35, 5→20, 6→10, 7→5 G/hr (getUniversityInfo에서 rate 사용)
 const MAX_HOURS = 24;
 
-// 세금 현황 조회
 router.get('/tax', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
@@ -17,21 +14,28 @@ router.get('/tax', async (req, res) => {
             [req.session.userId]
         );
         const user = result.rows[0];
-        const { rate, grade } = getUniversityInfo(user.university);
+        const rate = getTaxRate(user.university);
+        const percentile = getPercentile(user.university);
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
             MAX_HOURS
         );
-        const pending = Math.floor(hoursPassed * rate);
+        const pending = Math.floor(hoursPassed * rate * 100) / 100;
         const ticketPrice = getTicketPrice(user.university);
-        res.json({ rate, pending, grade, gold: user.gold, university: user.university, ticketPrice });
+        res.json({
+            rate: Math.round(rate * 100) / 100,
+            pending: Math.floor(pending),
+            percentile,
+            gold: user.gold,
+            university: user.university,
+            ticketPrice
+        });
     } catch (err) {
         console.error('tax get error:', err);
         res.status(500).json({ error: '서버 오류' });
     }
 });
 
-// 세금 수령
 router.post('/collect-tax', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     const client = await pool.connect();
@@ -42,12 +46,7 @@ router.post('/collect-tax', async (req, res) => {
             [req.session.userId]
         );
         const user = userRes.rows[0];
-        const { rate } = getUniversityInfo(user.university);
-
-        if (rate === 0) {
-            await client.query('ROLLBACK');
-            return res.json({ ok: true, collected: 0, message: '이 등급은 세금이 없습니다.' });
-        }
+        const rate = getTaxRate(user.university);
 
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
@@ -78,7 +77,6 @@ router.post('/collect-tax', async (req, res) => {
     }
 });
 
-// 토너먼트권 구매
 router.post('/buy-ticket', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     const { quantity = 1 } = req.body;

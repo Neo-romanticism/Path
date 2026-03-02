@@ -1,16 +1,19 @@
 const express = require('express');
 const pool = require('../db');
-const { getUniversityInfo } = require('../data/universities');
+const { STUDY_GOLD_PER_HR } = require('../data/universities');
 
 const router = express.Router();
 
-// 공부 시작 (is_studying = true)
+// 공부 시작: 목표 시간 저장 + is_studying
 router.post('/start', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    const { target_sec } = req.body;
+    const target = Math.max(0, Math.min(parseInt(target_sec) || 0, 86400));
     try {
         await pool.query(
-            'UPDATE users SET is_studying = true, study_started_at = NOW() WHERE id = $1',
-            [req.session.userId]
+            `UPDATE users SET is_studying = true, study_started_at = NOW(), target_duration_sec = $1
+             WHERE id = $2`,
+            [target, req.session.userId]
         );
         res.json({ ok: true });
     } catch (err) {
@@ -19,14 +22,11 @@ router.post('/start', async (req, res) => {
     }
 });
 
-// 공부 완료
+// 공부 완료: 서버 시간 기준으로 보상 계산
 router.post('/complete', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-    const { duration_sec, result: studyResult, original_duration_sec } = req.body;
-    if (typeof duration_sec !== 'number' || typeof studyResult !== 'string') {
-        return res.status(400).json({ error: '잘못된 요청입니다.' });
-    }
+    const { result: studyResult } = req.body;
     const VALID = ['SUCCESS', 'INTERRUPTED', 'FAILED'];
     if (!VALID.includes(studyResult)) return res.status(400).json({ error: '올바르지 않은 결과값' });
 
@@ -34,20 +34,34 @@ router.post('/complete', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 유저 대학 정보로 시간당 골드 계산
-        const userRes = await client.query('SELECT university FROM users WHERE id = $1', [req.session.userId]);
-        const university = userRes.rows[0]?.university || '';
-        const { rate } = getUniversityInfo(university);
+        const userRes = await client.query(
+            'SELECT study_started_at, target_duration_sec, is_studying FROM users WHERE id = $1 FOR UPDATE',
+            [req.session.userId]
+        );
+        const user = userRes.rows[0];
 
-        const earnedExp = Math.floor(duration_sec / 60);
+        if (!user.is_studying || !user.study_started_at) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '진행 중인 공부가 없습니다.' });
+        }
+
+        // 서버 시간 기준 실제 경과 시간
+        const elapsedMs = Date.now() - new Date(user.study_started_at).getTime();
+        const elapsedSec = Math.max(0, Math.floor(elapsedMs / 1000));
+        const targetSec = user.target_duration_sec || 0;
+
         let earnedGold = 0;
-        if (studyResult === 'SUCCESS' && original_duration_sec) {
-            earnedGold = Math.floor((original_duration_sec / 3600) * rate);
+        let earnedExp = Math.floor(elapsedSec / 60);
+
+        if (studyResult === 'SUCCESS') {
+            earnedGold = Math.floor((targetSec / 3600) * STUDY_GOLD_PER_HR);
+        } else if (studyResult === 'FAILED') {
+            earnedExp = 0;
         }
 
         await client.query(
-            'INSERT INTO study_records (user_id, duration_sec, result, earned_gold, earned_exp) VALUES ($1, $2, $3, $4, $5)',
-            [req.session.userId, duration_sec, studyResult, earnedGold, earnedExp]
+            'INSERT INTO study_records (user_id, duration_sec, result, earned_gold, earned_exp) VALUES ($1,$2,$3,$4,$5)',
+            [req.session.userId, elapsedSec, studyResult, earnedGold, earnedExp]
         );
 
         const updRes = await client.query(
@@ -55,14 +69,15 @@ router.post('/complete', async (req, res) => {
              SET gold = gold + $1,
                  exp  = exp  + $2,
                  is_studying = false,
-                 study_started_at = NULL
+                 study_started_at = NULL,
+                 target_duration_sec = 0
              WHERE id = $3
              RETURNING id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score`,
             [earnedGold, earnedExp, req.session.userId]
         );
 
         await client.query('COMMIT');
-        res.json({ ok: true, earnedGold, earnedExp, earnedTicket: 0, user: updRes.rows[0] });
+        res.json({ ok: true, earnedGold, earnedExp, user: updRes.rows[0] });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('complete error:', err);
@@ -72,7 +87,6 @@ router.post('/complete', async (req, res) => {
     }
 });
 
-// 내 통계
 router.get('/stats', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
@@ -92,10 +106,7 @@ router.get('/stats', async (req, res) => {
              FROM study_records WHERE user_id = $1 AND created_at >= CURRENT_DATE`,
             [req.session.userId]
         );
-        res.json({
-            user: userResult.rows[0],
-            stats: { ...recordsResult.rows[0], ...todayResult.rows[0] }
-        });
+        res.json({ user: userResult.rows[0], stats: { ...recordsResult.rows[0], ...todayResult.rows[0] } });
     } catch (err) {
         console.error('stats error:', err);
         res.status(500).json({ error: '서버 오류' });
