@@ -72,10 +72,10 @@ body, html {
 
 /* ── 내 성채 ── */
 #my-castle { top: 1720px; left: 1750px; z-index: 10; }
-#my-castle img { width: 380px; filter: brightness(0.85) saturate(0.7); }
+#my-castle img { width: 480px; }
 
 /* ── 오두막 ── */
-.hut-building img { width: 120px; filter: brightness(0.7) saturate(0.5); }
+.hut-building img { width: 120px; filter: brightness(0.8); }
 
 /* ── HUD 공통: 반투명 패널 ── */
 .hud-panel {
