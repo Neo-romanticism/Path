@@ -5,16 +5,26 @@ const { getTaxRate, getTicketPrice, getPercentile } = require('../data/universit
 const router = express.Router();
 
 const MAX_HOURS = 24;
+const NSU_BONUS_RATE = 0.15;
+
+function calcTotalRate(university, isNsu, prevUniversity) {
+    let rate = getTaxRate(university);
+    if (isNsu && prevUniversity) {
+        const prevRate = getTaxRate(prevUniversity);
+        rate += prevRate * NSU_BONUS_RATE;
+    }
+    return rate;
+}
 
 router.get('/tax', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
         const result = await pool.query(
-            'SELECT university, last_tax_collected_at, gold FROM users WHERE id = $1',
+            'SELECT university, last_tax_collected_at, gold, is_n_su, prev_university FROM users WHERE id = $1',
             [req.session.userId]
         );
         const user = result.rows[0];
-        const rate = getTaxRate(user.university);
+        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university);
         const percentile = getPercentile(user.university);
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
@@ -22,14 +32,26 @@ router.get('/tax', async (req, res) => {
         );
         const pending = Math.floor(hoursPassed * rate * 100) / 100;
         const ticketPrice = getTicketPrice(user.university);
-        res.json({
+
+        const resp = {
             rate: Math.round(rate * 100) / 100,
             pending: Math.floor(pending),
             percentile,
             gold: user.gold,
             university: user.university,
-            ticketPrice
-        });
+            ticketPrice,
+            is_n_su: user.is_n_su,
+            prev_university: user.prev_university
+        };
+
+        if (user.is_n_su && user.prev_university) {
+            const baseRate = getTaxRate(user.university);
+            const bonus = getTaxRate(user.prev_university) * NSU_BONUS_RATE;
+            resp.baseRate = Math.round(baseRate * 100) / 100;
+            resp.nsuBonus = Math.round(bonus * 100) / 100;
+        }
+
+        res.json(resp);
     } catch (err) {
         console.error('tax get error:', err);
         res.status(500).json({ error: '서버 오류' });
@@ -42,11 +64,11 @@ router.post('/collect-tax', async (req, res) => {
     try {
         await client.query('BEGIN');
         const userRes = await client.query(
-            'SELECT university, last_tax_collected_at FROM users WHERE id = $1 FOR UPDATE',
+            'SELECT university, last_tax_collected_at, is_n_su, prev_university FROM users WHERE id = $1 FOR UPDATE',
             [req.session.userId]
         );
         const user = userRes.rows[0];
-        const rate = getTaxRate(user.university);
+        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university);
 
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,

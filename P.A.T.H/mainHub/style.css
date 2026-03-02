@@ -296,4 +296,65 @@ body, html {
 }
 .inline-btn:hover { background: rgba(201,168,76,0.2); }
 
+/* ── 성 내부 화면 ── */
+.castle-interior {
+    position: fixed; inset: 0; z-index: 400;
+    background: #080c08;
+    display: flex; flex-direction: column;
+    animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.interior-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+}
+.interior-title {
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 2px; color: var(--gold);
+}
+.interior-back {
+    background: none; border: 1px solid var(--border);
+    color: var(--text-sub); font-size: 11px; letter-spacing: 1px;
+    padding: 6px 16px; border-radius: 4px; cursor: pointer;
+    font-family: inherit; transition: all 0.2s;
+}
+.interior-back:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+.interior-scroll {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+}
+.interior-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    max-width: 800px;
+}
+.interior-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.interior-card-title {
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 2px; color: var(--gold);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding-bottom: 8px; margin-bottom: 4px;
+}
+.interior-action-btn {
+    margin-top: 8px; padding: 10px 20px;
+    font-size: 12px; letter-spacing: 2px;
+    background: rgba(201,168,76,0.08); border: 1px solid var(--gold-dim);
+    color: var(--gold); cursor: pointer; border-radius: 6px;
+    font-family: inherit; transition: all 0.25s; font-weight: 600;
+}
+.interior-action-btn:hover {
+    background: rgba(201,168,76,0.15); border-color: var(--gold);
+}
+
 .hidden { display: none !important; }

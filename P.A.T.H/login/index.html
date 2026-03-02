@@ -17,103 +17,48 @@
             color: #fff;
             font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--border);
             padding: 40px 20px;
         }
-        .logo {
-            font-size: 3rem;
-            font-weight: 100;
-            letter-spacing: 20px;
-            color: #fff;
-            text-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
-            margin-bottom: 8px;
-        }
-        .tagline {
-            font-size: 11px;
-            letter-spacing: 4px;
-            color: #444;
-            margin-bottom: 60px;
-            text-transform: uppercase;
-        }
-        .card {
-            width: 100%;
-            max-width: 360px;
-        }
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #222;
-            margin-bottom: 40px;
-        }
-        .tab {
-            flex: 1;
-            text-align: center;
-            padding: 14px;
-            font-size: 11px;
-            letter-spacing: 3px;
-            color: #444;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.3s;
-            text-transform: uppercase;
-        }
-        .tab.active {
-            color: var(--gold);
-            border-bottom-color: var(--gold);
-        }
-        .form { display: none; flex-direction: column; gap: 24px; }
+        .logo { font-size: 3rem; font-weight: 100; letter-spacing: 20px; color: #fff; text-shadow: 0 0 30px rgba(212,175,55,0.3); margin-bottom: 8px; }
+        .tagline { font-size: 11px; letter-spacing: 4px; color: #444; margin-bottom: 60px; text-transform: uppercase; }
+        .card { width: 100%; max-width: 380px; }
+        .tabs { display: flex; border-bottom: 1px solid #222; margin-bottom: 40px; }
+        .tab { flex: 1; text-align: center; padding: 14px; font-size: 11px; letter-spacing: 3px; color: #444; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.3s; text-transform: uppercase; }
+        .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+        .form { display: none; flex-direction: column; gap: 20px; }
         .form.active { display: flex; }
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        label {
-            font-size: 10px;
-            letter-spacing: 3px;
-            color: #555;
-            text-transform: uppercase;
-        }
-        input {
-            background: none;
-            border: none;
-            border-bottom: 1px solid #222;
-            color: #fff;
-            font-size: 1.1rem;
-            padding: 10px 0;
-            outline: none;
-            transition: border-color 0.3s;
-            font-family: inherit;
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 10px; letter-spacing: 3px; color: #555; text-transform: uppercase; }
+        input[type="text"], input[type="password"] {
+            background: none; border: none; border-bottom: 1px solid #222;
+            color: #fff; font-size: 1.1rem; padding: 10px 0; outline: none;
+            transition: border-color 0.3s; font-family: inherit;
         }
         input:focus { border-bottom-color: var(--gold); }
+        .check-row { display: flex; align-items: center; gap: 10px; }
+        .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
+        .check-row label { font-size: 11px; letter-spacing: 1px; cursor: pointer; color: #888; }
+        .check-row a { color: var(--gold); text-decoration: underline; font-size: 10px; }
+        .nsu-fields { display: none; }
+        .nsu-fields.show { display: flex; flex-direction: column; gap: 20px; }
         .btn-submit {
-            margin-top: 16px;
-            background: none;
-            border: 1px solid #444;
-            color: #888;
-            padding: 18px;
-            font-size: 11px;
-            letter-spacing: 5px;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: all 0.4s;
-            font-family: inherit;
-            width: 100%;
+            margin-top: 16px; background: none; border: 1px solid #444;
+            color: #888; padding: 18px; font-size: 11px; letter-spacing: 5px;
+            cursor: pointer; text-transform: uppercase; transition: all 0.4s;
+            font-family: inherit; width: 100%;
         }
-        .btn-submit:hover {
-            border-color: #fff;
-            color: #fff;
+        .btn-submit:hover { border-color: #fff; color: #fff; }
+        .btn-submit:disabled { opacity: 0.3; cursor: not-allowed; }
+        .error-msg { font-size: 11px; color: var(--accent); letter-spacing: 1px; text-align: center; min-height: 16px; }
+        .privacy-box {
+            max-height: 150px; overflow-y: auto; padding: 12px;
+            background: rgba(255,255,255,0.03); border: 1px solid #222;
+            border-radius: 4px; font-size: 10px; color: #666;
+            line-height: 1.6; letter-spacing: 0.5px; display: none;
         }
-        .error-msg {
-            font-size: 11px;
-            color: var(--accent);
-            letter-spacing: 1px;
-            text-align: center;
-            min-height: 16px;
-        }
+        .privacy-box.show { display: block; }
     </style>
 </head>
 <body>
@@ -141,19 +86,52 @@
 
         <form class="form" id="form-register" onsubmit="doRegister(event)">
             <div class="field">
+                <label>실명</label>
+                <input type="text" id="reg-name" placeholder="실명 입력" autocomplete="name">
+            </div>
+            <div class="field">
                 <label>닉네임</label>
                 <input type="text" id="reg-nick" placeholder="2~20자" autocomplete="username">
             </div>
             <div class="field">
-                <label>대학교</label>
+                <label>목표 대학교</label>
                 <input type="text" id="reg-univ" placeholder="ex) 연세대학교" autocomplete="off">
             </div>
             <div class="field">
                 <label>비밀번호</label>
                 <input type="password" id="reg-pw" placeholder="4자 이상" autocomplete="new-password">
             </div>
+
+            <div class="check-row">
+                <input type="checkbox" id="reg-nsu" onchange="toggleNsu()">
+                <label for="reg-nsu">N수생입니다</label>
+            </div>
+
+            <div class="nsu-fields" id="nsu-fields">
+                <div class="field">
+                    <label>전적 대학교 (재학/졸업)</label>
+                    <input type="text" id="reg-prev-univ" placeholder="ex) 건국대학교" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="check-row">
+                <input type="checkbox" id="reg-privacy" onchange="checkSubmit()">
+                <label for="reg-privacy">개인정보 수집·이용 동의</label>
+                <a href="#" onclick="togglePrivacy(event)">보기</a>
+            </div>
+
+            <div class="privacy-box" id="privacy-box">
+                <strong>[개인정보 수집·이용 동의]</strong><br><br>
+                1. 수집 항목: 실명, 닉네임, 대학교, 비밀번호(암호화), 성적 이미지<br>
+                2. 수집 목적: 서비스 제공, 본인 확인, 성적 인증, 랭킹 시스템 운영<br>
+                3. 보유 기간: 회원 탈퇴 시 즉시 파기<br>
+                4. 동의 거부 시 서비스 이용이 제한됩니다.<br><br>
+                P.A.T.H는 수집된 개인정보를 제3자에게 제공하지 않으며,<br>
+                관련 법령에 따라 안전하게 관리합니다.
+            </div>
+
             <div class="error-msg" id="reg-err"></div>
-            <button type="submit" class="btn-submit">JOIN THE PATH</button>
+            <button type="submit" class="btn-submit" id="reg-submit" disabled>JOIN THE PATH</button>
         </form>
     </div>
 
@@ -161,9 +139,7 @@
         (async () => {
             try {
                 const r = await fetch('/api/auth/me', { credentials: 'include' });
-                if (r.ok) {
-                    window.location.href = '/P.A.T.H/mainHub/index.html';
-                }
+                if (r.ok) window.location.href = '/P.A.T.H/mainHub/index.html';
             } catch (e) {}
         })();
 
@@ -172,6 +148,20 @@
             document.getElementById('tab-register').classList.toggle('active', tab === 'register');
             document.getElementById('form-login').classList.toggle('active', tab === 'login');
             document.getElementById('form-register').classList.toggle('active', tab === 'register');
+        }
+
+        function toggleNsu() {
+            const checked = document.getElementById('reg-nsu').checked;
+            document.getElementById('nsu-fields').classList.toggle('show', checked);
+        }
+
+        function togglePrivacy(e) {
+            e.preventDefault();
+            document.getElementById('privacy-box').classList.toggle('show');
+        }
+
+        function checkSubmit() {
+            document.getElementById('reg-submit').disabled = !document.getElementById('reg-privacy').checked;
         }
 
         async function doLogin(e) {
@@ -190,31 +180,35 @@
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
                 window.location.href = '/P.A.T.H/mainHub/index.html';
-            } catch (err) {
-                errEl.textContent = '서버 연결 오류';
-            }
+            } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 
         async function doRegister(e) {
             e.preventDefault();
             const errEl = document.getElementById('reg-err');
             errEl.textContent = '';
-            const nickname = document.getElementById('reg-nick').value.trim();
-            const university = document.getElementById('reg-univ').value.trim();
-            const password = document.getElementById('reg-pw').value;
+            const real_name   = document.getElementById('reg-name').value.trim();
+            const nickname    = document.getElementById('reg-nick').value.trim();
+            const university  = document.getElementById('reg-univ').value.trim();
+            const password    = document.getElementById('reg-pw').value;
+            const is_n_su     = document.getElementById('reg-nsu').checked;
+            const prev_university = is_n_su ? document.getElementById('reg-prev-univ').value.trim() : '';
+            const privacy_agreed  = document.getElementById('reg-privacy').checked;
+
+            if (!real_name) { errEl.textContent = '실명을 입력해주세요.'; return; }
+            if (!privacy_agreed) { errEl.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
+
             try {
                 const r = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ nickname, university, password })
+                    body: JSON.stringify({ real_name, nickname, university, password, is_n_su, prev_university, privacy_agreed })
                 });
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
                 window.location.href = '/P.A.T.H/mainHub/index.html';
-            } catch (err) {
-                errEl.textContent = '서버 연결 오류';
-            }
+            } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
     </script>
 </body>

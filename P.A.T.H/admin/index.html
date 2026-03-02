@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.A.T.H - 관리자</title>
+    <style>
+        :root { --bg: #0a0a0a; --gold: #C9A84C; --border: rgba(255,255,255,0.08); --accent: #c0392b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: #e8e8e8; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; padding: 20px; }
+        h1 { font-size: 16px; letter-spacing: 3px; color: var(--gold); margin-bottom: 24px; font-weight: 600; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+        .tab-btn { padding: 8px 20px; font-size: 11px; letter-spacing: 2px; background: none; border: 1px solid var(--border); color: #888; cursor: pointer; border-radius: 4px; font-family: inherit; }
+        .tab-btn.active { border-color: var(--gold); color: var(--gold); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .card-title { font-size: 13px; font-weight: 600; }
+        .card-sub { font-size: 11px; color: #888; }
+        .card-info { font-size: 12px; line-height: 1.8; color: #aaa; }
+        .card-info strong { color: #ddd; }
+        .score-img { max-width: 300px; max-height: 400px; border: 1px solid var(--border); border-radius: 4px; margin: 10px 0; cursor: pointer; }
+        .score-img:hover { border-color: var(--gold); }
+        .action-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+        .action-input { background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: #fff; padding: 6px 12px; border-radius: 4px; width: 100px; font-family: inherit; font-size: 12px; }
+        .action-btn { padding: 6px 16px; font-size: 11px; letter-spacing: 1px; border: 1px solid var(--gold); color: var(--gold); background: rgba(201,168,76,0.1); cursor: pointer; border-radius: 4px; font-family: inherit; }
+        .action-btn.reject { border-color: var(--accent); color: var(--accent); background: rgba(192,57,43,0.1); }
+        .empty { color: #555; font-size: 12px; padding: 40px; text-align: center; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; letter-spacing: 1px; }
+        .badge.pending { background: rgba(241,196,15,0.15); color: #f1c40f; }
+        .badge.approved { background: rgba(46,204,113,0.15); color: #2ecc71; }
+        .badge.rejected { background: rgba(192,57,43,0.15); color: #e74c3c; }
+        .badge.none { background: rgba(255,255,255,0.05); color: #555; }
+    </style>
+</head>
+<body>
+    <h1>P.A.T.H ADMIN</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchPanel('pending', this)">대기 중</button>
+        <button class="tab-btn" onclick="switchPanel('users', this)">전체 유저</button>
+    </div>
+
+    <div class="panel active" id="panel-pending">
+        <div id="pending-list"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <div class="panel" id="panel-users">
+        <div id="user-list"><div class="empty">로딩 중...</div></div>
+    </div>
+
+    <script>
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        function switchPanel(id, btn) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('panel-' + id).classList.add('active');
+            btn.classList.add('active');
+            if (id === 'pending') loadPending();
+            if (id === 'users') loadUsers();
+        }
+
+        async function loadPending() {
+            const el = document.getElementById('pending-list');
+            try {
+                const r = await fetch('/api/admin/pending', { credentials: 'include' });
+                if (!r.ok) { el.innerHTML = '<div class="empty">권한이 없습니다.</div>'; return; }
+                const data = await r.json();
+                if (!data.submissions || data.submissions.length === 0) {
+                    el.innerHTML = '<div class="empty">대기 중인 제출이 없습니다.</div>';
+                    return;
+                }
+                el.innerHTML = data.submissions.map(s => `
+                    <div class="card" id="card-${s.id}">
+                        <div class="card-header">
+                            <span class="card-title">${esc(s.real_name || '-')} (${esc(s.nickname)})</span>
+                            <span class="badge pending">대기 중</span>
+                        </div>
+                        <div class="card-info">
+                            <strong>대학:</strong> ${esc(s.university || '-')}<br>
+                            ${s.is_n_su ? `<strong>N수생</strong> · 전적대: ${esc(s.prev_university || '-')}<br>` : ''}
+                            <strong>현재 점수:</strong> ${s.mock_exam_score || '미등록'}
+                        </div>
+                        ${s.score_image_url ? `<img src="${esc(s.score_image_url)}" class="score-img" onclick="window.open('${esc(s.score_image_url)}')">` : '<div style="color:#555;font-size:11px;margin:8px 0">이미지 없음</div>'}
+                        <div class="action-row">
+                            <input type="number" id="score-${s.id}" class="action-input" placeholder="점수 입력" min="0" max="600">
+                            <button class="action-btn" onclick="approveScore(${s.id})">승인</button>
+                            <button class="action-btn reject" onclick="rejectScore(${s.id})">반려</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) { el.innerHTML = '<div class="empty">오류 발생</div>'; }
+        }
+
+        async function loadUsers() {
+            const el = document.getElementById('user-list');
+            try {
+                const r = await fetch('/api/admin/all-users', { credentials: 'include' });
+                if (!r.ok) { el.innerHTML = '<div class="empty">권한이 없습니다.</div>'; return; }
+                const data = await r.json();
+                el.innerHTML = data.users.map(u => {
+                    const statusClass = u.score_status || 'none';
+                    const statusText = { none: '미제출', pending: '대기', approved: '승인', rejected: '반려' }[statusClass] || '-';
+                    return `<div class="card">
+                        <div class="card-header">
+                            <span class="card-title">${u.real_name || '-'} (${u.nickname})</span>
+                            <span class="badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="card-info">
+                            <strong>대학:</strong> ${u.university} · <strong>골드:</strong> ${(u.gold||0).toLocaleString()} · <strong>점수:</strong> ${u.mock_exam_score||'-'}
+                            ${u.is_n_su ? ` · <strong>N수</strong> (${u.prev_university||'-'})` : ''}
+                            ${u.is_admin ? ' · <strong style="color:var(--gold)">ADMIN</strong>' : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (e) { el.innerHTML = '<div class="empty">오류 발생</div>'; }
+        }
+
+        async function approveScore(userId) {
+            const scoreEl = document.getElementById('score-' + userId);
+            const score = parseInt(scoreEl?.value);
+            if (isNaN(score) || score < 0 || score > 600) { alert('점수를 0~600 사이로 입력해주세요.'); return; }
+            try {
+                const r = await fetch('/api/admin/approve-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_id: userId, score })
+                });
+                if (r.ok) { alert('승인 완료'); loadPending(); }
+                else { const d = await r.json(); alert(d.error); }
+            } catch (e) { alert('오류 발생'); }
+        }
+
+        async function rejectScore(userId) {
+            if (!confirm('반려하시겠습니까?')) return;
+            try {
+                const r = await fetch('/api/admin/reject-score', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_id: userId })
+                });
+                if (r.ok) { alert('반려 완료'); loadPending(); }
+            } catch (e) { alert('오류 발생'); }
+        }
+
+        loadPending();
+    </script>
+</body>
+</html>

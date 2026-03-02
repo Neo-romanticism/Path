@@ -89,16 +89,13 @@
         <div class="panel-body" id="notif-list">로딩 중...</div>
     </div>
 
-    <!-- ══ 모달: 내 영지 ══ -->
-    <div class="modal-overlay hidden" id="modal-estate">
-        <div class="modal-box">
-            <div class="modal-title">🏰 내 영지 관리</div>
-            <div class="modal-body" id="estate-body"></div>
-            <div class="modal-actions">
-                <button class="modal-btn primary" onclick="collectTax()">💰 수입 수령</button>
-                <button class="modal-btn" onclick="closeModal('modal-estate')">닫기</button>
-            </div>
+    <!-- ══ 성 내부 화면 ══ -->
+    <div class="castle-interior hidden" id="castle-interior">
+        <div class="interior-header">
+            <div class="interior-title">🏰 성 내부</div>
+            <button class="interior-back" onclick="closeInterior()">← 맵으로 돌아가기</button>
         </div>
+        <div class="interior-scroll" id="interior-body"></div>
     </div>
 
     <!-- ══ 모달: 유저 영지 (침략) ══ -->

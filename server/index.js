@@ -10,7 +10,6 @@ const PORT = 5000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 app.use(cors({ origin: true, credentials: true }));
 
 app.use(session({
@@ -31,7 +30,11 @@ app.use('/api/ranking', require('./routes/ranking'));
 app.use('/api/estate', require('./routes/estate'));
 app.use('/api/invasion', require('./routes/invasion'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/admin', require('./routes/admin'));
 
+app.use('/uploads/scores/:filename', (req, res) => {
+    res.redirect(`/api/auth/score-image/${req.params.filename}`);
+});
 app.use(express.static(path.join(__dirname, '..')));
 
 app.get('/', (req, res) => {

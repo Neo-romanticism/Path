@@ -1,3 +1,5 @@
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 let currentUser = null;
 let myTotalSec = 0;
 let allUsers = [];
@@ -112,8 +114,8 @@ function renderOtherUsers(users) {
         div.onclick = () => openUserModal(user);
 
         div.innerHTML = `
-            <img src="${b.img}" alt="${user.nickname}" style="width:${displaySize}px;filter:brightness(${b.brightness})">
-            <div class="building-label">${user.nickname}<br><span style="font-size:9px;opacity:0.6">${user.university || ''}</span></div>
+            <img src="${b.img}" alt="${esc(user.nickname)}" style="width:${displaySize}px;filter:brightness(${b.brightness})">
+            <div class="building-label">${esc(user.nickname)}<br><span style="font-size:9px;opacity:0.6">${esc(user.university)}</span></div>
         `;
         mapLayer.appendChild(div);
     });
@@ -192,48 +194,135 @@ async function loadNotifPanel() {
     } catch (e) { listEl.textContent = '오류 발생'; }
 }
 
-// ── 영지 내부 (세금 + 티켓 + 점수 등록) ───────────────────────────────
+// ── 성 내부 화면 ─────────────────────────────────────────────────────
 async function openEstate() {
     try {
         const r = await fetch('/api/estate/tax', { credentials: 'include' });
         const data = await r.json();
-        const body = document.getElementById('estate-body');
         const score = currentUser?.mock_exam_score || 0;
-        body.innerHTML = `
-            <div class="estate-section">
-                <div class="estate-label">🏫 영지</div>
-                <div class="estate-val">${data.university || '-'} <span style="color:var(--text-sub);font-size:10px">(백분위 ${data.percentile}%)</span></div>
-            </div>
-            <div class="estate-section">
-                <div class="estate-label">💰 영지 수입 (패시브)</div>
-                <div class="estate-val">${data.rate}G/hr · 미수령 <span style="color:var(--gold)">${data.pending}G</span></div>
-            </div>
-            <div class="estate-section">
-                <div class="estate-label">📖 공부 수입</div>
-                <div class="estate-val">10G/hr (전 유저 동일)</div>
-            </div>
-            <div class="estate-section">
-                <div class="estate-label">🪙 보유 골드</div>
-                <div class="estate-val">${(data.gold || 0).toLocaleString()}G</div>
-            </div>
-            <div class="estate-section">
-                <div class="estate-label">🎟️ 토너먼트권 구매</div>
-                <div class="estate-val">1장 = <strong>${data.ticketPrice.toLocaleString()}G</strong>
-                    <button class="inline-btn" onclick="buyTicket(${data.ticketPrice})">구매</button>
+        const scoreStatus = currentUser?.score_status || 'none';
+
+        let rateDisplay = `${data.rate}G/hr`;
+        if (data.nsuBonus) {
+            rateDisplay = `${data.baseRate} + <span style="color:#4CAF50">+${data.nsuBonus}</span> (N수 보너스) = ${data.rate}G/hr`;
+        }
+
+        let scoreSection = '';
+        if (scoreStatus === 'approved') {
+            scoreSection = `<div class="estate-val" style="color:#4CAF50">✓ 인증 완료 · ${score}점</div>`;
+        } else if (scoreStatus === 'pending') {
+            scoreSection = `<div class="estate-val" style="color:#f1c40f">⏳ 관리자 심사 대기 중</div>`;
+        } else if (scoreStatus === 'rejected') {
+            scoreSection = `
+                <div class="estate-val" style="color:var(--accent);margin-bottom:6px">✗ 반려됨 — 재업로드 필요</div>
+                <div class="score-upload-area" id="score-upload-area">
+                    <input type="file" id="score-file" accept="image/*" style="display:none" onchange="previewScore(this)">
+                    <button class="inline-btn" onclick="document.getElementById('score-file').click()">📷 성적 사진 선택</button>
+                    <div id="score-preview" style="margin-top:6px"></div>
+                    <button class="inline-btn" id="btn-upload-score" style="display:none;margin-top:6px" onclick="uploadScore()">업로드</button>
+                </div>`;
+        } else {
+            scoreSection = `
+                <div class="score-upload-area" id="score-upload-area">
+                    <input type="file" id="score-file" accept="image/*" style="display:none" onchange="previewScore(this)">
+                    <button class="inline-btn" onclick="document.getElementById('score-file').click()">📷 성적 사진 업로드</button>
+                    <div id="score-preview" style="margin-top:6px"></div>
+                    <button class="inline-btn" id="btn-upload-score" style="display:none;margin-top:6px" onclick="uploadScore()">업로드</button>
+                </div>`;
+        }
+
+        const nsuLine = data.is_n_su && data.prev_university
+            ? `<div class="estate-section"><div class="estate-label">🔄 N수생 전적대</div><div class="estate-val">${data.prev_university} <span style="color:#4CAF50;font-size:10px">(세금 +15% 보너스)</span></div></div>`
+            : '';
+
+        const interior = document.getElementById('castle-interior');
+        document.getElementById('interior-body').innerHTML = `
+            <div class="interior-grid">
+                <div class="interior-card">
+                    <div class="interior-card-title">🏫 영지 정보</div>
+                    <div class="estate-section">
+                        <div class="estate-label">대학교</div>
+                        <div class="estate-val">${data.university || '-'} <span style="color:var(--text-sub);font-size:10px">(백분위 ${data.percentile}%)</span></div>
+                    </div>
+                    ${nsuLine}
+                    <div class="estate-section">
+                        <div class="estate-label">🪙 보유 골드</div>
+                        <div class="estate-val">${(data.gold || 0).toLocaleString()}G</div>
+                    </div>
                 </div>
-            </div>
-            <div class="estate-section">
-                <div class="estate-label">📋 평가원 점수</div>
-                <div class="estate-val" style="display:flex;gap:6px;align-items:center">
-                    <input type="number" id="score-input" value="${score}" min="0" max="600"
-                        placeholder="표준점수 합산"
-                        style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;width:130px;font-family:inherit;font-size:12px">
-                    <button class="inline-btn" onclick="saveScore()">등록</button>
+
+                <div class="interior-card">
+                    <div class="interior-card-title">💰 수입</div>
+                    <div class="estate-section">
+                        <div class="estate-label">영지 수입 (패시브)</div>
+                        <div class="estate-val">${rateDisplay}</div>
+                    </div>
+                    <div class="estate-section">
+                        <div class="estate-label">미수령 세금</div>
+                        <div class="estate-val" style="color:var(--gold);font-size:18px;font-weight:700">${data.pending}G</div>
+                    </div>
+                    <button class="interior-action-btn" onclick="collectTax()">💰 수입 수령</button>
+                    <div class="estate-section" style="margin-top:8px">
+                        <div class="estate-label">공부 수입</div>
+                        <div class="estate-val">10G/hr (전 유저 동일)</div>
+                    </div>
+                </div>
+
+                <div class="interior-card">
+                    <div class="interior-card-title">🎟️ 토너먼트</div>
+                    <div class="estate-section">
+                        <div class="estate-label">보유 토너먼트권</div>
+                        <div class="estate-val" style="font-size:18px;font-weight:700">${currentUser?.tickets || 0}장</div>
+                    </div>
+                    <div class="estate-section">
+                        <div class="estate-label">가격</div>
+                        <div class="estate-val">1장 = ${data.ticketPrice.toLocaleString()}G</div>
+                    </div>
+                    <button class="interior-action-btn" onclick="buyTicket(${data.ticketPrice})">🎟️ 구매</button>
+                </div>
+
+                <div class="interior-card">
+                    <div class="interior-card-title">📋 평가원 점수 인증</div>
+                    ${scoreSection}
                 </div>
             </div>
         `;
-        document.getElementById('modal-estate').classList.remove('hidden');
+        interior.classList.remove('hidden');
     } catch (e) { alert('정보를 불러오지 못했습니다.'); }
+}
+
+function previewScore(input) {
+    const preview = document.getElementById('score-preview');
+    const uploadBtn = document.getElementById('btn-upload-score');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.innerHTML = `<img src="${e.target.result}" style="max-width:200px;max-height:150px;border-radius:4px;border:1px solid var(--border)">`;
+            uploadBtn.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+async function uploadScore() {
+    const fileInput = document.getElementById('score-file');
+    if (!fileInput.files[0]) { alert('사진을 선택해주세요.'); return; }
+    const formData = new FormData();
+    formData.append('scoreImage', fileInput.files[0]);
+    try {
+        const r = await fetch('/api/auth/upload-score', {
+            method: 'POST', credentials: 'include', body: formData
+        });
+        const data = await r.json();
+        if (!r.ok) { alert(data.error || '업로드 실패'); return; }
+        alert('성적 사진이 업로드되었습니다.\n관리자 승인 후 점수가 반영됩니다.');
+        currentUser.score_status = 'pending';
+        closeInterior();
+    } catch (e) { alert('업로드 중 오류 발생'); }
+}
+
+function closeInterior() {
+    document.getElementById('castle-interior').classList.add('hidden');
 }
 
 async function collectTax() {
@@ -247,7 +336,7 @@ async function collectTax() {
         } else {
             alert(data.message || '수령할 세금이 없습니다.');
         }
-        closeModal('modal-estate');
+        closeInterior();
     } catch (e) { alert('오류 발생'); }
 }
 
@@ -265,28 +354,7 @@ async function buyTicket(price) {
         alert(`토너먼트권 1장 구매 완료! (-${data.spent.toLocaleString()}G)`);
         currentUser = data.user;
         updateHUD(data.user);
-        closeModal('modal-estate');
-    } catch (e) { alert('오류 발생'); }
-}
-
-async function saveScore() {
-    const input = document.getElementById('score-input');
-    const score = parseInt(input?.value);
-    if (isNaN(score) || score < 0 || score > 600) {
-        alert('점수는 0~600 사이 숫자로 입력해주세요.'); return;
-    }
-    try {
-        const r = await fetch('/api/auth/update-score', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ score })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '오류 발생'); return; }
-        currentUser = data.user;
-        alert(`점수 등록 완료: ${score}점`);
-        closeModal('modal-estate');
+        closeInterior();
     } catch (e) { alert('오류 발생'); }
 }
 
@@ -298,7 +366,7 @@ function openUserModal(user) {
     document.getElementById('user-modal-body').innerHTML = `
         <div class="estate-section">
             <div class="estate-label">🏫 영지</div>
-            <div class="estate-val">${user.university || '-'}</div>
+            <div class="estate-val">${esc(user.university) || '-'}</div>
         </div>
         <div class="estate-section">
             <div class="estate-label">📖 공부 시간</div>
