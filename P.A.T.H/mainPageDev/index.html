@@ -3,40 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P.A.T.H - The Architecture</title>
+    <title>P.A.T.H - Focus Protocol</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="app">
-        <div class="top-info">
-            <div class="tier-tag">CHALLENGER / <span id="rank-pct">0.08%</span></div>
-            <div class="assets">🪙 <span id="gold-val">14,500</span> / 🎟️ <span id="ticket-val">01</span></div>
+<body class="path-interface">
+    
+    <!-- Top Status Line -->
+    <header class="status-bar">
+        <div class="status-left">
+            <span class="status-label">OPERATOR</span>
+            <span class="status-val tier-text">CHALLENGER</span>
+            <span class="status-val sub" id="rank-pct">0.08%</span>
+        </div>
+        <div class="status-right">
+            <span class="resource">🪙 <span id="gold-val">14,500</span></span>
+            <span class="resource">🎟️ <span id="ticket-val">01</span></span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="focus-container">
+        
+        <!-- Timer Setup (Visible initially) -->
+        <div id="setup-area" class="setup-group">
+            <div class="input-unit">
+                <input type="number" id="input-hr" class="time-input" value="01" placeholder="00">
+                <span class="unit-label">HRS</span>
+            </div>
+            <div class="input-sep">:</div>
+            <div class="input-unit">
+                <input type="number" id="input-min" class="time-input" value="40" placeholder="40">
+                <span class="unit-label">MIN</span>
+            </div>
         </div>
 
-        <div class="timer-container">
-            <div id="setup-area">
-                <input type="number" id="input-hr" class="time-input" value="01"> <small>HR</small>
-                <input type="number" id="input-min" class="time-input" value="40"> <small>MIN</small>
-            </div>
-            <div id="main-timer">
-                <span id="display-time">00:00</span><span id="ms">.00</span>
-            </div>
-            <button id="enter-btn" class="btn-primary">ENTER PATH</button>
-            <button id="break-btn" class="btn-secondary" style="display:none;">BREAK PATH</button>
+        <!-- Active Timer Display -->
+        <div id="main-timer" class="timer-display">
+            <span id="display-time">00:00</span><span id="ms" class="timer-ms">.00</span>
         </div>
 
-        <div class="bottom-info">DOMAIN: YONSEI UNIV. BIZ</div>
+        <!-- Controls -->
+        <div class="control-group">
+            <button id="enter-btn" class="btn-primary cmd-btn">INITIALIZE PATH</button>
+            <button id="break-btn" class="btn-danger cmd-btn hidden">ABORT PATH</button>
+        </div>
 
-        <div id="overlay" class="hidden">
-            <h1 id="res-title">MISSION COMPLETE</h1>
-            <p id="res-loot"></p>
-            <button id="reset-btn" class="btn-primary">RETURN TO CAMP</button>
+    </main>
+
+    <!-- Bottom Info -->
+    <footer class="footer-info">
+        <span class="system-msg">DOMAIN: YONSEI UNIV. BIZ</span>
+    </footer>
+
+    <!-- Result Overlay -->
+    <div id="overlay" class="result-overlay hidden">
+        <div class="result-card">
+            <h1 id="res-title" class="result-header">MISSION COMPLETE</h1>
+            <div id="res-loot" class="result-details"></div>
+            <button id="reset-btn" class="btn-primary cmd-btn">RETURN TO BASE</button>
         </div>
     </div>
 
     <script src="wakelock.js"></script>
-    <script src="storage.js"></script> <script src="core.js"></script>
-
+    <script src="storage.js"></script> 
+    <script src="core.js"></script>
     <script src="ui.js"></script>
 </body>
 </html>

@@ -3,109 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P.A.T.H</title>
+    <title>P.A.T.H - Command</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div id="ui-overlay">
+        <!-- Top Bar -->
+        <header class="hud-header">
+            <div class="hud-left">
+                <div class="profile-unit">
+                    <div id="badge-char" class="char-avatar">U</div>
+                    <div class="char-info">
+                        <div id="hud-univ" class="info-univ">YONSEI UNIV.</div>
+                        <div id="hud-pct" class="info-rank">TOP 0.00%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hud-center">
+                <div class="search-command">
+                    <span class="cmd-icon">_</span>
+                    <input type="text" id="global-search" placeholder="SEARCH DATABASE..." oninput="onSearch(this.value)">
+                </div>
+            </div>
 
-    <!-- 상단 좌: 프로필 -->
-    <div id="hud-top-left">
-        <div class="badge-circle" id="badge-char">?</div>
-        <div class="profile-info">
-            <div class="tier-name" id="hud-univ">-</div>
-            <div class="tier-pct" id="hud-pct">TOP --%</div>
+            <div class="hud-right">
+                <div class="stat-group">
+                    <div class="stat-unit"><span class="label">GOLD</span> <span id="hud-gold" class="val">0</span></div>
+                    <div class="stat-unit"><span class="label">TIME</span> <span id="hud-hours" class="val">00:00</span></div>
+                    <div class="stat-unit hidden"><span class="label">TICKET</span> <span id="hud-tickets" class="val">0</span></div>
+                </div>
+                <div class="sys-controls">
+                    <button class="sys-btn" onclick="togglePanel('panel-notif')">
+                        LOGS <span id="notif-badge" class="dot hidden"></span>
+                    </button>
+                    <button class="sys-btn" onclick="doLogout()">EXIT</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Right Side Controls -->
+        <div class="hud-side-right">
+            <div class="map-controls">
+                <button onclick="panMap(0, 150)">▲</button>
+                <div class="row">
+                    <button onclick="panMap(150, 0)">◀</button>
+                    <button onclick="panMap(-150, 0)">▶</button>
+                </div>
+                <button onclick="panMap(0, -150)">▼</button>
+                <div class="sep"></div>
+                <button onclick="zoomMap(0.12)">+</button>
+                <button onclick="zoomMap(-0.12)">-</button>
+            </div>
+            <button class="sys-btn rank-btn" onclick="togglePanel('panel-rank')">RANK</button>
         </div>
-        <button class="btn-icon notif-btn" onclick="togglePanel('panel-notif')" title="알림">
-            🔔<span class="notif-badge hidden" id="notif-badge">0</span>
+
+        <!-- Bottom Center -->
+        <div class="hud-bottom-center">
+            <button id="btn-enter-path" class="action-main" onclick="goToTimer()">INITIALIZE PATH</button>
+            <div class="status-line">READY TO IMMERSE</div>
+        </div>
+
+        <!-- Return Home Button -->
+        <button id="btn-return-home" class="floating-fab" onclick="returnToHome()">
+            <span>HOME</span>
         </button>
-        <button class="btn-icon" onclick="doLogout()" title="로그아웃">⚙</button>
     </div>
 
-    <!-- 상단 중앙: 검색 -->
-    <div id="search-bar">
-        <input type="text" id="global-search" placeholder="유저 · 대학 검색" oninput="onSearch(this.value)">
-    </div>
-
-    <!-- 상단 우: 자산 -->
-    <div id="hud-top-right">
-        <div class="stat-row hud-panel">🪙 <span id="hud-gold">-</span></div>
-        <div class="stat-row hud-panel">⏱️ <span id="hud-hours">-</span></div>
-        <div class="stat-row hud-panel">🎟️ <span id="hud-tickets">-</span></div>
-    </div>
-
-    <!-- 월드 맵 -->
+    <!-- Map Layer -->
     <div id="world-container">
         <div id="map-layer">
             <div class="building" id="my-castle" onclick="openEstate()">
-                <img id="my-castle-img" src="/P.A.T.H/assets/castle_main.png" alt="내 성채">
-                <div class="building-label mine" id="my-castle-label">내 영지</div>
+                <div class="b-marker"></div>
+                <img id="my-castle-img" src="/P.A.T.H/assets/castle_main.png" alt="Estate">
+                <div class="building-label mine" id="my-castle-label">MY DOMAIN</div>
             </div>
         </div>
     </div>
 
-    <!-- 우측 컨트롤 -->
-    <div id="hud-right">
-        <button class="ctrl-btn" onclick="panMap(0, 150)">↑</button>
-        <button class="ctrl-btn" onclick="panMap(0, -150)">↓</button>
-        <button class="ctrl-btn" onclick="panMap(150, 0)">←</button>
-        <button class="ctrl-btn" onclick="panMap(-150, 0)">→</button>
-        <div class="ctrl-divider"></div>
-        <button class="ctrl-btn" onclick="zoomMap(0.12)">＋</button>
-        <button class="ctrl-btn" onclick="zoomMap(-0.12)">－</button>
-        <div class="ctrl-divider"></div>
-        <button class="ctrl-btn" onclick="togglePanel('panel-rank')" title="랭킹">🏅</button>
-    </div>
-
-    <!-- 하단 중앙 -->
-    <div id="hud-bottom">
-        <button id="btn-enter-path" onclick="goToTimer()">[ PATH 진입 ]</button>
-        <div class="path-sub hud-panel">🕐 공부 시간을 설정하세요</div>
-    </div>
-
-    <!-- 하단 우 -->
-    <button id="btn-return-home" onclick="returnToHome()">
-        <span>⌂</span><span>내 영지</span>
-    </button>
-
-    <!-- ══ 패널: 랭킹 ══ -->
-    <div class="side-panel hidden" id="panel-rank">
-        <div class="panel-header">
-            <span>🏅 랭킹</span>
-            <div class="rank-tabs">
-                <button class="rtab active" onclick="switchRankTab('total', this)">누적</button>
-                <button class="rtab" onclick="switchRankTab('today', this)">오늘</button>
+    <!-- Panels -->
+    <!-- Rank Panel -->
+    <div class="glass-panel hidden" id="panel-rank">
+        <div class="panel-head">
+            <h3>LEADERBOARD</h3>
+            <div class="tabs">
+                <button class="tab active" onclick="switchRankTab('total', this)">TOTAL</button>
+                <button class="tab" onclick="switchRankTab('today', this)">TODAY</button>
             </div>
-            <button class="panel-close" onclick="togglePanel('panel-rank')">✕</button>
+            <button class="close-btn" onclick="togglePanel('panel-rank')">×</button>
         </div>
-        <div class="panel-body" id="rank-list">로딩 중...</div>
+        <div class="panel-content" id="rank-list">LOADING DATA...</div>
     </div>
 
-    <!-- ══ 패널: 알림 ══ -->
-    <div class="side-panel hidden" id="panel-notif">
-        <div class="panel-header">
-            <span>🔔 알림</span>
-            <button class="panel-close" onclick="togglePanel('panel-notif')">✕</button>
+    <!-- Notif Panel -->
+    <div class="glass-panel hidden" id="panel-notif">
+        <div class="panel-head">
+            <h3>LOGS</h3>
+            <button class="close-btn" onclick="togglePanel('panel-notif')">×</button>
         </div>
-        <div class="panel-body" id="notif-list">로딩 중...</div>
+        <div class="panel-content" id="notif-list">NO NEW LOGS</div>
     </div>
 
-    <!-- ══ 성 내부 화면 ══ -->
-    <div class="castle-interior hidden" id="castle-interior">
-        <div class="interior-header">
-            <div class="interior-title">🏰 성 내부</div>
-            <button class="interior-back" onclick="closeInterior()">← 맵으로 돌아가기</button>
+    <!-- Interior -->
+    <div class="full-overlay hidden" id="castle-interior">
+        <div class="overlay-head">
+            <h2>INTERNAL STRUCTURE</h2>
+            <button class="back-btn" onclick="closeInterior()">RETURN TO MAP</button>
         </div>
-        <div class="interior-scroll" id="interior-body"></div>
+        <div class="overlay-body" id="interior-body"></div>
     </div>
 
-    <!-- ══ 모달: 유저 영지 (침략) ══ -->
-    <div class="modal-overlay hidden" id="modal-user">
-        <div class="modal-box">
-            <div class="modal-title" id="user-modal-title">유저 정보</div>
-            <div class="modal-body" id="user-modal-body"></div>
-            <div class="modal-actions">
-                <button class="modal-btn primary" id="btn-invade" onclick="doInvade()">⚔️ 침략</button>
-                <button class="modal-btn" onclick="closeModal('modal-user')">닫기</button>
+    <!-- User Modal -->
+    <div class="modal-backdrop hidden" id="modal-user">
+        <div class="modal-card">
+            <h3 id="user-modal-title">TARGET INFO</h3>
+            <div id="user-modal-body" class="modal-content"></div>
+            <div class="modal-foot">
+                <button class="danger-btn" id="btn-invade" onclick="doInvade()">INVADE</button>
+                <button class="cancel-btn" onclick="closeModal('modal-user')">CLOSE</button>
             </div>
         </div>
     </div>
