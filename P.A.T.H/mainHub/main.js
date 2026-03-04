@@ -915,8 +915,9 @@ function togglePanel(id) {
     const el = document.getElementById(id);
     const isHidden = el.classList.contains('hidden');
     
-    // side-panel 클래스가 있는 것들만 일괄 처리
-    document.querySelectorAll('.side-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.glass-panel').forEach(p => {
+        if (p.id !== id) p.classList.add('hidden');
+    });
     
     if (isHidden) {
         el.classList.remove('hidden');
@@ -931,7 +932,7 @@ function togglePanel(id) {
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-document.querySelectorAll('.modal-overlay').forEach(el => {
+document.querySelectorAll('.modal-backdrop').forEach(el => {
     el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
 });
 
@@ -944,7 +945,7 @@ window.addEventListener('mousemove', onDrag);
 window.addEventListener('touchmove', e => { if (isDragging) onDrag(e.touches[0]); }, { passive: true });
 
 function startDrag(e) {
-    if (e.target.closest('.side-panel,.modal-overlay,#hud-top-left,#hud-top-right,#hud-right,#hud-bottom,#btn-return-home,#search-bar')) return;
+    if (e.target.closest('.glass-panel,.modal-backdrop,.hud-header,.fab-rail,.pill-action-wrap')) return;
     isDragging = true;
     container.classList.add('grabbing');
     dragStartX = e.clientX - mapOffsetX;

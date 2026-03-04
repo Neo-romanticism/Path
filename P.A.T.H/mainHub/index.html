@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P.A.T.H - Command</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +16,6 @@
 })();
 </script>
     <div id="ui-overlay">
-        <!-- Top Bar -->
         <header class="hud-header">
             <div class="hud-left">
                 <div class="profile-unit">
@@ -48,46 +49,49 @@
             </div>
         </header>
 
-        <!-- Right Side Controls -->
-        <div class="hud-side-right">
-            <div class="map-controls">
-                <button onclick="panMap(0, 150)">▲</button>
-                <div class="row">
-                    <button onclick="panMap(150, 0)">◀</button>
-                    <button onclick="panMap(-150, 0)">▶</button>
-                </div>
-                <button onclick="panMap(0, -150)">▼</button>
-                <div class="sep"></div>
-                <button onclick="zoomMap(0.12)">+</button>
-                <button onclick="zoomMap(-0.12)">-</button>
-            </div>
-            <button class="sys-btn rank-btn" onclick="togglePanel('panel-rank')">RANK</button>
-            <button class="sys-btn rank-btn" onclick="togglePanel('panel-shop')">SHOP</button>
-            <button class="sys-btn rank-btn" onclick="toggleApplyPanel()">지원</button>
-            <button class="sys-btn rank-btn" onclick="openFriendPanel()" id="btn-ally">
-                ALLY <span id="friend-req-badge" class="dot hidden"></span>
+        <nav class="fab-rail" aria-label="메뉴">
+            <button class="fab-btn" onclick="togglePanel('panel-rank')" title="RANK" aria-label="랭킹">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             </button>
-            <button class="sys-btn rank-btn" onclick="openMessengerPanel()" id="btn-msg">
-                MSG <span id="msg-unread-badge" class="dot hidden"></span>
+            <button class="fab-btn" onclick="togglePanel('panel-shop')" title="SHOP" aria-label="상점">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
             </button>
-        </div>
+            <button class="fab-btn" onclick="toggleApplyPanel()" title="모의지원" aria-label="모의지원">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </button>
+            <button class="fab-btn" onclick="openFriendPanel()" id="btn-ally" title="ALLY" aria-label="동맹">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <span id="friend-req-badge" class="fab-dot hidden"></span>
+            </button>
+            <button class="fab-btn" onclick="openMessengerPanel()" id="btn-msg" title="MSG" aria-label="메신저">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                <span id="msg-unread-badge" class="fab-dot hidden"></span>
+            </button>
+            <div class="fab-divider"></div>
+            <button class="fab-btn fab-btn-sm" onclick="zoomMap(0.12)" title="확대" aria-label="확대">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="fab-btn fab-btn-sm" onclick="zoomMap(-0.12)" title="축소" aria-label="축소">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button class="fab-btn fab-btn-sm" onclick="returnToHome()" title="HOME" aria-label="홈으로">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </button>
+        </nav>
 
-        <!-- Bottom Center -->
-        <div class="hud-bottom-center">
-            <button id="btn-enter-path" class="action-main" onclick="goToTimer()">INITIALIZE PATH</button>
-            <div class="status-line">READY TO IMMERSE</div>
+        <div class="pill-action-wrap">
+            <button id="btn-enter-path" class="pill-action" onclick="goToTimer()">
+                <span class="pill-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </span>
+                <span class="pill-label">INITIALIZE PATH</span>
+            </button>
+            <div class="pill-sub">READY TO IMMERSE</div>
         </div>
-
-        <!-- Return Home Button -->
-        <button id="btn-return-home" class="floating-fab" onclick="returnToHome()">
-            <span>HOME</span>
-        </button>
     </div>
 
-    <!-- Star Background Canvas -->
     <canvas id="bg-canvas"></canvas>
 
-    <!-- Map Layer -->
     <div id="world-container">
         <div id="map-layer">
             <div class="building" id="my-castle" onclick="openEstate()" style="left:1900px; top:2000px;">
@@ -98,8 +102,6 @@
         </div>
     </div>
 
-    <!-- Panels -->
-    <!-- Rank Panel -->
     <div class="glass-panel hidden" id="panel-rank">
         <div class="panel-head">
             <h3>LEADERBOARD</h3>
@@ -112,7 +114,6 @@
         <div class="panel-content" id="rank-list">LOADING DATA...</div>
     </div>
 
-    <!-- Notif Panel -->
     <div class="glass-panel hidden" id="panel-notif">
         <div class="panel-head">
             <h3>LOGS</h3>
@@ -121,7 +122,6 @@
         <div class="panel-content" id="notif-list">NO NEW LOGS</div>
     </div>
 
-    <!-- Shop Panel -->
     <div class="glass-panel hidden" id="panel-shop" style="width: 400px;">
         <div class="panel-head">
             <h3>SUPPLY DEPOT</h3>
@@ -131,23 +131,17 @@
             </div>
             <button class="close-btn" onclick="togglePanel('panel-shop')">×</button>
         </div>
-        <div class="panel-content" id="shop-content">
-            <!-- Dynamic Content -->
-        </div>
+        <div class="panel-content" id="shop-content"></div>
     </div>
 
-    <!-- 모의지원 Panel -->
     <div class="glass-panel hidden" id="panel-apply" style="width: 400px;">
         <div class="panel-head">
             <h3>모의지원</h3>
             <button class="close-btn" onclick="togglePanel('panel-apply')">×</button>
         </div>
-        <div class="panel-content" id="apply-content">
-            <!-- Dynamic Content -->
-        </div>
+        <div class="panel-content" id="apply-content"></div>
     </div>
 
-    <!-- Settings Panel -->
     <div class="glass-panel hidden" id="panel-settings" style="width: 320px;">
         <div class="panel-head">
             <h3>SETTINGS</h3>
@@ -177,13 +171,12 @@
         </div>
     </div>
 
-    <!-- Agent Announcement Panel -->
     <div class="glass-panel hidden" id="panel-agent-notice" style="z-index: 2000; width: 320px; text-align: left;">
         <div class="panel-head">
             <h3>AGENT MESSAGE</h3>
             <button class="close-btn" onclick="togglePanel('panel-agent-notice')">×</button>
         </div>
-        <div class="panel-content" style="padding: 16px; font-size: 13px; line-height: 1.6; color: #ccc;">
+        <div class="panel-content" style="padding: 16px; font-size: 13px; line-height: 1.6; color: #aaa;">
             <div style="text-align: center; margin-bottom: 12px; font-size: 15px; color: var(--gold); letter-spacing: 2px;">NOTICE</div>
             <strong>[백분위 구분 안내]</strong><br><br>
             수험생 여러분, 랭킹 시스템이 이원화되었습니다.<br><br>
@@ -202,7 +195,6 @@
         </div>
     </div>
 
-    <!-- Interior -->
     <div class="full-overlay hidden" id="castle-interior">
         <div class="overlay-head">
             <h2>INTERNAL STRUCTURE</h2>
@@ -211,7 +203,6 @@
         <div class="overlay-body" id="interior-body"></div>
     </div>
 
-    <!-- Friend Panel -->
     <div class="glass-panel hidden" id="panel-ally" style="width: 340px;">
         <div class="panel-head">
             <h3>ALLY SYSTEM</h3>
@@ -224,7 +215,6 @@
         <div class="panel-content" id="ally-content">로딩 중...</div>
     </div>
 
-    <!-- Messenger Panel -->
     <div class="glass-panel hidden" id="panel-messenger" style="width: 360px;">
         <div class="panel-head">
             <h3 id="messenger-title">MESSENGER</h3>
@@ -242,7 +232,6 @@
         </div>
     </div>
 
-    <!-- User Modal -->
     <div class="modal-backdrop hidden" id="modal-user">
         <div class="modal-card">
             <h3 id="user-modal-title">TARGET INFO</h3>

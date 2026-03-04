@@ -3,7 +3,6 @@ const BG = {
     ctx: null,
     stars: [],
     shootingStars: [],
-    city: [],
     quality: null,
     t: 0,
     topPct: 100,
@@ -26,12 +25,12 @@ const BG = {
 
     getQuality() {
         const p = this.topPct;
-        if (p <= 1)  return { stars: 1100, maxOp: 1.0,  aurora: true,  shooting: true,  city: 0.95, bgTop: [8,5,30],  bgMid: [5,3,20]  };
-        if (p <= 5)  return { stars: 750,  maxOp: 0.88, aurora: false, shooting: true,  city: 0.8,  bgTop: [6,5,22],  bgMid: [4,3,14]  };
-        if (p <= 15) return { stars: 480,  maxOp: 0.7,  aurora: false, shooting: true,  city: 0.6,  bgTop: [5,5,16],  bgMid: [3,3,10]  };
-        if (p <= 30) return { stars: 280,  maxOp: 0.5,  aurora: false, shooting: false, city: 0.4,  bgTop: [5,5,10],  bgMid: [3,3,6]   };
-        if (p <= 60) return { stars: 120,  maxOp: 0.32, aurora: false, shooting: false, city: 0.22, bgTop: [5,5,6],   bgMid: [3,3,3]   };
-        return             { stars: 45,   maxOp: 0.18, aurora: false, shooting: false, city: 0.1,  bgTop: [5,5,5],   bgMid: [3,3,3]   };
+        if (p <= 1)  return { stars: 1100, maxOp: 1.0,  aurora: true,  shooting: true,  bgTop: [10,8,28],  bgMid: [8,6,20]  };
+        if (p <= 5)  return { stars: 750,  maxOp: 0.88, aurora: false, shooting: true,  bgTop: [10,8,24],  bgMid: [8,6,16]  };
+        if (p <= 15) return { stars: 480,  maxOp: 0.7,  aurora: false, shooting: true,  bgTop: [10,8,20],  bgMid: [8,6,12]  };
+        if (p <= 30) return { stars: 280,  maxOp: 0.5,  aurora: false, shooting: false, bgTop: [10,8,14],  bgMid: [8,6,8]   };
+        if (p <= 60) return { stars: 120,  maxOp: 0.32, aurora: false, shooting: false, bgTop: [10,8,10],  bgMid: [8,6,6]   };
+        return             { stars: 45,   maxOp: 0.18, aurora: false, shooting: false, bgTop: [10,10,10], bgMid: [8,8,8]   };
     },
 
     resize() {
@@ -48,7 +47,7 @@ const BG = {
             const big = Math.random() < 0.06;
             return {
                 x: Math.random() * W,
-                y: Math.random() * H * 0.82,
+                y: Math.random() * H * 0.88,
                 r: big ? (Math.random() * 1.8 + 1.2) : (Math.random() * 0.9 + 0.2),
                 op: Math.random() * q.maxOp * 0.5 + q.maxOp * 0.35,
                 ts: Math.random() * 0.005 + 0.002,
@@ -59,14 +58,6 @@ const BG = {
             };
         });
 
-        this.city = [];
-        let x = -10;
-        while (x < W + 100) {
-            const w = 18 + Math.random() * 55;
-            const h = 25 + Math.random() * H * 0.28;
-            this.city.push({ x: Math.round(x), w: Math.round(w), h: Math.round(h) });
-            x += w + Math.random() * 6 + 1;
-        }
         this.shootingStars = [];
     },
 
@@ -78,26 +69,23 @@ const BG = {
         const [r2, g2, b2] = q.bgMid;
         
         const grad = this.ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0,   `rgb(${r1+20},${g1+20},${b1+40})`);
-        grad.addColorStop(0.4, `rgb(${r2+15},${g2+15},${b2+30})`);
-        grad.addColorStop(0.7, `rgb(20,25,50)`);
-        grad.addColorStop(0.9, `rgb(10,12,30)`);
-        grad.addColorStop(1,   `rgb(5,6,15)`);
+        grad.addColorStop(0,   `rgb(${r1+14},${g1+14},${b1+32})`);
+        grad.addColorStop(0.4, `rgb(${r2+10},${g2+10},${b2+24})`);
+        grad.addColorStop(0.7, `rgb(18,18,18)`);
+        grad.addColorStop(1,   `rgb(18,18,18)`);
         this.ctx.fillStyle = grad;
         this.ctx.fillRect(0, 0, W, H);
 
-        // Add subtle radial vignette
         const vignette = this.ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W);
         vignette.addColorStop(0, 'rgba(0,0,0,0)');
-        vignette.addColorStop(1, 'rgba(0,0,0,0.6)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
         this.ctx.fillStyle = vignette;
         this.ctx.fillRect(0, 0, W, H);
 
-        // Add nebula-like clouds for high rankers
         if (q.stars > 400) {
             this.ctx.globalCompositeOperation = 'screen';
             const cloudGrad = this.ctx.createRadialGradient(W*0.3, H*0.3, 0, W*0.3, H*0.3, W*0.6);
-            cloudGrad.addColorStop(0, 'rgba(40,20,80,0.15)');
+            cloudGrad.addColorStop(0, 'rgba(35,18,70,0.12)');
             cloudGrad.addColorStop(1, 'rgba(0,0,0,0)');
             this.ctx.fillStyle = cloudGrad;
             this.ctx.fillRect(0, 0, W, H);
@@ -118,7 +106,7 @@ const BG = {
         bands.forEach(({ c, yBase, amp, speed }, i) => {
             const grad = ctx.createLinearGradient(0, H * (yBase - 0.06), 0, H * (yBase + 0.28));
             grad.addColorStop(0,   `rgba(${c},0)`);
-            grad.addColorStop(0.4, `rgba(${c},0.09)`);
+            grad.addColorStop(0.4, `rgba(${c},0.07)`);
             grad.addColorStop(1,   `rgba(${c},0)`);
             ctx.fillStyle = grad;
             ctx.beginPath();
@@ -185,7 +173,6 @@ const BG = {
             ctx.lineTo(s.x, s.y);
             ctx.stroke();
             
-            // Add point glow
             ctx.fillStyle = s.color || '#ffffff';
             ctx.globalAlpha = s.life;
             ctx.beginPath();
@@ -197,54 +184,6 @@ const BG = {
             s.y += s.vy;
             s.life -= 0.018;
         });
-    },
-
-    drawCity() {
-        const W = this.canvas.width;
-        const H = this.canvas.height;
-        const ctx = this.ctx;
-        const q = this.quality;
-
-        const cityBaseY = H;
-        const windowW = 4, windowH = 3, gapX = 9, gapY = 9, padX = 4, padY = 5;
-
-        this.city.forEach(b => {
-            const bTop = cityBaseY - b.h;
-
-            // Gradient for building side to give 3D feel
-            const bGrad = ctx.createLinearGradient(b.x, 0, b.x + b.w, 0);
-            bGrad.addColorStop(0, '#0a0a15');
-            bGrad.addColorStop(1, '#181825');
-            ctx.fillStyle = bGrad;
-            ctx.fillRect(b.x, bTop, b.w, b.h);
-            
-            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(b.x + 0.5, bTop + 0.5, b.w - 1, b.h - 1);
-
-            const cols = Math.max(1, Math.floor((b.w - padX * 2) / gapX));
-            const rows = Math.max(1, Math.floor((b.h - padY * 2) / gapY));
-
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const seed = (b.x * 17 + r * 31 + c * 13) % 1;
-                    const pseudo = Math.abs(Math.sin(b.x * 0.01 + r * 7.3 + c * 3.7));
-                    if (pseudo < q.city) {
-                        const wx = b.x + padX + c * gapX;
-                        const wy = bTop + padY + r * gapY;
-                        const brightness = 0.45 + pseudo * 0.4;
-                        ctx.fillStyle = `rgba(255,210,70,${brightness})`;
-                        ctx.fillRect(wx, wy, windowW, windowH);
-                    }
-                }
-            }
-        });
-
-        const groundGrad = ctx.createLinearGradient(0, H - 50, 0, H);
-        groundGrad.addColorStop(0, 'rgba(0,0,0,0)');
-        groundGrad.addColorStop(1, 'rgba(0,0,0,0.95)');
-        ctx.fillStyle = groundGrad;
-        ctx.fillRect(0, H - 50, W, 50);
     },
 
     applyBuildingGlow() {
@@ -290,19 +229,19 @@ const BG = {
         sky.addColorStop(0,    '#1460a8');
         sky.addColorStop(0.42, '#4aa5e0');
         sky.addColorStop(0.72, '#b5daf5');
-        sky.addColorStop(0.88, '#f0dab8');
-        sky.addColorStop(1,    '#e8cfa0');
+        sky.addColorStop(0.88, '#e8eef4');
+        sky.addColorStop(1,    '#F2F4F7');
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, W, H);
 
         const sunX = W * 0.78, sunY = H * 0.16;
         const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 240);
-        halo.addColorStop(0, 'rgba(255,244,180,0.24)');
+        halo.addColorStop(0, 'rgba(255,244,180,0.20)');
         halo.addColorStop(1, 'rgba(255,244,180,0)');
         ctx.fillStyle = halo; ctx.fillRect(0, 0, W, H);
 
         const inner = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 72);
-        inner.addColorStop(0, 'rgba(255,252,200,0.58)');
+        inner.addColorStop(0, 'rgba(255,252,200,0.5)');
         inner.addColorStop(1, 'rgba(255,252,200,0)');
         ctx.fillStyle = inner; ctx.fillRect(0, 0, W, H);
 
@@ -312,13 +251,6 @@ const BG = {
         ctx.beginPath(); ctx.arc(sunX, sunY, 24, 0, Math.PI * 2); ctx.fill();
 
         this.drawClouds(ctx, W, H, t);
-
-        const haze = ctx.createLinearGradient(0, H * 0.72, 0, H);
-        haze.addColorStop(0, 'rgba(255,230,180,0)');
-        haze.addColorStop(1, 'rgba(255,215,155,0.28)');
-        ctx.fillStyle = haze; ctx.fillRect(0, 0, W, H);
-
-        this.drawDayCity(ctx, W, H);
     },
 
     drawClouds(ctx, W, H, t) {
@@ -352,42 +284,6 @@ const BG = {
         ctx.fill();
     },
 
-    drawDayCity(ctx, W, H) {
-        const cityBaseY = H;
-        const windowW = 4, windowH = 3, gapX = 9, gapY = 9, padX = 4, padY = 5;
-        this.city.forEach(b => {
-            const bTop = cityBaseY - b.h;
-            const bGrad = ctx.createLinearGradient(b.x, 0, b.x + b.w, 0);
-            bGrad.addColorStop(0, '#7888a0');
-            bGrad.addColorStop(1, '#9aafc0');
-            ctx.fillStyle = bGrad;
-            ctx.fillRect(b.x, bTop, b.w, b.h);
-            ctx.fillStyle = 'rgba(255,255,255,0.13)';
-            ctx.fillRect(b.x, bTop, b.w, 4);
-            ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(b.x + 0.5, bTop + 0.5, b.w - 1, b.h - 1);
-
-            const cols = Math.max(1, Math.floor((b.w - padX * 2) / gapX));
-            const rows = Math.max(1, Math.floor((b.h - padY * 2) / gapY));
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const wx = b.x + padX + c * gapX;
-                    const wy = bTop + padY + r * gapY;
-                    ctx.fillStyle = 'rgba(40,60,90,0.68)';
-                    ctx.fillRect(wx, wy, windowW, windowH);
-                    ctx.fillStyle = 'rgba(180,220,255,0.22)';
-                    ctx.fillRect(wx, wy, windowW, 1);
-                }
-            }
-        });
-        const gnd = ctx.createLinearGradient(0, H - 50, 0, H);
-        gnd.addColorStop(0, 'rgba(180,160,120,0)');
-        gnd.addColorStop(1, 'rgba(160,140,100,0.82)');
-        ctx.fillStyle = gnd;
-        ctx.fillRect(0, H - 50, W, 50);
-    },
-
     loop() {
         const W = this.canvas.width;
         const H = this.canvas.height;
@@ -400,7 +296,6 @@ const BG = {
             if (this.quality.aurora) this.drawAurora();
             this.drawStars();
             if (this.quality.shooting) { this.maybeShoot(); this.drawShootingStars(); }
-            this.drawCity();
         }
         this.t++;
         requestAnimationFrame(() => this.loop());
