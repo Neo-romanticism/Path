@@ -34,6 +34,14 @@ body.active { border-color: var(--accent-red); }
     padding-bottom: 12px;
 }
 .status-left, .status-right { display: flex; align-items: center; gap: 10px; }
+.exit-timer-btn {
+    background: transparent; border: 1px solid var(--border-color);
+    color: var(--text-secondary); width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border-radius: 4px; font-size: 14px;
+    transition: 0.2s; margin-right: 4px;
+}
+.exit-timer-btn:hover { border-color: var(--text-primary); color: var(--text-primary); background: rgba(255,255,255,0.05); }
 .status-label { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; font-weight: 700; }
 .status-val { font-size: 14px; font-weight: 800; letter-spacing: 0.5px; }
 .status-val.sub { font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold); }
