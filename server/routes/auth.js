@@ -8,7 +8,7 @@ const { getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
-const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public';
+const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins';
 
 function escapeHtml(str) {
     if (!str) return str;

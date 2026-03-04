@@ -84,6 +84,11 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
         `);
 
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS balloon_skin VARCHAR(50) DEFAULT 'default';
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_skins TEXT DEFAULT 'default';
+        `);
+
         console.log('DB 스키마 초기화 완료');
     } catch (err) {
         console.error('DB 스키마 초기화 오류:', err.message);

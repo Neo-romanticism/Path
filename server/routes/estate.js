@@ -155,4 +155,77 @@ router.post('/buy-ticket', async (req, res) => {
     }
 });
 
+const BALLOON_SKINS = {
+    'default': { id: 'default', name: '기본 열기구', price: 0, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '기본 제공 열기구' },
+    'rainbow': { id: 'rainbow', name: '무지개 열기구', price: 2000, darkImg: 'balloon_rainbow.png', lightImg: 'balloon_rainbow.png', desc: '화려한 무지개 열기구' }
+};
+
+router.get('/skins', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    try {
+        const userRes = await pool.query('SELECT balloon_skin, owned_skins FROM users WHERE id = $1', [req.session.userId]);
+        const user = userRes.rows[0];
+        const owned = (user.owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
+        res.json({ skins: Object.values(BALLOON_SKINS), owned, equipped: user.balloon_skin || 'default' });
+    } catch (err) {
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+router.post('/buy-skin', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    const { skin_id } = req.body;
+    const skin = BALLOON_SKINS[skin_id];
+    if (!skin) return res.status(400).json({ error: '존재하지 않는 스킨입니다.' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const userRes = await client.query('SELECT gold, owned_skins FROM users WHERE id = $1 FOR UPDATE', [req.session.userId]);
+        const user = userRes.rows[0];
+        const owned = (user.owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
+
+        if (owned.includes(skin_id)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '이미 보유한 스킨입니다.' });
+        }
+        if (user.gold < skin.price) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `골드가 부족합니다. 필요: ${skin.price.toLocaleString()}G` });
+        }
+
+        owned.push(skin_id);
+        const newOwned = owned.join(',');
+        const final = await client.query(
+            `UPDATE users SET gold = gold - $1, owned_skins = $2 WHERE id = $3
+             RETURNING id, gold, balloon_skin, owned_skins`,
+            [skin.price, newOwned, req.session.userId]
+        );
+        await client.query('COMMIT');
+        res.json({ ok: true, spent: skin.price, user: final.rows[0] });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: '서버 오류' });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/equip-skin', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    const { skin_id } = req.body;
+    if (!BALLOON_SKINS[skin_id]) return res.status(400).json({ error: '존재하지 않는 스킨입니다.' });
+
+    try {
+        const userRes = await pool.query('SELECT owned_skins FROM users WHERE id = $1', [req.session.userId]);
+        const owned = (userRes.rows[0].owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
+        if (!owned.includes(skin_id)) return res.status(400).json({ error: '보유하지 않은 스킨입니다.' });
+
+        await pool.query('UPDATE users SET balloon_skin = $1 WHERE id = $2', [skin_id, req.session.userId]);
+        res.json({ ok: true, equipped: skin_id });
+    } catch (err) {
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
 module.exports = router;

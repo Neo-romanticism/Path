@@ -1,5 +1,15 @@
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+const BALLOON_SKINS = {
+    'default': { id: 'default', name: '기본 열기구', price: 0, darkImg: 'assets/balloon_dark.png', lightImg: 'assets/balloon_light.png', desc: '기본 제공 열기구' },
+    'rainbow': { id: 'rainbow', name: '무지개 열기구', price: 2000, darkImg: 'assets/balloon_rainbow.png', lightImg: 'assets/balloon_rainbow.png', desc: '화려한 무지개 열기구' }
+};
+
+function getBalloonSrc(skinId, isLight) {
+    const skin = BALLOON_SKINS[skinId] || BALLOON_SKINS['default'];
+    return isLight ? skin.lightImg : skin.darkImg;
+}
+
 function toggleTheme() {
     const isLight = document.body.classList.toggle('light');
     localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
@@ -108,20 +118,19 @@ function updateMyBuilding(user) {
     if (!castle) return;
     const img = document.getElementById('my-castle-img');
     const isLight = document.body.classList.contains('light');
-    const balloonSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
+    const skinId = user?.balloon_skin || 'default';
     if (img) {
-        img.src = balloonSrc;
+        img.src = getBalloonSrc(skinId, isLight);
         img.style.width = '160px'; 
     }
     const label = document.getElementById('my-castle-label');
-    if (label) label.textContent = user.university || 'MY BALLOON';
+    if (label) label.textContent = user?.university || 'MY BALLOON';
 }
 
 function renderOtherUsers(users) {
     document.querySelectorAll('.other-building').forEach(el => el.remove());
 
     const isLight = document.body.classList.contains('light');
-    const otherBalloonSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
 
     const others = users.filter(u => u.id !== currentUser?.id).slice(0, 60);
     const positions = [
@@ -157,8 +166,9 @@ function renderOtherUsers(users) {
         div.dataset.userId = user.id;
         div.onclick = () => openUserModal(user);
 
+        const skinSrc = getBalloonSrc(user.balloon_skin || 'default', isLight);
         div.innerHTML = `
-            <img src="${otherBalloonSrc}" alt="${esc(user.nickname)}" style="width:100px;opacity:0.8;">
+            <img src="${skinSrc}" alt="${esc(user.nickname)}" style="width:100px;opacity:0.8;">
             <div class="building-label">${esc(user.nickname)}<br><span style="font-size:9px;opacity:0.6">${esc(user.university)}</span></div>
         `;
         mapLayer.appendChild(div);
@@ -733,11 +743,49 @@ async function renderShopContent(tab) {
             container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">정보를 불러오지 못했습니다.</div>';
         }
     } else if (tab === 'skin') {
-        container.innerHTML = `
-            <div style="text-align:center;padding:30px 0;color:#555;font-size:12px;letter-spacing:1px;">
-                SKINS — COMING SOON
-            </div>
-        `;
+        try {
+            const skinRes = await fetch('/api/estate/skins', { credentials: 'include' });
+            const skinData = skinRes.ok ? await skinRes.json() : { skins: [], owned: ['default'], equipped: 'default' };
+            const { skins, owned, equipped } = skinData;
+            const myGold = currentUser?.gold || 0;
+            const isLight = document.body.classList.contains('light');
+
+            container.innerHTML = `
+                <div style="padding:10px 0 6px;">
+                    <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:12px;">
+                        보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
+                    </div>
+                    <div id="skin-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+                </div>
+            `;
+
+            const grid = container.querySelector('#skin-grid');
+            skins.forEach(skin => {
+                const isOwned = owned.includes(skin.id);
+                const isEquipped = equipped === skin.id;
+                const imgSrc = isLight ? skin.lightImg : skin.darkImg;
+                const assetSrc = `assets/${imgSrc}`;
+
+                const card = document.createElement('div');
+                card.style.cssText = `border:1px solid ${isEquipped ? 'var(--accent-gold)' : 'var(--border)'};border-radius:6px;padding:10px;text-align:center;background:${isEquipped ? 'rgba(255,193,7,0.07)' : 'transparent'};`;
+                card.innerHTML = `
+                    <img src="${assetSrc}" style="width:80px;height:80px;object-fit:contain;margin-bottom:6px;">
+                    <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;">${esc(skin.name)}</div>
+                    <div style="font-size:10px;color:#666;margin-bottom:8px;">${skin.price === 0 ? '무료' : skin.price.toLocaleString() + 'G'}</div>
+                    ${isEquipped
+                        ? `<div style="font-size:10px;color:var(--accent-gold);letter-spacing:1px;">✓ 장착 중</div>`
+                        : isOwned
+                            ? `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="equipSkin('${skin.id}')">장착</button>`
+                            : skin.price === 0
+                                ? `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', 0)">획득</button>`
+                                : `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', ${skin.price})">${skin.price.toLocaleString()}G 구매</button>`
+                    }
+                `;
+                grid.appendChild(card);
+            });
+        } catch (e) {
+            container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">로드 실패</div>';
+        }
     } else {
         container.innerHTML = `
             <div style="text-align:center;padding:30px 0;color:#555;font-size:12px;letter-spacing:1px;">
@@ -808,6 +856,47 @@ async function buyApplicationFee(targetUniversity, unitPrice) {
         currentUser = data.user;
         updateHUD(data.user);
         renderShopContent('item');
+    } catch (e) { alert('오류 발생'); }
+}
+
+async function buySkin(skinId, price) {
+    const skin = BALLOON_SKINS[skinId];
+    if (!skin) return;
+    if (price > 0 && !confirm(`[${skin.name}]을 ${price.toLocaleString()}G에 구매하시겠습니까?`)) return;
+    try {
+        const r = await fetch('/api/estate/buy-skin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ skin_id: skinId })
+        });
+        const data = await r.json();
+        if (!r.ok) { alert(data.error || '구매 실패'); return; }
+        if (currentUser) {
+            currentUser.gold = data.user.gold;
+            currentUser.owned_skins = data.user.owned_skins;
+            updateHUD(currentUser);
+        }
+        alert(`[${skin.name}] 획득 완료!`);
+        renderShopContent('skin');
+    } catch (e) { alert('오류 발생'); }
+}
+
+async function equipSkin(skinId) {
+    try {
+        const r = await fetch('/api/estate/equip-skin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ skin_id: skinId })
+        });
+        const data = await r.json();
+        if (!r.ok) { alert(data.error || '장착 실패'); return; }
+        if (currentUser) {
+            currentUser.balloon_skin = skinId;
+            updateMyBuilding(currentUser);
+        }
+        renderShopContent('skin');
     } catch (e) { alert('오류 발생'); }
 }
 

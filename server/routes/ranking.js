@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.id, u.nickname, u.university, u.gold, u.exp, u.tier, u.is_studying,
+            `SELECT u.id, u.nickname, u.university, u.gold, u.exp, u.tier, u.is_studying, u.balloon_skin,
                     COALESCE(SUM(sr.duration_sec),0) as total_sec,
                     RANK() OVER (ORDER BY COALESCE(SUM(sr.duration_sec),0) DESC) as rank
              FROM users u
