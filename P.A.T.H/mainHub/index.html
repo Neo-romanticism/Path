@@ -64,6 +64,12 @@
             <button class="sys-btn rank-btn" onclick="togglePanel('panel-rank')">RANK</button>
             <button class="sys-btn rank-btn" onclick="togglePanel('panel-shop')">SHOP</button>
             <button class="sys-btn rank-btn" onclick="toggleApplyPanel()">지원</button>
+            <button class="sys-btn rank-btn" onclick="openFriendPanel()" id="btn-ally">
+                ALLY <span id="friend-req-badge" class="dot hidden"></span>
+            </button>
+            <button class="sys-btn rank-btn" onclick="openMessengerPanel()" id="btn-msg">
+                MSG <span id="msg-unread-badge" class="dot hidden"></span>
+            </button>
         </div>
 
         <!-- Bottom Center -->
@@ -205,12 +211,45 @@
         <div class="overlay-body" id="interior-body"></div>
     </div>
 
+    <!-- Friend Panel -->
+    <div class="glass-panel hidden" id="panel-ally" style="width: 340px;">
+        <div class="panel-head">
+            <h3>ALLY SYSTEM</h3>
+            <div class="tabs">
+                <button class="tab active" id="ally-tab-list" onclick="switchAllyTab('list', this)">동맹 목록</button>
+                <button class="tab" id="ally-tab-req" onclick="switchAllyTab('requests', this)">신청 <span id="ally-req-count"></span></button>
+            </div>
+            <button class="close-btn" onclick="closeFriendPanel()">×</button>
+        </div>
+        <div class="panel-content" id="ally-content">로딩 중...</div>
+    </div>
+
+    <!-- Messenger Panel -->
+    <div class="glass-panel hidden" id="panel-messenger" style="width: 360px;">
+        <div class="panel-head">
+            <h3 id="messenger-title">MESSENGER</h3>
+            <button class="close-btn" id="messenger-back-btn" onclick="messengerBack()" style="display:none;">←</button>
+            <button class="close-btn" onclick="closeMessengerPanel()">×</button>
+        </div>
+        <div id="messenger-conv-list" class="panel-content">로딩 중...</div>
+        <div id="messenger-chat" class="hidden" style="display:none; flex-direction:column; flex:1; min-height:0;">
+            <div id="chat-messages" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" class="chat-input" placeholder="메시지 입력..." maxlength="500"
+                    onkeydown="if(event.key==='Enter')sendMessage()">
+                <button class="chat-send-btn" onclick="sendMessage()">전송</button>
+            </div>
+        </div>
+    </div>
+
     <!-- User Modal -->
     <div class="modal-backdrop hidden" id="modal-user">
         <div class="modal-card">
             <h3 id="user-modal-title">TARGET INFO</h3>
             <div id="user-modal-body" class="modal-content"></div>
             <div class="modal-foot">
+                <button class="shop-btn" id="btn-friend-action" onclick="doFriendAction()" style="padding:8px 16px;font-size:11px;display:none;">동맹 신청</button>
+                <button class="shop-btn" id="btn-send-msg" onclick="openChatFromModal()" style="padding:8px 16px;font-size:11px;display:none;border-color:#4a9eff;color:#4a9eff;">메시지</button>
                 <button class="shop-btn" id="btn-invade" onclick="doInvade()" style="padding:8px 16px;font-size:11px;border-color:var(--accent-gold);color:var(--accent-gold);">도전하기</button>
                 <button class="cancel-btn" onclick="closeModal('modal-user')">CLOSE</button>
             </div>

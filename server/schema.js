@@ -106,6 +106,33 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cam_captures_created_at ON cam_captures(created_at);
         `);
 
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS friendships (
+                id          SERIAL PRIMARY KEY,
+                sender_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status      VARCHAR(20) DEFAULT 'pending',
+                created_at  TIMESTAMP DEFAULT NOW(),
+                UNIQUE(sender_id, receiver_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_friendships_sender ON friendships(sender_id);
+            CREATE INDEX IF NOT EXISTS idx_friendships_receiver ON friendships(receiver_id);
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id          SERIAL PRIMARY KEY,
+                sender_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                content     TEXT NOT NULL,
+                is_read     BOOLEAN DEFAULT FALSE,
+                created_at  TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+            CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id);
+            CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+        `);
+
         console.log('DB 스키마 초기화 완료');
     } catch (err) {
         console.error('DB 스키마 초기화 오류:', err.message);

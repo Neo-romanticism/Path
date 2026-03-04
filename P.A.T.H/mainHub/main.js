@@ -139,7 +139,7 @@ async function initHub() {
 
         updateHUD(currentUser);
         updateMyBuilding(currentUser);
-        await Promise.all([loadRankingAndMap(), loadNotifBadge(), loadUniversitiesCache()]);
+        await Promise.all([loadRankingAndMap(), loadNotifBadge(), loadUniversitiesCache(), refreshFriendBadge()]);
 
         // [Agent Notice] Show once
         if (!localStorage.getItem('agent_notice_v1')) {
@@ -663,7 +663,94 @@ function openUserModal(user) {
     const disabled = tickets < 1 || !hasScore;
     btn.disabled = disabled;
     btn.style.opacity = disabled ? '0.4' : '1';
+
+    // 친구 상태 및 메시지 버튼 처리
+    const btnFriend = document.getElementById('btn-friend-action');
+    const btnMsg = document.getElementById('btn-send-msg');
+    btnFriend.style.display = 'none';
+    btnMsg.style.display = 'none';
+    if (user.id !== currentUser?.id) {
+        loadFriendStatusForModal(user.id);
+    }
+
     document.getElementById('modal-user').classList.remove('hidden');
+}
+
+async function loadFriendStatusForModal(targetId) {
+    try {
+        const r = await fetch(`/api/friends/status/${targetId}`, { credentials: 'include' });
+        const data = await r.json();
+        const btnF = document.getElementById('btn-friend-action');
+        const btnM = document.getElementById('btn-send-msg');
+        btnF.dataset.targetId = targetId;
+        btnF.dataset.friendshipId = data.friendship_id || '';
+        btnF.dataset.friendStatus = data.status;
+        btnF.dataset.isSender = data.is_sender ? '1' : '0';
+
+        if (data.status === 'none') {
+            btnF.textContent = '동맹 신청';
+            btnF.style.display = 'inline-block';
+            btnF.style.borderColor = '';
+            btnF.style.color = '';
+        } else if (data.status === 'pending' && !data.is_sender) {
+            btnF.textContent = '신청 수락';
+            btnF.style.display = 'inline-block';
+            btnF.style.borderColor = '#4CAF50';
+            btnF.style.color = '#4CAF50';
+        } else if (data.status === 'pending' && data.is_sender) {
+            btnF.textContent = '신청 취소';
+            btnF.style.display = 'inline-block';
+            btnF.style.borderColor = '#999';
+            btnF.style.color = '#999';
+        } else if (data.status === 'accepted') {
+            btnF.textContent = '동맹 해제';
+            btnF.style.display = 'inline-block';
+            btnF.style.borderColor = '#e55';
+            btnF.style.color = '#e55';
+            btnM.style.display = 'inline-block';
+        }
+    } catch (e) {}
+}
+
+async function doFriendAction() {
+    const btn = document.getElementById('btn-friend-action');
+    const targetId = parseInt(btn.dataset.targetId);
+    const status = btn.dataset.friendStatus;
+    const friendshipId = btn.dataset.friendshipId;
+    const isSender = btn.dataset.isSender === '1';
+
+    if (status === 'none') {
+        const r = await fetch('/api/friends/request', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', body: JSON.stringify({ target_id: targetId })
+        });
+        const d = await r.json();
+        if (!r.ok) return alert(d.error || '오류 발생');
+        alert('동맹 신청을 보냈습니다!');
+    } else if (status === 'pending' && !isSender) {
+        const r = await fetch('/api/friends/accept', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', body: JSON.stringify({ friendship_id: parseInt(friendshipId) })
+        });
+        if (r.ok) alert('동맹을 맺었습니다!');
+    } else if (status === 'pending' && isSender) {
+        await fetch('/api/friends/reject', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', body: JSON.stringify({ friendship_id: parseInt(friendshipId) })
+        });
+    } else if (status === 'accepted') {
+        if (!confirm('동맹을 해제하시겠습니까?')) return;
+        await fetch(`/api/friends/${targetId}`, { method: 'DELETE', credentials: 'include' });
+    }
+    loadFriendStatusForModal(targetId);
+    refreshFriendBadge();
+}
+
+function openChatFromModal() {
+    if (!selectedUser) return;
+    closeModal('modal-user');
+    openMessengerPanel();
+    setTimeout(() => openChat(selectedUser.id, selectedUser.nickname), 200);
 }
 
 async function doInvade() {
@@ -1229,6 +1316,296 @@ async function saveCamSettings() {
         }
     } catch (e) {}
 }
+
+// ── 친구(ALLY) 시스템 ─────────────────────────────────────────────────
+let currentAllyTab = 'list';
+let allyPanelOpen = false;
+let messengerPanelOpen = false;
+let currentChatUserId = null;
+let currentChatUserName = null;
+let chatPollInterval = null;
+
+async function refreshFriendBadge() {
+    try {
+        const [reqR, msgR] = await Promise.all([
+            fetch('/api/friends/requests', { credentials: 'include' }),
+            fetch('/api/messages/unread-count', { credentials: 'include' })
+        ]);
+        const reqs = reqR.ok ? await reqR.json() : [];
+        const msgData = msgR.ok ? await msgR.json() : { count: 0 };
+
+        const reqBadge = document.getElementById('friend-req-badge');
+        const msgBadge = document.getElementById('msg-unread-badge');
+        if (reqBadge) reqBadge.classList.toggle('hidden', reqs.length === 0);
+        if (msgBadge) msgBadge.classList.toggle('hidden', msgData.count === 0);
+
+        const reqCount = document.getElementById('ally-req-count');
+        if (reqCount) reqCount.textContent = reqs.length > 0 ? `(${reqs.length})` : '';
+    } catch (e) {}
+}
+
+function openFriendPanel() {
+    document.querySelectorAll('.glass-panel').forEach(p => p.classList.add('hidden'));
+    const panel = document.getElementById('panel-ally');
+    panel.classList.remove('hidden');
+    allyPanelOpen = true;
+    loadAllyTab(currentAllyTab);
+}
+
+function closeFriendPanel() {
+    document.getElementById('panel-ally').classList.add('hidden');
+    allyPanelOpen = false;
+}
+
+function switchAllyTab(tab, btn) {
+    currentAllyTab = tab;
+    document.querySelectorAll('#panel-ally .tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadAllyTab(tab);
+}
+
+async function loadAllyTab(tab) {
+    const content = document.getElementById('ally-content');
+    content.innerHTML = '<div style="text-align:center;padding:20px;font-size:11px;color:#666">로딩 중...</div>';
+    if (tab === 'list') {
+        await loadFriendList(content);
+    } else {
+        await loadFriendRequests(content);
+    }
+}
+
+async function loadFriendList(content) {
+    try {
+        const r = await fetch('/api/friends/list', { credentials: 'include' });
+        const friends = r.ok ? await r.json() : [];
+        if (friends.length === 0) {
+            content.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">동맹이 없습니다.<br>다른 유저의 열기구를 클릭해서 신청하세요.</div>';
+            return;
+        }
+        content.innerHTML = friends.map(f => `
+            <div class="ally-item" onclick="focusFriend(${f.id})">
+                <div class="ally-status-dot ${f.is_studying ? 'studying' : ''}"></div>
+                <div class="ally-info">
+                    <div class="ally-nick">${esc(f.nickname)}</div>
+                    <div class="ally-univ">${esc(f.university) || '대학 미정'}</div>
+                </div>
+                <div class="ally-actions">
+                    <button class="ally-btn msg-btn" onclick="event.stopPropagation();openAllyChat(${f.id},'${esc(f.nickname)}')">메시지</button>
+                    <button class="ally-btn del-btn" onclick="event.stopPropagation();deleteFriend(${f.id})">삭제</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        content.innerHTML = '<div style="color:#e55;padding:16px;font-size:11px">로드 실패</div>';
+    }
+}
+
+async function loadFriendRequests(content) {
+    try {
+        const r = await fetch('/api/friends/requests', { credentials: 'include' });
+        const reqs = r.ok ? await r.json() : [];
+        if (reqs.length === 0) {
+            content.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">받은 동맹 신청이 없습니다.</div>';
+            return;
+        }
+        content.innerHTML = reqs.map(req => `
+            <div class="ally-item">
+                <div class="ally-status-dot"></div>
+                <div class="ally-info">
+                    <div class="ally-nick">${esc(req.nickname)}</div>
+                    <div class="ally-univ">${esc(req.university) || '대학 미정'}</div>
+                </div>
+                <div class="ally-actions">
+                    <button class="ally-btn acc-btn" onclick="acceptRequest(${req.friendship_id})">수락</button>
+                    <button class="ally-btn del-btn" onclick="rejectRequest(${req.friendship_id})">거절</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        content.innerHTML = '<div style="color:#e55;padding:16px;font-size:11px">로드 실패</div>';
+    }
+}
+
+async function acceptRequest(friendshipId) {
+    await fetch('/api/friends/accept', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ friendship_id: friendshipId })
+    });
+    loadAllyTab('requests');
+    refreshFriendBadge();
+}
+
+async function rejectRequest(friendshipId) {
+    await fetch('/api/friends/reject', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', body: JSON.stringify({ friendship_id: friendshipId })
+    });
+    loadAllyTab('requests');
+    refreshFriendBadge();
+}
+
+async function deleteFriend(targetId) {
+    if (!confirm('동맹을 해제하시겠습니까?')) return;
+    await fetch(`/api/friends/${targetId}`, { method: 'DELETE', credentials: 'include' });
+    loadAllyTab('list');
+    refreshFriendBadge();
+}
+
+function focusFriend(userId) {
+    const el = document.querySelector(`.other-building[data-user-id="${userId}"]`);
+    if (el) {
+        const x = parseFloat(el.style.left);
+        const y = parseFloat(el.style.top);
+        mapLayer.style.transition = 'transform 0.5s ease-in-out';
+        mapOffsetX = -x * scale + (container.clientWidth / 2);
+        mapOffsetY = -y * scale + (container.clientHeight / 2);
+        applyTransform();
+        setTimeout(() => { mapLayer.style.transition = 'none'; }, 500);
+    }
+    closeFriendPanel();
+}
+
+function openAllyChat(userId, nickname) {
+    closeFriendPanel();
+    openMessengerPanel();
+    setTimeout(() => openChat(userId, nickname), 100);
+}
+
+// ── 메신저 ───────────────────────────────────────────────────────────
+function openMessengerPanel() {
+    document.querySelectorAll('.glass-panel').forEach(p => p.classList.add('hidden'));
+    const panel = document.getElementById('panel-messenger');
+    panel.classList.remove('hidden');
+    messengerPanelOpen = true;
+    showConversationList();
+}
+
+function closeMessengerPanel() {
+    document.getElementById('panel-messenger').classList.add('hidden');
+    messengerPanelOpen = false;
+    stopChatPoll();
+}
+
+function messengerBack() {
+    stopChatPoll();
+    currentChatUserId = null;
+    currentChatUserName = null;
+    showConversationList();
+}
+
+function showConversationList() {
+    const convList = document.getElementById('messenger-conv-list');
+    const chat = document.getElementById('messenger-chat');
+    const backBtn = document.getElementById('messenger-back-btn');
+    const title = document.getElementById('messenger-title');
+
+    convList.style.display = 'block';
+    chat.style.display = 'none';
+    backBtn.style.display = 'none';
+    title.textContent = 'MESSENGER';
+
+    loadConversations();
+}
+
+async function loadConversations() {
+    const convList = document.getElementById('messenger-conv-list');
+    convList.innerHTML = '<div style="text-align:center;padding:20px;font-size:11px;color:#666">로딩 중...</div>';
+    try {
+        const r = await fetch('/api/messages/conversations', { credentials: 'include' });
+        const convs = r.ok ? await r.json() : [];
+        if (convs.length === 0) {
+            convList.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">대화 내역이 없습니다.<br>동맹 목록에서 친구에게 메시지를 보내세요.</div>';
+            return;
+        }
+        convList.innerHTML = convs.map(c => `
+            <div class="conv-item" onclick="openChat(${c.other_user},'${esc(c.nickname)}')">
+                <div class="conv-avatar">${esc(c.nickname)[0]}</div>
+                <div class="conv-info">
+                    <div class="conv-nick">${esc(c.nickname)} ${c.unread_count > 0 ? `<span class="conv-unread">${c.unread_count}</span>` : ''}</div>
+                    <div class="conv-last">${esc(c.last_msg || '')}</div>
+                </div>
+                <div class="conv-studying ${c.is_studying ? 'active' : ''}"></div>
+            </div>
+        `).join('');
+    } catch (e) {
+        convList.innerHTML = '<div style="color:#e55;padding:16px;font-size:11px">로드 실패</div>';
+    }
+}
+
+async function openChat(userId, nickname) {
+    currentChatUserId = userId;
+    currentChatUserName = nickname;
+
+    const convList = document.getElementById('messenger-conv-list');
+    const chat = document.getElementById('messenger-chat');
+    const backBtn = document.getElementById('messenger-back-btn');
+    const title = document.getElementById('messenger-title');
+
+    convList.style.display = 'none';
+    chat.style.display = 'flex';
+    backBtn.style.display = 'inline-block';
+    title.textContent = nickname;
+
+    await loadChatMessages();
+    startChatPoll();
+}
+
+async function loadChatMessages() {
+    if (!currentChatUserId) return;
+    try {
+        const r = await fetch(`/api/messages/conversation/${currentChatUserId}`, { credentials: 'include' });
+        const msgs = r.ok ? await r.json() : [];
+        const container = document.getElementById('chat-messages');
+        const myId = currentUser?.id;
+        container.innerHTML = msgs.map(m => {
+            const isMine = m.sender_id === myId;
+            const time = new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+            return `
+                <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
+                    <div class="msg-bubble">${esc(m.content)}</div>
+                    <div class="msg-time">${time}</div>
+                </div>
+            `;
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+        refreshFriendBadge();
+    } catch (e) {}
+}
+
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    if (!content || !currentChatUserId) return;
+    input.value = '';
+    try {
+        const r = await fetch('/api/messages/send', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ receiver_id: currentChatUserId, content })
+        });
+        if (!r.ok) {
+            const d = await r.json();
+            alert(d.error || '전송 실패');
+            input.value = content;
+            return;
+        }
+        await loadChatMessages();
+    } catch (e) {}
+}
+
+function startChatPoll() {
+    stopChatPoll();
+    chatPollInterval = setInterval(() => {
+        if (currentChatUserId) loadChatMessages();
+    }, 5000);
+}
+
+function stopChatPoll() {
+    if (chatPollInterval) { clearInterval(chatPollInterval); chatPollInterval = null; }
+}
+
+// 30초마다 배지 갱신
+setInterval(refreshFriendBadge, 30000);
 
 initHub();
 

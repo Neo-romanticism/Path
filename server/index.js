@@ -55,6 +55,8 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/university', require('./routes/university'));
 app.use('/api/cam', require('./routes/cam'));
+app.use('/api/friends', require('./routes/friends'));
+app.use('/api/messages', require('./routes/messages'));
 
 app.use('/uploads/scores/:filename', (req, res) => {
     res.redirect(`/api/auth/score-image/${req.params.filename}`);
