@@ -33,8 +33,8 @@ body.light .result-card { color: var(--text-primary); }
     --accent-red: #FF3B30;
     --text-primary: #F5F5F7;
     --text-secondary: #86868B;
-    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-mono: "SF Mono", "Monaco", monospace;
+    --font-ui: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "SF Mono", "Monaco", "Fira Code", monospace;
     --border-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -51,6 +51,7 @@ body {
     padding: 40px 20px;
     border: 1px solid var(--border-color);
     transition: border-color 0.8s ease;
+    font-weight: 450;
 }
 
 body.active { border-color: var(--accent-red); }
@@ -73,7 +74,7 @@ body.active { border-color: var(--accent-red); }
 .exit-timer-btn:hover { border-color: var(--text-primary); color: var(--text-primary); background: rgba(255,255,255,0.05); }
 .status-label { font-size: 10px; color: var(--text-secondary); letter-spacing: 1px; font-weight: 700; }
 .status-val { font-size: 14px; font-weight: 800; letter-spacing: 0.5px; }
-.status-val.sub { font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold); }
+.status-val.sub { font-family: var(--font-mono); font-weight: 700; color: var(--accent-gold); text-shadow: 0 0 8px rgba(212, 175, 55, 0.3); }
 .resource { font-size: 14px; font-weight: 700; font-family: var(--font-mono); color: var(--text-secondary); }
 .resource span { color: var(--text-primary); }
 
