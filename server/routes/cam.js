@@ -33,7 +33,9 @@ router.post('/settings', requireAuth, async (req, res) => {
             'UPDATE users SET cam_enabled = $1, cam_visibility = $2 WHERE id = $3',
             [!!cam_enabled, vis, req.session.userId]
         );
-        res.json({ ok: true });
+        
+        // 보너스 수치 안내 메시지 추가 가능 (선택 사항)
+        res.json({ ok: true, bonus_rate: cam_enabled ? (vis === 'all' ? 0.2 : 0.1) : 0 });
     } catch (err) {
         console.error('cam settings 저장 오류:', err.message);
         res.status(500).json({ error: '서버 오류' });

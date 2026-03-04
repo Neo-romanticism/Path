@@ -51,14 +51,29 @@ router.post('/complete', async (req, res) => {
         const elapsedSec = Math.max(0, Math.floor(elapsedMs / 1000));
         const targetSec = user.target_duration_sec || 0;
 
+        // 캠인증 보너스 계산
+        const camRes = await client.query(
+            'SELECT cam_enabled, cam_visibility FROM users WHERE id = $1',
+            [req.session.userId]
+        );
+        const cam = camRes.rows[0] || {};
+        let camMultiplier = 1.0;
+        if (cam.cam_enabled) {
+            if (cam.cam_visibility === 'all') {
+                camMultiplier = 1.2; // 20% 보너스
+            } else {
+                camMultiplier = 1.1; // 10% 보너스
+            }
+        }
+
         let earnedGold = 0;
         let earnedExp = Math.floor(elapsedSec / 60);
 
         if (studyResult === 'SUCCESS') {
             if (studyMode === 'stopwatch') {
-                earnedGold = Math.floor((elapsedSec / 3600) * STUDY_GOLD_PER_HR * 0.5);
+                earnedGold = Math.floor((elapsedSec / 3600) * STUDY_GOLD_PER_HR * 0.5 * camMultiplier);
             } else {
-                earnedGold = Math.floor((targetSec / 3600) * STUDY_GOLD_PER_HR);
+                earnedGold = Math.floor((targetSec / 3600) * STUDY_GOLD_PER_HR * camMultiplier);
             }
         } else if (studyResult === 'FAILED') {
             earnedExp = 0;
