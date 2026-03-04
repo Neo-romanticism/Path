@@ -683,12 +683,21 @@ async function renderShopContent(tab) {
     if (!container) return;
     container.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-size:12px">로딩 중...</div>';
 
-    if (tab === 'item') {
-        try {
-            const univRes = await fetch('/api/university/list', { credentials: 'include' });
-            const univData = univRes.ok ? await univRes.json() : { universities: [] };
-            const universities = univData.universities || [];
-            const myTickets = currentUser?.tickets || 0;
+        const medicalUnivs = [
+            { name: '의예과', region: '전국', basePercentile: 99.8, aliases: ['의대'] },
+            { name: '치의예과', region: '전국', basePercentile: 99.5, aliases: ['치대'] },
+            { name: '한의예과', region: '전국', basePercentile: 99.2, aliases: ['한의대'] },
+            { name: '약학과', region: '전국', basePercentile: 99.0, aliases: ['약대'] },
+            { name: '수의예과', region: '전국', basePercentile: 99.3, aliases: ['수의대'] }
+        ];
+
+        if (tab === 'item') {
+            try {
+                const univRes = await fetch('/api/university/list', { credentials: 'include' });
+                const univData = univRes.ok ? await univRes.json() : { universities: [] };
+                const rawUniversities = univData.universities || [];
+                const universities = [...medicalUnivs, ...rawUniversities];
+                const myTickets = currentUser?.tickets || 0;
             const myGold = currentUser?.gold || 0;
 
             container.innerHTML = `
