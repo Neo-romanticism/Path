@@ -192,8 +192,8 @@ body, html {
 #map-layer { position: absolute; top: -1500px; left: -1500px; width: 4000px; height: 4000px; }
 .building { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: transform 0.3s; z-index: 10; }
 .building:hover { transform: scale(1.05) translateY(-5px); z-index: 20; }
-.building img { width: 120px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
-#my-castle img { width: 220px; }
+.building img { width: 100px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
+#my-castle img { width: 160px; filter: drop-shadow(0 0 20px rgba(255,215,0,0.3)); }
 .building-label {
     margin-top: -10px; background: rgba(5,5,5,0.8); border: 1px solid var(--border-color);
     padding: 4px 12px; font-size: 10px; color: var(--text-primary); backdrop-filter: blur(4px);

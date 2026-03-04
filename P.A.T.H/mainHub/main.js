@@ -5,6 +5,11 @@ function toggleTheme() {
     localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
     const btn = document.getElementById('theme-btn');
     if (btn) btn.textContent = isLight ? '🌙' : '☀';
+    
+    // Update balloons on theme change
+    const user = currentUser || { university: '' };
+    updateMyBuilding(user);
+    loadRankingAndMap(); 
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -99,30 +104,24 @@ function updateHUD(user) {
 }
 
 function updateMyBuilding(user) {
-    const pct = user.percentile || 50;
-    const b = getBuildingStyle(pct);
+    const castle = document.getElementById('my-castle');
+    if (!castle) return;
     const img = document.getElementById('my-castle-img');
-    img.src = b.img;
-    img.style.width = b.sizePx + 'px';
-    img.style.filter = `brightness(${b.brightness})`;
-    document.getElementById('my-castle-label').textContent = user.university || '내 모의진학';
+    const isLight = document.body.classList.contains('light');
+    const balloonSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
+    if (img) {
+        img.src = balloonSrc;
+        img.style.width = '160px'; 
+    }
+    const label = document.getElementById('my-castle-label');
+    if (label) label.textContent = user.university || 'MY BALLOON';
 }
 
-// ── 랭킹 + 맵 ───────────────────────────────────────────────────────
-async function loadRankingAndMap() {
-    try {
-        const r = await fetch('/api/ranking', { credentials: 'include' });
-        if (r.ok) {
-            const data = await r.json();
-            allUsers = data.ranking;
-            renderOtherUsers(allUsers);
-        }
-    } catch (e) { console.error('랭킹 로드 오류:', e); }
-}
-
-// ── 유저 건물 렌더링 ─────────────────────────────────────────────────
 function renderOtherUsers(users) {
     document.querySelectorAll('.other-building').forEach(el => el.remove());
+
+    const isLight = document.body.classList.contains('light');
+    const otherBalloonSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
 
     const others = users.filter(u => u.id !== currentUser?.id).slice(0, 60);
     const positions = [
@@ -150,9 +149,6 @@ function renderOtherUsers(users) {
 
     others.forEach((user, i) => {
         const pos = positions[i] || { x: 1100 + i * 120, y: 1800 + i * 80 };
-        const b = getBuildingStyle(user.percentile);
-        const displaySize = Math.floor(b.sizePx * 0.3);
-
         const div = document.createElement('div');
         div.className = 'building other-building';
         if (user.is_studying) div.classList.add('studying');
@@ -162,7 +158,7 @@ function renderOtherUsers(users) {
         div.onclick = () => openUserModal(user);
 
         div.innerHTML = `
-            <img src="${b.img}" alt="${esc(user.nickname)}" style="width:${displaySize}px;filter:brightness(${b.brightness})">
+            <img src="${otherBalloonSrc}" alt="${esc(user.nickname)}" style="width:100px;opacity:0.8;">
             <div class="building-label">${esc(user.nickname)}<br><span style="font-size:9px;opacity:0.6">${esc(user.university)}</span></div>
         `;
         mapLayer.appendChild(div);
