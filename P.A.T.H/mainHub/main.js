@@ -88,7 +88,7 @@ function updateMyBuilding(user) {
     img.src = b.img;
     img.style.width = b.sizePx + 'px';
     img.style.filter = `brightness(${b.brightness})`;
-    document.getElementById('my-castle-label').textContent = user.university || '내 영지';
+    document.getElementById('my-castle-label').textContent = user.university || '내 모의진학';
 }
 
 // ── 랭킹 + 맵 ───────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ async function openEstate() {
         document.getElementById('interior-body').innerHTML = `
             <div class="interior-grid">
                 <div class="interior-card">
-                    <div class="interior-card-title">🏫 영지 정보</div>
+                    <div class="interior-card-title">🏫 모의진학 정보</div>
                     <div class="estate-section">
                         <div class="estate-label">대학교</div>
                         <div class="estate-val">${data.university || '-'} <span style="color:var(--text-sub);font-size:10px">(백분위 ${data.percentile}%)</span></div>
@@ -289,7 +289,7 @@ async function openEstate() {
                 <div class="interior-card">
                     <div class="interior-card-title">💰 수입</div>
                     <div class="estate-section">
-                        <div class="estate-label">영지 수입 (패시브)</div>
+                        <div class="estate-label">모의진학 수입 (패시브)</div>
                         <div class="estate-val">${rateDisplay}</div>
                     </div>
                     <div class="estate-section">
@@ -326,7 +326,7 @@ async function openEstate() {
                 </div>
 
                 <div class="interior-card" style="grid-column: 1 / -1; max-height: 300px; overflow-y: auto;">
-                    <div class="interior-card-title">🏰 대학 영지 목록</div>
+                    <div class="interior-card-title">🏰 대학 모의진학 목록</div>
                     <div id="university-estates-list" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">로딩 중...</div>
                 </div>
             </div>
@@ -517,11 +517,11 @@ async function collectTax() {
 // ── 유저 모달 (침략) ──────────────────────────────────────────────────
 function openUserModal(user) {
     selectedUser = user;
-    document.getElementById('user-modal-title').textContent = `⚔️ ${user.nickname}의 영지`;
+    document.getElementById('user-modal-title').textContent = `⚔️ ${user.nickname}의 모의진학`;
     const myScore = currentUser?.mock_exam_score || 0;
     document.getElementById('user-modal-body').innerHTML = `
         <div class="estate-section">
-            <div class="estate-label">🏫 영지</div>
+            <div class="estate-label">🏫 모의진학 대학</div>
             <div class="estate-val">${esc(user.university) || '-'}</div>
         </div>
         <div class="estate-section">
@@ -534,7 +534,7 @@ function openUserModal(user) {
         </div>
         <div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text-sub);line-height:1.7">
             ⚔️ <strong style="color:var(--text)">평가원 모의고사 점수</strong>로 승패 결정<br>
-            🏆 승리 시 상대방 영지(대학)를 취득<br>
+            🏆 승리 시 상대방 모의진학 대학 취득<br>
             📄 원서비 1장 소모 · 내 점수: <strong style="color:var(--gold)">${myScore > 0 ? myScore + '점' : '미등록'}</strong>
         </div>
     `;
@@ -552,7 +552,7 @@ async function doInvade() {
     if ((currentUser?.tickets || 0) < 1) { alert('원서비가 없습니다.\nSHOP에서 골드로 구매하세요!'); return; }
     if (!currentUser?.mock_exam_score) { alert('평가원 점수를 먼저 등록해주세요.\n(내 성채 클릭 → 점수 등록)'); return; }
 
-    if (!confirm(`${selectedUser.nickname}의 영지(${selectedUser.university || '?'})를 침략하시겠습니까?\n원서비 1장 소모`)) return;
+    if (!confirm(`${selectedUser.nickname}의 모의진학(${selectedUser.university || '?'})을 침략하시겠습니까?\n원서비 1장 소모`)) return;
 
     try {
         const r = await fetch('/api/invasion/attack', {
@@ -566,7 +566,7 @@ async function doInvade() {
 
         const won = data.result === 'WIN';
         const msg = won
-            ? `⚔️ 침략 성공!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점\n\n🏫 ${data.defender_university}(으)로 이전!`
+            ? `⚔️ 침략 성공!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점\n\n🏫 모의진학 대학: ${data.defender_university}(으)로 변경!`
             : `🛡️ 침략 실패!\n\n내 점수: ${data.attacker_score}점\n상대 점수: ${data.defender_score}점`;
         alert(msg);
         currentUser = data.user;
