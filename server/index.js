@@ -4,6 +4,7 @@ const pgSession = require('connect-pg-simple')(session);
 const cors = require('cors');
 const path = require('path');
 const pool = require('./db');
+const { initSchema } = require('./schema');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -66,6 +67,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'P.A.T.H', 'login', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
-});
+initSchema()
+    .then(() => {
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
+        });
+    })
+    .catch(err => {
+        console.error('서버 시작 실패 (DB 초기화 오류):', err.message);
+        process.exit(1);
+    });
