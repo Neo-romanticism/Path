@@ -33,6 +33,7 @@ const UI = {
         this.loadRankInfo();
         this.bindEvents();
         this.syncInputToDisplay();
+        if (typeof CamManager !== 'undefined') CamManager.loadSettings();
         console.log('P.A.T.H: UI 초기화 완료');
     },
 

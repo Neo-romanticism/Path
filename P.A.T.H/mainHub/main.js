@@ -836,6 +836,7 @@ function togglePanel(id) {
         if (id === 'panel-rank') loadRankPanel(currentRankTab);
         if (id === 'panel-notif') loadNotifPanel();
         if (id === 'panel-shop') renderShopContent(currentShopTab);
+        if (id === 'panel-settings') loadCamSettings();
     } else {
         el.classList.add('hidden');
     }
@@ -1192,9 +1193,42 @@ async function viewUniversityEstate(universityName) {
 }
 
 
-// Ensure default tab is rendered when panel opens (hook into togglePanel if possible, or just default render)
-// Since togglePanel simply toggles 'hidden', we can lazily render or render on init.
-// Or just check if panel-shop is visible.
+// ── 설정 패널 (캠인증) ────────────────────────────────────────────────
+async function loadCamSettings() {
+    try {
+        const r = await fetch('/api/cam/settings', { credentials: 'include' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const toggle = document.getElementById('cam-enabled-toggle');
+        const select = document.getElementById('cam-visibility-select');
+        if (toggle) toggle.checked = !!data.cam_enabled;
+        if (select) select.value = data.cam_visibility || 'all';
+    } catch (e) {}
+}
+
+async function saveCamSettings() {
+    const toggle = document.getElementById('cam-enabled-toggle');
+    const select = document.getElementById('cam-visibility-select');
+    const note = document.getElementById('cam-settings-note');
+    if (!toggle || !select) return;
+    try {
+        await fetch('/api/cam/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ cam_enabled: toggle.checked, cam_visibility: select.value })
+        });
+        if (note) {
+            const visLabel = select.value === 'all' ? '전체공개' : '관리자만';
+            note.textContent = `저장됨 — 공개 범위: ${visLabel}`;
+            note.style.color = 'var(--accent-gold)';
+            setTimeout(() => {
+                note.textContent = '공개 범위는 모든 유저에게 표시됩니다.';
+                note.style.color = '';
+            }, 2000);
+        }
+    } catch (e) {}
+}
 
 initHub();
 

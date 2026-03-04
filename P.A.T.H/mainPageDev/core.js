@@ -31,6 +31,7 @@ const TimerEngine = {
         }).catch(() => {});
 
         if (typeof WakeLockManager !== 'undefined') WakeLockManager.request();
+        if (typeof CamManager !== 'undefined') CamManager.startCapturing();
 
         UI.updateTimer(timeLeft);
 
@@ -67,6 +68,7 @@ const TimerEngine = {
         clearInterval(timerInterval);
         isRunning = false;
         if (typeof WakeLockManager !== 'undefined') WakeLockManager.release();
+        if (typeof CamManager !== 'undefined') CamManager.stopCapturing();
 
         const result = await StorageManager.completeStudy(type, studyMode);
 

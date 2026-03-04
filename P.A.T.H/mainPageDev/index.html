@@ -36,8 +36,45 @@ function toggleTheme() {
             <span class="resource">🪙 <span id="gold-val">14,500</span></span>
             <span class="resource">📄 원서비 <span id="ticket-val">01</span>장</span>
             <button id="theme-btn" class="exit-timer-btn" onclick="toggleTheme()" title="라이트/다크 모드" style="font-size:16px;">☀️</button>
+            <button class="exit-timer-btn" onclick="openTimerSettings()" title="설정" style="font-size:16px;">⚙</button>
         </div>
     </header>
+
+    <!-- Settings Panel -->
+    <div id="timer-settings-panel" class="timer-settings-panel hidden">
+        <div class="timer-settings-head">
+            <span class="timer-settings-title">SETTINGS</span>
+            <button class="timer-settings-close" onclick="closeTimerSettings()">×</button>
+        </div>
+        <div class="timer-settings-body">
+            <div class="ts-section-title">캠인증 (CAM CERTIFICATION)</div>
+            <div class="ts-row">
+                <span class="ts-label">캠인증 활성화</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ts-cam-enabled" onchange="saveTimerCamSettings()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="ts-row">
+                <span class="ts-label">공개 범위</span>
+                <select id="ts-cam-visibility" class="ts-select" onchange="saveTimerCamSettings()">
+                    <option value="all">전체공개</option>
+                    <option value="admin">관리자만</option>
+                </select>
+            </div>
+            <div class="ts-note" id="ts-cam-note">공개 범위는 모든 유저에게 표시됩니다.</div>
+        </div>
+    </div>
+
+    <!-- Cam Preview (공부 중일 때만 보임) -->
+    <div id="cam-preview-container" class="cam-preview-container hidden">
+        <video id="cam-video" autoplay playsinline muted class="cam-video"></video>
+        <canvas id="cam-canvas" style="display:none;"></canvas>
+        <div class="cam-controls">
+            <button class="cam-btn" onclick="CamManager.switchCamera()" title="카메라 전환">🔄</button>
+            <span class="cam-status" id="cam-status-text">● 캠인증 대기중</span>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <main class="focus-container">
@@ -89,6 +126,7 @@ function toggleTheme() {
     <script src="wakelock.js"></script>
     <script src="storage.js"></script> 
     <script src="core.js"></script>
+    <script src="cam.js"></script>
     <script src="ui.js"></script>
 </body>
 </html>

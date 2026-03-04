@@ -89,6 +89,23 @@ async function initSchema() {
             ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_skins TEXT DEFAULT 'default';
         `);
 
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS cam_enabled BOOLEAN DEFAULT FALSE;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS cam_visibility VARCHAR(20) DEFAULT 'all';
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cam_captures (
+                id          SERIAL PRIMARY KEY,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                image_data  TEXT NOT NULL,
+                visibility  VARCHAR(20) DEFAULT 'all',
+                created_at  TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_cam_captures_user_id ON cam_captures(user_id);
+            CREATE INDEX IF NOT EXISTS idx_cam_captures_created_at ON cam_captures(created_at);
+        `);
+
         console.log('DB 스키마 초기화 완료');
     } catch (err) {
         console.error('DB 스키마 초기화 오류:', err.message);
