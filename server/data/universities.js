@@ -911,8 +911,17 @@ function getTaxRate(universityName) {
     return -Math.log10(ratio);
 }
 
-function getTicketPrice() {
-    return STUDY_GOLD_PER_HR * 14;
+function getTicketPrice(universityName) {
+    const pct = getPercentile(universityName);
+    if (pct >= 99) return 5000;
+    if (pct >= 97) return 3500;
+    if (pct >= 95) return 2500;
+    if (pct >= 90) return 1800;
+    if (pct >= 85) return 1200;
+    if (pct >= 80) return 800;
+    if (pct >= 70) return 500;
+    if (pct >= 60) return 300;
+    return 150;
 }
 
 function serializeFormula(sf) {

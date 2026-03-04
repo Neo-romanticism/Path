@@ -698,15 +698,28 @@ async function renderShopContent(tab) {
                                 <div class="shop-name">원서비</div>
                                 <div class="shop-desc">침략 시 1장 소모. 승리하면 상대 대학 취득.</div>
                                 <div class="shop-cost">
-                                    <span>1장 가격</span>
-                                    <span>${price.toLocaleString()} G</span>
+                                    <span>내 대학 기준</span>
+                                    <span style="color:var(--gold);font-weight:700">${price.toLocaleString()} G / 장</span>
                                 </div>
-                                <div style="font-size:10px;color:#555;margin-top:4px;">대학 등급에 따라 가격이 다름</div>
                             </div>
                             <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;">
                                 <button class="shop-btn" onclick="buyApplicationFee(1)">1장 구매</button>
                                 <button class="shop-btn" style="background:rgba(255,193,7,0.15);border-color:var(--gold)" onclick="buyApplicationFee(5)">5장 구매</button>
                             </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+                        <div style="padding:8px 12px;background:rgba(255,255,255,0.03);font-size:10px;letter-spacing:1px;color:#888;">원서비 등급별 가격표</div>
+                        <div style="padding:8px 12px;font-size:11px;line-height:2;">
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#FFD700">TOP 1% 이상</span><span>5,000 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#C0C0C0">TOP 3% 이상</span><span>3,500 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#C0C0C0">TOP 5% 이상</span><span>2,500 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#cd7f32">TOP 10% 이상</span><span>1,800 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#cd7f32">TOP 15% 이상</span><span>1,200 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#888">TOP 20% 이상</span><span>800 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#888">TOP 30% 이상</span><span>500 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#666">TOP 40% 이상</span><span>300 G</span></div>
+                            <div style="display:flex;justify-content:space-between;"><span style="color:#555">그 외</span><span>150 G</span></div>
                         </div>
                     </div>
                 </div>
