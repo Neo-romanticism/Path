@@ -63,7 +63,7 @@ let currentRankTab = 'total';
             return -(t - (a[0] + t*(a[1] + t*a[2])) / (1 + t*(b[0] + t*(b[1] + t*b[2]))));
         }
     }
-    const SCORE_MEAN = 260, SCORE_STD = 40, CUTLINE_SIGMA = 6;
+    const SCORE_MEAN = 260, SCORE_STD = 40, CUTLINE_SIGMA = 3.5;
     window.percentileToCutline = function(basePercentile) {
         const p = Math.min(0.9999, Math.max(0.0001, basePercentile / 100));
         return Math.round(SCORE_MEAN + probit(p) * SCORE_STD);

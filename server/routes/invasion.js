@@ -32,7 +32,7 @@ function probit(p) {
 // 수능 점수 분포 파라미터 (표준점수 합계 기준)
 const SCORE_MEAN = 260;   // 전체 수험생 평균
 const SCORE_STD  = 40;    // 표준편차
-const CUTLINE_SIGMA = 6;  // 컷트라인 연도별 변동 표준편차
+const CUTLINE_SIGMA = 3.5;  // 컷트라인 연도별 변동 표준편차 (기존 6에서 하향)
 
 // basePercentile → 변환점수 컷트라인
 function percentileToCutline(basePercentile) {
