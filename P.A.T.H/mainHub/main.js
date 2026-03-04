@@ -63,14 +63,19 @@ let currentRankTab = 'total';
             return -(t - (a[0] + t*(a[1] + t*a[2])) / (1 + t*(b[0] + t*(b[1] + t*b[2]))));
         }
     }
-    const SCORE_MEAN = 260, SCORE_STD = 40, CUTLINE_SIGMA = 3.5;
+    const SCORE_MEAN = 260, SCORE_STD = 40;
     window.percentileToCutline = function(basePercentile) {
         const p = Math.min(0.9999, Math.max(0.0001, basePercentile / 100));
         return Math.round(SCORE_MEAN + probit(p) * SCORE_STD);
     };
+    window.getSigma = function(basePercentile) {
+        const p = Math.max(0, Math.min(100, basePercentile));
+        return 2.5 + (100 - p) * 0.12;
+    };
     window.calcAcceptProb = function(userScore, basePercentile) {
         const cutline = SCORE_MEAN + probit(Math.min(0.9999, Math.max(0.0001, basePercentile / 100))) * SCORE_STD;
-        const z = (userScore - cutline) / CUTLINE_SIGMA;
+        const sigma = window.getSigma(basePercentile);
+        const z = (userScore - cutline) / sigma;
         const raw = normalCDF(z);
         const rounded = Math.round(raw * 10) / 10;
         return Math.max(0.1, Math.min(0.9, rounded));

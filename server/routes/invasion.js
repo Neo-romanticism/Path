@@ -32,7 +32,6 @@ function probit(p) {
 // 수능 점수 분포 파라미터 (표준점수 합계 기준)
 const SCORE_MEAN = 260;   // 전체 수험생 평균
 const SCORE_STD  = 40;    // 표준편차
-const CUTLINE_SIGMA = 3.5;  // 컷트라인 연도별 변동 표준편차 (기존 6에서 하향)
 
 // basePercentile → 변환점수 컷트라인
 function percentileToCutline(basePercentile) {
@@ -40,10 +39,19 @@ function percentileToCutline(basePercentile) {
     return SCORE_MEAN + probit(p) * SCORE_STD;
 }
 
+// 대학 수준에 따른 변동폭(Sigma) 계산: 상위권일수록 작고 하위권일수록 큼
+function getSigma(basePercentile) {
+    // basePercentile가 100에 가까울수록(상위권) Sigma가 작아짐
+    // 99% 이상(초상위권): ~2.5, 80%(중위권): ~5.0, 50% 이하: ~8.0
+    const p = Math.max(0, Math.min(100, basePercentile));
+    return 2.5 + (100 - p) * 0.12; 
+}
+
 // 유저 변환점수 + 대학 컷트라인 → 합격 확률 (0~1, 0.1 단위로 반올림)
 function calcAcceptProb(userScore, basePercentile) {
     const cutline = percentileToCutline(basePercentile);
-    const z = (userScore - cutline) / CUTLINE_SIGMA;
+    const sigma = getSigma(basePercentile);
+    const z = (userScore - cutline) / sigma;
     const rawProb = normalCDF(z);
     // 일의 자리에서 반올림 → 10% 단위
     const rounded = Math.round(rawProb * 10) / 10;
