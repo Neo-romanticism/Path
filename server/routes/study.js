@@ -57,8 +57,19 @@ router.post('/complete', async (req, res) => {
             [req.session.userId]
         );
         const cam = camRes.rows[0] || {};
+        
+        // 중간에 껐는지 확인 (공부 시작 이후 cam_enabled가 false인 기록이 있거나 현재 false인 경우)
+        const camCheck = await client.query(
+            `SELECT id FROM cam_captures 
+             WHERE user_id = $1 AND created_at >= $2 
+             LIMIT 1`,
+            [req.session.userId, user.study_started_at]
+        );
+        
+        // 현재 비활성화 상태거나, 공부 시작 후 캡처 기록이 하나도 없으면 보너스 제외
+        // (사용자가 중간에 껐다면 cam_enabled는 false가 됨)
         let camMultiplier = 1.0;
-        if (cam.cam_enabled) {
+        if (cam.cam_enabled && camCheck.rows.length > 0) {
             if (cam.cam_visibility === 'all') {
                 camMultiplier = 1.2; // 20% 보너스
             } else {
