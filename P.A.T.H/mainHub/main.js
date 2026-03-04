@@ -769,11 +769,13 @@ async function renderShopContent(tab) {
                 const assetSrc = `assets/${imgSrc}`;
 
                 const card = document.createElement('div');
-                card.style.cssText = `border:1px solid ${isEquipped ? 'var(--accent-gold)' : 'var(--border)'};border-radius:6px;padding:10px;text-align:center;background:${isEquipped ? 'rgba(255,193,7,0.07)' : 'transparent'};`;
+                card.style.cssText = `border:1px solid ${isEquipped ? 'var(--accent-gold)' : 'var(--border)'};border-radius:6px;padding:10px;text-align:center;background:${isEquipped ? 'rgba(255,193,7,0.07)' : 'transparent'};position:relative;`;
                 card.innerHTML = `
                     <img src="${assetSrc}" style="width:80px;height:80px;object-fit:contain;margin-bottom:6px;">
                     <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;">${esc(skin.name)}</div>
-                    <div style="font-size:10px;color:#666;margin-bottom:8px;">${skin.price === 0 ? '무료' : skin.price.toLocaleString() + 'G'}</div>
+                    <div style="font-size:10px;color:#666;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:3px;">
+                        ${skin.price === 0 ? '무료' : `<img src="assets/coin.png" style="width:10px;height:10px;">${skin.price.toLocaleString()}G`}
+                    </div>
                     ${isEquipped
                         ? `<div style="font-size:10px;color:var(--accent-gold);letter-spacing:1px;">✓ 장착 중</div>`
                         : isOwned
@@ -827,7 +829,7 @@ function renderShopUnivList(universities) {
                     <div style="font-size:10px;color:#666;margin-top:1px;">${esc(uni.region)} &nbsp;·&nbsp; <span style="color:${tierColor}">TOP ${uni.basePercentile}%</span></div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px;">
-                    <span style="font-size:12px;font-weight:700;color:${tierColor};">${price.toLocaleString()}G</span>
+                    <span style="font-size:12px;font-weight:700;color:${tierColor};display:flex;align-items:center;gap:3px;"><img src="assets/coin.png" style="width:12px;height:12px;">${price.toLocaleString()}G</span>
                     <button class="shop-btn" style="padding:4px 10px;font-size:10px;" onclick="buyApplicationFee('${esc(uni.name)}', ${price})">구매</button>
                 </div>
             </div>
