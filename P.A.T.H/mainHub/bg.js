@@ -69,60 +69,45 @@ const BG = {
         const [r2, g2, b2] = q.bgMid;
         
         const grad = this.ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0,   `rgb(${r1+14},${g1+14},${b1+32})`);
-        grad.addColorStop(0.4, `rgb(${r2+10},${g2+10},${b2+24})`);
-        grad.addColorStop(0.7, `rgb(18,18,18)`);
-        grad.addColorStop(1,   `rgb(18,18,18)`);
+        grad.addColorStop(0,   `rgb(${r1+5},${g1+5},${b1+20})`);
+        grad.addColorStop(0.4, `rgb(${r2},${g2},${b2+10})`);
+        grad.addColorStop(0.7, `rgb(10,12,25)`);
+        grad.addColorStop(1,   `rgb(5,5,15)`);
         this.ctx.fillStyle = grad;
         this.ctx.fillRect(0, 0, W, H);
+
+        // Milky Way / Galaxy effect
+        this.ctx.globalCompositeOperation = 'screen';
+        const galaxyGrad = this.ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, W * 0.8);
+        galaxyGrad.addColorStop(0, 'rgba(60, 40, 100, 0.15)');
+        galaxyGrad.addColorStop(0.5, 'rgba(30, 20, 60, 0.05)');
+        galaxyGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.fillStyle = galaxyGrad;
+        this.ctx.fillRect(0, 0, W, H);
+        this.ctx.globalCompositeOperation = 'source-over';
+
+        // Draw Moon
+        const moonX = W * 0.2, moonY = H * 0.15;
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = 'rgba(255, 255, 240, 0.3)';
+        this.ctx.fillStyle = '#fffbe8';
+        this.ctx.beginPath();
+        this.ctx.arc(moonX, moonY, 25, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.shadowBlur = 0;
+
+        // Moon Crater/Shadow for Crescent look
+        this.ctx.globalCompositeOperation = 'destination-out';
+        this.ctx.beginPath();
+        this.ctx.arc(moonX + 10, moonY - 5, 22, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalCompositeOperation = 'source-over';
 
         const vignette = this.ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W);
         vignette.addColorStop(0, 'rgba(0,0,0,0)');
         vignette.addColorStop(1, 'rgba(0,0,0,0.5)');
         this.ctx.fillStyle = vignette;
         this.ctx.fillRect(0, 0, W, H);
-
-        if (q.stars > 400) {
-            this.ctx.globalCompositeOperation = 'screen';
-            const cloudGrad = this.ctx.createRadialGradient(W*0.3, H*0.3, 0, W*0.3, H*0.3, W*0.6);
-            cloudGrad.addColorStop(0, 'rgba(35,18,70,0.12)');
-            cloudGrad.addColorStop(1, 'rgba(0,0,0,0)');
-            this.ctx.fillStyle = cloudGrad;
-            this.ctx.fillRect(0, 0, W, H);
-            this.ctx.globalCompositeOperation = 'source-over';
-        }
-    },
-
-    drawAurora() {
-        const W = this.canvas.width;
-        const H = this.canvas.height;
-        const ctx = this.ctx;
-        const t = this.t;
-        const bands = [
-            { c: '80,40,180', yBase: 0.18, amp: 45, speed: 0.25 },
-            { c: '40,60,210', yBase: 0.26, amp: 35, speed: 0.38 },
-            { c: '120,30,160', yBase: 0.14, amp: 55, speed: 0.18 }
-        ];
-        bands.forEach(({ c, yBase, amp, speed }, i) => {
-            const grad = ctx.createLinearGradient(0, H * (yBase - 0.06), 0, H * (yBase + 0.28));
-            grad.addColorStop(0,   `rgba(${c},0)`);
-            grad.addColorStop(0.4, `rgba(${c},0.07)`);
-            grad.addColorStop(1,   `rgba(${c},0)`);
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.moveTo(0, H * yBase);
-            const segs = 12;
-            for (let s = 0; s <= segs; s++) {
-                const px = (s / segs) * W;
-                const wave = Math.sin(px * 0.003 + t * speed + i * 1.4) * amp
-                           + Math.sin(px * 0.006 + t * speed * 0.6 + i) * (amp * 0.4);
-                ctx.lineTo(px, H * yBase + wave);
-            }
-            ctx.lineTo(W, H * 0.6);
-            ctx.lineTo(0, H * 0.6);
-            ctx.closePath();
-            ctx.fill();
-        });
     },
 
     drawStars() {
@@ -137,52 +122,47 @@ const BG = {
             ctx.fill();
         });
         ctx.globalAlpha = 1;
+
+        // Randomly trigger shooting star
+        if (Math.random() < 0.005) {
+            this.maybeShoot();
+        }
+        this.drawShootingStars();
     },
 
     maybeShoot() {
-        if (this.shootingStars.length < 4 && Math.random() < 0.004) {
-            const W = this.canvas.width;
-            const H = this.canvas.height;
-            const angle = (Math.random() * 30 + 15) * Math.PI / 180;
-            const speed = 7 + Math.random() * 8;
-            this.shootingStars.push({
-                x: Math.random() * W,
-                y: Math.random() * H * 0.4,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                life: 1,
-                maxLen: 120 + Math.random() * 100,
-                color: Math.random() < 0.2 ? '#ffccaa' : '#ffffff'
-            });
-        }
+        const W = this.canvas.width;
+        const H = this.canvas.height;
+        const angle = (Math.random() * 30 + 15) * Math.PI / 180;
+        const speed = 10 + Math.random() * 10;
+        this.shootingStars.push({
+            x: Math.random() * W,
+            y: Math.random() * H * 0.4,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1,
+            maxLen: 150 + Math.random() * 100,
+            color: '#ffffff'
+        });
     },
 
     drawShootingStars() {
         const ctx = this.ctx;
         this.shootingStars = this.shootingStars.filter(s => s.life > 0);
         this.shootingStars.forEach(s => {
-            const tailX = s.x - s.vx * (s.maxLen / 10);
-            const tailY = s.y - s.vy * (s.maxLen / 10);
-            const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
-            grad.addColorStop(0, `rgba(255,255,255,0)`);
-            grad.addColorStop(1, s.color || '#ffffff');
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = 1.8;
             ctx.beginPath();
-            ctx.moveTo(tailX, tailY);
+            const grad = ctx.createLinearGradient(s.x - s.vx * 5, s.y - s.vy * 5, s.x, s.y);
+            grad.addColorStop(0, 'rgba(255,255,255,0)');
+            grad.addColorStop(1, `rgba(255,255,255,${s.life})`);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 2;
+            ctx.moveTo(s.x - s.vx * 5, s.y - s.vy * 5);
             ctx.lineTo(s.x, s.y);
             ctx.stroke();
-            
-            ctx.fillStyle = s.color || '#ffffff';
-            ctx.globalAlpha = s.life;
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, 1.2, 0, Math.PI*2);
-            ctx.fill();
-            ctx.globalAlpha = 1;
 
             s.x += s.vx;
             s.y += s.vy;
-            s.life -= 0.018;
+            s.life -= 0.02;
         });
     },
 
