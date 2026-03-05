@@ -1519,7 +1519,7 @@ async function loadChatMessages() {
         const container = document.getElementById('chat-messages');
         const myId = currentUser?.id;
         container.innerHTML = msgs.map(m => {
-            const isMine = m.sender_id === myId;
+            const isMine = Number(m.sender_id) === Number(myId);
             const time = new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
             return `
                 <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
