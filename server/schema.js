@@ -95,6 +95,10 @@ async function initSchema() {
         `);
 
         await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji VARCHAR(12) DEFAULT NULL;
+        `);
+
+        await client.query(`
             CREATE TABLE IF NOT EXISTS cam_captures (
                 id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

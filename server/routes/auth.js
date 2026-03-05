@@ -8,7 +8,7 @@ const { getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
-const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins';
+const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins, status_emoji';
 
 function escapeHtml(str) {
     if (!str) return str;
@@ -209,6 +209,18 @@ router.get('/gpa-image/:filename', requireAuth, async (req, res) => {
     const filePath = path.join(__dirname, '../../uploads/gpa', filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     res.sendFile(filePath);
+});
+
+router.post('/status-emoji', requireAuth, async (req, res) => {
+    const { emoji } = req.body;
+    const allowed = ['📚','☕','💪','🔥','😴','😊','🎯','💤','🤔','✨','🏃','🌙','⭐','🍀','💯'];
+    const value = (emoji && allowed.includes(emoji)) ? emoji : null;
+    try {
+        await pool.query('UPDATE users SET status_emoji=$1 WHERE id=$2', [value, req.session.userId]);
+        res.json({ ok: true, status_emoji: value });
+    } catch (err) {
+        res.status(500).json({ error: '서버 오류' });
+    }
 });
 
 module.exports = router;

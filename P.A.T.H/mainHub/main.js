@@ -138,7 +138,12 @@ async function initHub() {
 
         updateHUD(currentUser);
         updateMyBuilding(currentUser);
+        const emojiBtn = document.getElementById('emoji-status-btn');
+        if (emojiBtn) emojiBtn.textContent = currentUser.status_emoji || '😶';
         await Promise.all([loadRankingAndMap(), loadNotifBadge(), loadUniversitiesCache(), refreshFriendBadge()]);
+        fetch('/api/friends/list', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(friends => {
+            if (window.WorldScene) window.WorldScene.setFriendIds(friends.map(f => f.id));
+        }).catch(() => {});
 
         // [Agent Notice] Show once
         if (!localStorage.getItem('agent_notice_v1')) {
@@ -1306,6 +1311,7 @@ async function loadFriendList(content) {
     try {
         const r = await fetch('/api/friends/list', { credentials: 'include' });
         const friends = r.ok ? await r.json() : [];
+        if (window.WorldScene) window.WorldScene.setFriendIds(friends.map(f => f.id));
         if (friends.length === 0) {
             content.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">동맹이 없습니다.<br>다른 유저의 열기구를 클릭해서 신청하세요.</div>';
             return;
@@ -1538,4 +1544,31 @@ function _startApp() {
     }
 }
 _startApp();
+
+function toggleEmojiPicker(e) {
+    e.stopPropagation();
+    const picker = document.getElementById('emoji-picker');
+    picker.classList.toggle('open');
+}
+document.addEventListener('click', () => {
+    document.getElementById('emoji-picker')?.classList.remove('open');
+});
+
+async function setMyEmoji(emoji) {
+    document.getElementById('emoji-picker')?.classList.remove('open');
+    try {
+        const r = await fetch('/api/auth/status-emoji', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ emoji })
+        });
+        const data = r.ok ? await r.json() : null;
+        if (!data?.ok) return;
+        const btn = document.getElementById('emoji-status-btn');
+        if (btn) btn.textContent = emoji || '😶';
+        if (currentUser) currentUser.status_emoji = emoji || null;
+        if (window.WorldScene) window.WorldScene.updateEmojiFor(currentUser.id, emoji || null);
+    } catch (e) {}
+}
 

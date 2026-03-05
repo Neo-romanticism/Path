@@ -30,6 +30,7 @@ const WorldScene = {
     isLight: false,
     isReady: false,
     frameCount: 0,
+    friendIds: new Set(),
 
     SPRING: 0.10,
     FRICTION: 0.82,
@@ -318,6 +319,44 @@ const WorldScene = {
         return tex;
     },
 
+    _makeLabel(user, isMe) {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 80;
+        const ctx = c.getContext('2d');
+        const hasEmoji = !!(user.status_emoji);
+        const rr = 16;
+        ctx.fillStyle = 'rgba(20,20,30,0.85)';
+        ctx.beginPath();
+        ctx.moveTo(8 + rr, 8);
+        ctx.lineTo(248 - rr, 8); ctx.arcTo(248, 8, 248, 8 + rr, rr);
+        ctx.lineTo(248, 72 - rr); ctx.arcTo(248, 72, 248 - rr, 72, rr);
+        ctx.lineTo(8 + rr, 72); ctx.arcTo(8, 72, 8, 72 - rr, rr);
+        ctx.lineTo(8, 8 + rr); ctx.arcTo(8, 8, 8 + rr, 8, rr);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = isMe ? 2 : 1;
+        ctx.stroke();
+        const textX = hasEmoji ? 112 : 128;
+        ctx.fillStyle = isMe ? '#D4AF37' : '#E8E8ED';
+        ctx.font = `bold 22px "Pretendard Variable", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText(user.nickname, textX, 34);
+        ctx.fillStyle = 'rgba(180,180,200,0.8)';
+        ctx.font = `16px "Pretendard Variable", sans-serif`;
+        ctx.fillText(user.university || '', textX, 58);
+        if (hasEmoji) {
+            ctx.fillStyle = 'rgba(30,30,48,0.95)';
+            ctx.beginPath(); ctx.arc(224, 40, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1; ctx.stroke();
+            ctx.font = `20px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(user.status_emoji, 224, 47);
+        }
+        return c;
+    },
+
     addBalloon(user, src, isMe) {
         const existing = this.balloons.get(user.id);
         if (existing) { this.scene.remove(existing.group); }
@@ -342,31 +381,8 @@ const WorldScene = {
         shadow.position.y = -80;
         group.add(shadow);
 
-        const canvas2d = document.createElement('canvas');
-        canvas2d.width = 256; canvas2d.height = 80;
-        const ctx = canvas2d.getContext('2d');
-        ctx.fillStyle = 'rgba(20,20,30,0.85)';
-        const rr = 16;
-        ctx.beginPath();
-        ctx.moveTo(8 + rr, 8);
-        ctx.lineTo(248 - rr, 8); ctx.arcTo(248, 8, 248, 8 + rr, rr);
-        ctx.lineTo(248, 72 - rr); ctx.arcTo(248, 72, 248 - rr, 72, rr);
-        ctx.lineTo(8 + rr, 72); ctx.arcTo(8, 72, 8, 72 - rr, rr);
-        ctx.lineTo(8, 8 + rr); ctx.arcTo(8, 8, 8 + rr, 8, rr);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.15)';
-        ctx.lineWidth = isMe ? 2 : 1;
-        ctx.stroke();
-        ctx.fillStyle = isMe ? '#D4AF37' : '#E8E8ED';
-        ctx.font = `bold 22px "Pretendard Variable", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(user.nickname, 128, 34);
-        ctx.fillStyle = 'rgba(180,180,200,0.8)';
-        ctx.font = `16px "Pretendard Variable", sans-serif`;
-        ctx.fillText(user.university || '', 128, 58);
-
-        const labelTex = new THREE.CanvasTexture(canvas2d);
+        const labelCanvas = this._makeLabel(user, isMe);
+        const labelTex = new THREE.CanvasTexture(labelCanvas);
         const labelGeo = new THREE.PlaneGeometry(120, 38);
         const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false });
         const label = new THREE.Mesh(labelGeo, labelMat);
@@ -385,7 +401,7 @@ const WorldScene = {
             });
             const glowMesh = new THREE.Mesh(glowGeo, glowMat);
             glowMesh.position.y = 100;
-            glowMesh.position.z = -5; // 배치: 열기구 뒤쪽 (후광)
+            glowMesh.position.z = -5;
             group.userData.glowMat = glowMat;
             group.add(glowMesh);
         }
@@ -396,6 +412,68 @@ const WorldScene = {
 
         group.userData.clickable = true;
         return group;
+    },
+
+    setFriendIds(ids) {
+        this.friendIds = new Set(ids);
+    },
+
+    updateEmojiFor(userId, emoji) {
+        const b = this.balloons.get(userId);
+        if (!b) return;
+        b.user.status_emoji = emoji || null;
+        const newCanvas = this._makeLabel(b.user, b.isMe);
+        const mat = b.group.userData.label.material;
+        mat.map.dispose();
+        mat.map = new THREE.CanvasTexture(newCanvas);
+        mat.needsUpdate = true;
+    },
+
+    _updateOffscreenIndicators() {
+        if (!this._offscreenEl) {
+            const el = document.createElement('div');
+            el.id = 'nav-offscreen';
+            el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9;overflow:hidden;';
+            document.body.appendChild(el);
+            this._offscreenEl = el;
+        }
+        this.camera.updateMatrixWorld();
+        const W = window.innerWidth, H = window.innerHeight;
+        const EDGE = 36, MAX = 7;
+        const cx = W / 2, cy = H / 2;
+        const items = [];
+
+        this.balloons.forEach((b) => {
+            if (b.isMe) return;
+            const wp = b.group.position.clone();
+            wp.project(this.camera);
+            const sx = (wp.x + 1) / 2 * W;
+            const sy = (1 - wp.y) / 2 * H;
+            if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) return;
+            const dx = sx - cx, dy = sy - cy;
+            if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
+            const scaleX = (cx - EDGE) / Math.abs(dx);
+            const scaleY = (cy - EDGE) / Math.abs(dy);
+            const scale = Math.min(scaleX, scaleY);
+            const ex = cx + dx * scale, ey = cy + dy * scale;
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            const isFriend = this.friendIds.has(b.user.id);
+            items.push({ user: b.user, ex, ey, angle, isFriend });
+        });
+
+        items.sort((a, b) => (b.isFriend ? 1 : 0) - (a.isFriend ? 1 : 0));
+        const shown = items.slice(0, MAX);
+
+        this._offscreenEl.innerHTML = shown.map(({ user, ex, ey, angle, isFriend }) => {
+            const clr = isFriend ? '#D4AF37' : 'rgba(200,210,230,0.9)';
+            const bg = isFriend ? 'rgba(40,30,10,0.82)' : 'rgba(15,18,30,0.78)';
+            const border = isFriend ? '1px solid rgba(212,175,55,0.5)' : '1px solid rgba(255,255,255,0.12)';
+            const emoji = user.status_emoji ? `<span style="margin-right:3px">${user.status_emoji}</span>` : (isFriend ? '<span style="margin-right:2px;font-size:9px">★</span>' : '');
+            return `<div style="position:absolute;left:${ex}px;top:${ey}px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;">
+                <div style="font-size:14px;color:${clr};transform:rotate(${angle + 90}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,0.8));line-height:1">▲</div>
+                <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${emoji}${user.nickname}</div>
+            </div>`;
+        }).join('');
     },
 
     setUsers(users, me, isLight) {
@@ -779,6 +857,8 @@ const WorldScene = {
             this.moon.position.x = -600 + Math.sin(t * 0.003) * 15;
             this.moonGlow.position.copy(this.moon.position);
         }
+
+        if (this.frameCount % 10 === 0) this._updateOffscreenIndicators();
 
         this.composer.render();
     }

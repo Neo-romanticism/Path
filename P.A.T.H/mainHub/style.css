@@ -540,3 +540,12 @@ body.light .building-label.mine { background: rgba(212, 175, 55, 0.08); }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 body.light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); }
 body.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
+
+/* ── Emoji Picker ── */
+.ep {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px; font-size: 18px;
+    cursor: pointer; transition: background 0.15s;
+}
+.ep:hover { background: rgba(255,255,255,0.1); }
+#emoji-picker.open { display: flex !important; }
