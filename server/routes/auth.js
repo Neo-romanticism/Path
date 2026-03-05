@@ -8,7 +8,7 @@ const { getPercentile } = require('../data/universities');
 
 const router = express.Router();
 
-const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins, status_emoji';
+const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins, status_emoji, status_message';
 
 function escapeHtml(str) {
     if (!str) return str;
@@ -218,6 +218,16 @@ router.post('/status-emoji', requireAuth, async (req, res) => {
     try {
         await pool.query('UPDATE users SET status_emoji=$1 WHERE id=$2', [value, req.session.userId]);
         res.json({ ok: true, status_emoji: value });
+    } catch (err) {
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+router.post('/status-message', requireAuth, async (req, res) => {
+    const raw = (req.body.message || '').trim().slice(0, 60);
+    try {
+        await pool.query('UPDATE users SET status_message=$1 WHERE id=$2', [raw || null, req.session.userId]);
+        res.json({ ok: true, status_message: raw || null });
     } catch (err) {
         res.status(500).json({ error: '서버 오류' });
     }

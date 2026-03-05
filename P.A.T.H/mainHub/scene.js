@@ -323,7 +323,6 @@ const WorldScene = {
         const c = document.createElement('canvas');
         c.width = 256; c.height = 80;
         const ctx = c.getContext('2d');
-        const hasEmoji = !!(user.status_emoji);
         const rr = 16;
         ctx.fillStyle = 'rgba(20,20,30,0.85)';
         ctx.beginPath();
@@ -337,23 +336,49 @@ const WorldScene = {
         ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.15)';
         ctx.lineWidth = isMe ? 2 : 1;
         ctx.stroke();
-        const textX = hasEmoji ? 112 : 128;
         ctx.fillStyle = isMe ? '#D4AF37' : '#E8E8ED';
         ctx.font = `bold 22px "Pretendard Variable", sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText(user.nickname, textX, 34);
+        ctx.fillText(user.nickname, 128, 34);
         ctx.fillStyle = 'rgba(180,180,200,0.8)';
         ctx.font = `16px "Pretendard Variable", sans-serif`;
-        ctx.fillText(user.university || '', textX, 58);
-        if (hasEmoji) {
-            ctx.fillStyle = 'rgba(30,30,48,0.95)';
-            ctx.beginPath(); ctx.arc(224, 40, 18, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 1; ctx.stroke();
-            ctx.font = `20px "Apple Color Emoji","Segoe UI Emoji",sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.fillText(user.status_emoji, 224, 47);
-        }
+        ctx.fillText(user.university || '', 128, 58);
+        return c;
+    },
+
+    _makeBubble(msg, isMe) {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 80;
+        const ctx = c.getContext('2d');
+        if (!msg) return c;
+        ctx.font = `bold 15px "Pretendard Variable", sans-serif`;
+        const maxTextW = 220;
+        const textW = Math.min(ctx.measureText(msg).width + 28, maxTextW);
+        const bH = 44;
+        const x0 = (256 - textW) / 2;
+        const y0 = 4;
+        const r = 12;
+        ctx.fillStyle = isMe ? 'rgba(212,175,55,0.92)' : 'rgba(240,242,255,0.94)';
+        ctx.beginPath();
+        ctx.moveTo(x0 + r, y0);
+        ctx.lineTo(x0 + textW - r, y0); ctx.arcTo(x0 + textW, y0, x0 + textW, y0 + r, r);
+        ctx.lineTo(x0 + textW, y0 + bH - r); ctx.arcTo(x0 + textW, y0 + bH, x0 + textW - r, y0 + bH, r);
+        ctx.lineTo(x0 + r, y0 + bH); ctx.arcTo(x0, y0 + bH, x0, y0 + bH - r, r);
+        ctx.lineTo(x0, y0 + r); ctx.arcTo(x0, y0, x0 + r, y0, r);
+        ctx.closePath();
+        ctx.fill();
+        const tailX = 128;
+        ctx.beginPath();
+        ctx.moveTo(tailX - 7, y0 + bH);
+        ctx.lineTo(tailX + 7, y0 + bH);
+        ctx.lineTo(tailX, y0 + bH + 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = isMe ? '#1a1100' : '#1C1C2E';
+        ctx.font = `bold 15px "Pretendard Variable", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(msg, 128, y0 + bH / 2, maxTextW - 16);
         return c;
     },
 
@@ -389,7 +414,18 @@ const WorldScene = {
         label.position.y = isMe ? -58 : -36;
         group.add(label);
 
-        group.userData = { userId: user.id, user, balloon, label, isMe, baseY: 0 };
+        let bubbleMesh = null;
+        if (user.status_message) {
+            const bubbleCanvas = this._makeBubble(user.status_message, isMe);
+            const bubbleTex = new THREE.CanvasTexture(bubbleCanvas);
+            const bubbleGeo = new THREE.PlaneGeometry(isMe ? 145 : 110, isMe ? 52 : 42);
+            const bubbleMat = new THREE.MeshBasicMaterial({ map: bubbleTex, transparent: true, depthWrite: false });
+            bubbleMesh = new THREE.Mesh(bubbleGeo, bubbleMat);
+            bubbleMesh.position.y = isMe ? 205 : 135;
+            group.add(bubbleMesh);
+        }
+
+        group.userData = { userId: user.id, user, balloon, label, bubbleMesh, isMe, baseY: 0 };
 
         if (isMe) {
             const glowGeo = new THREE.CircleGeometry(70, 30);
@@ -418,15 +454,28 @@ const WorldScene = {
         this.friendIds = new Set(ids);
     },
 
-    updateEmojiFor(userId, emoji) {
+    updateStatusMsg(userId, msg) {
         const b = this.balloons.get(userId);
         if (!b) return;
-        b.user.status_emoji = emoji || null;
-        const newCanvas = this._makeLabel(b.user, b.isMe);
-        const mat = b.group.userData.label.material;
-        mat.map.dispose();
-        mat.map = new THREE.CanvasTexture(newCanvas);
-        mat.needsUpdate = true;
+        b.user.status_message = msg || null;
+        const grp = b.group;
+        if (grp.userData.bubbleMesh) {
+            grp.remove(grp.userData.bubbleMesh);
+            grp.userData.bubbleMesh.geometry.dispose();
+            if (grp.userData.bubbleMesh.material.map) grp.userData.bubbleMesh.material.map.dispose();
+            grp.userData.bubbleMesh.material.dispose();
+            grp.userData.bubbleMesh = null;
+        }
+        if (msg) {
+            const bubbleCanvas = this._makeBubble(msg, b.isMe);
+            const bubbleTex = new THREE.CanvasTexture(bubbleCanvas);
+            const bubbleGeo = new THREE.PlaneGeometry(b.isMe ? 145 : 110, b.isMe ? 52 : 42);
+            const bubbleMat = new THREE.MeshBasicMaterial({ map: bubbleTex, transparent: true, depthWrite: false });
+            const bubbleMesh = new THREE.Mesh(bubbleGeo, bubbleMat);
+            bubbleMesh.position.y = b.isMe ? 205 : 135;
+            grp.add(bubbleMesh);
+            grp.userData.bubbleMesh = bubbleMesh;
+        }
     },
 
     _updateOffscreenIndicators() {
@@ -468,10 +517,10 @@ const WorldScene = {
             const clr = isFriend ? '#D4AF37' : 'rgba(200,210,230,0.9)';
             const bg = isFriend ? 'rgba(40,30,10,0.82)' : 'rgba(15,18,30,0.78)';
             const border = isFriend ? '1px solid rgba(212,175,55,0.5)' : '1px solid rgba(255,255,255,0.12)';
-            const emoji = user.status_emoji ? `<span style="margin-right:3px">${user.status_emoji}</span>` : (isFriend ? '<span style="margin-right:2px;font-size:9px">★</span>' : '');
+            const prefix = isFriend ? '<span style="margin-right:2px;font-size:9px">★</span>' : '';
             return `<div style="position:absolute;left:${ex}px;top:${ey}px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;">
                 <div style="font-size:14px;color:${clr};transform:rotate(${angle + 90}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,0.8));line-height:1">▲</div>
-                <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${emoji}${user.nickname}</div>
+                <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${prefix}${user.nickname}</div>
             </div>`;
         }).join('');
     },

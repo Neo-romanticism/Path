@@ -96,6 +96,7 @@ async function initSchema() {
 
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji VARCHAR(12) DEFAULT NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS status_message VARCHAR(60) DEFAULT NULL;
         `);
 
         await client.query(`

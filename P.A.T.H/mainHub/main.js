@@ -138,8 +138,6 @@ async function initHub() {
 
         updateHUD(currentUser);
         updateMyBuilding(currentUser);
-        const emojiBtn = document.getElementById('emoji-status-btn');
-        if (emojiBtn) emojiBtn.textContent = currentUser.status_emoji || '😶';
         await Promise.all([loadRankingAndMap(), loadNotifBadge(), loadUniversitiesCache(), refreshFriendBadge()]);
         fetch('/api/friends/list', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(friends => {
             if (window.WorldScene) window.WorldScene.setFriendIds(friends.map(f => f.id));
@@ -336,6 +334,19 @@ async function openEstate() {
         const interior = document.getElementById('castle-interior');
         document.getElementById('interior-body').innerHTML = `
             <div class="interior-grid">
+                <div class="interior-card" style="grid-column:1/-1;">
+                    <div class="interior-card-title">💬 상태 메시지</div>
+                    <div class="estate-section">
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" id="status-msg-input" class="interior-input" maxlength="30"
+                                placeholder="열기구 위에 표시될 메시지를 입력하세요"
+                                value="${esc(currentUser?.status_message || '')}">
+                            <button id="status-msg-save-btn" class="inline-btn" onclick="saveStatusMsg(event)">저장</button>
+                            <button class="inline-btn" style="color:#888;background:rgba(255,255,255,0.05);" onclick="document.getElementById('status-msg-input').value='';saveStatusMsg(event)">지우기</button>
+                        </div>
+                        <div style="margin-top:5px;font-size:10px;color:#555;">최대 30자 · 내 열기구 위에 말풍선으로 표시됩니다</div>
+                    </div>
+                </div>
                 <div class="interior-card">
                     <div class="interior-card-title">🏫 모의진학 정보</div>
                     <div class="estate-section">
@@ -1545,30 +1556,21 @@ function _startApp() {
 }
 _startApp();
 
-function toggleEmojiPicker(e) {
-    e.stopPropagation();
-    const picker = document.getElementById('emoji-picker');
-    picker.classList.toggle('open');
-}
-document.addEventListener('click', () => {
-    document.getElementById('emoji-picker')?.classList.remove('open');
-});
-
-async function setMyEmoji(emoji) {
-    document.getElementById('emoji-picker')?.classList.remove('open');
+async function saveStatusMsg(e) {
+    const msg = (document.getElementById('status-msg-input')?.value || '').trim();
     try {
-        const r = await fetch('/api/auth/status-emoji', {
+        const r = await fetch('/api/auth/status-message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ emoji })
+            body: JSON.stringify({ message: msg })
         });
         const data = r.ok ? await r.json() : null;
         if (!data?.ok) return;
-        const btn = document.getElementById('emoji-status-btn');
-        if (btn) btn.textContent = emoji || '😶';
-        if (currentUser) currentUser.status_emoji = emoji || null;
-        if (window.WorldScene) window.WorldScene.updateEmojiFor(currentUser.id, emoji || null);
-    } catch (e) {}
+        if (currentUser) currentUser.status_message = msg || null;
+        if (window.WorldScene) window.WorldScene.updateStatusMsg(currentUser.id, msg || null);
+        const btn = e?.target || document.getElementById('status-msg-save-btn');
+        if (btn) { const orig = btn.textContent; btn.textContent = '✓ 저장됨'; setTimeout(() => btn.textContent = orig, 1800); }
+    } catch (err) {}
 }
 
