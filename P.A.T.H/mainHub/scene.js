@@ -823,11 +823,13 @@ const WorldScene = {
     },
 
     getMyPosition() {
-        if (this.myBalloon) {
-            const pos = this.myBalloon.group.position;
-            return { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) };
-        }
-        return { x: 0, y: 0, z: 0 };
+        // World coordinates are represented by the inverse camera offset.
+        // This keeps UI coordinates in sync with keyboard drag/teleport movement.
+        return {
+            x: Math.round(-this.camPos.x),
+            y: Math.round(-this.camPos.y),
+            z: Math.round(this.camZ)
+        };
     },
 
     getUserPosition(userId) {

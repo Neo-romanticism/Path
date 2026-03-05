@@ -1437,6 +1437,9 @@ function doTeleport() {
     alert(`좌표 (${x}, ${y})로 이동했습니다!`);
 }
 
+window.openTeleportDialog = openTeleportDialog;
+window.doTeleport = doTeleport;
+
 // ── 날씨 및 미니맵 ──────────────────────────────────────────────────
 window.updateWeatherUI = function(mode) {
     const btn = document.getElementById('weather-btn');
@@ -1806,6 +1809,13 @@ function _startApp() {
     }
 }
 _startApp();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const teleportBtn = document.getElementById('btn-teleport');
+    if (teleportBtn) {
+        teleportBtn.addEventListener('click', openTeleportDialog);
+    }
+});
 
 async function saveStatusMsg(e) {
     const msg = (document.getElementById('status-msg-input')?.value || '').trim();
