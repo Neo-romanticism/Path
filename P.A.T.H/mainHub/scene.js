@@ -386,6 +386,77 @@ const WorldScene = {
         });
     },
 
+    _buildFireflies() {
+        const count = 60;
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const phases = new Float32Array(count);
+        for (let i = 0; i < count; i++) {
+            positions[i * 3]     = (Math.random() - 0.5) * 2400;
+            positions[i * 3 + 1] = Math.random() * 600 + 100;
+            positions[i * 3 + 2] = (Math.random() - 0.5) * 2400;
+            phases[i] = Math.random() * Math.PI * 2;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+        const mat = new THREE.PointsMaterial({
+            color: 0xaaffaa, size: 5, transparent: true, opacity: 0.7,
+            depthWrite: false, blending: THREE.AdditiveBlending
+        });
+        this._fireflies = new THREE.Points(geo, mat);
+        this._fireflies.visible = !this.isLight;
+        this._fireflyPhases = phases;
+        this.scene.add(this._fireflies);
+    },
+
+    _buildSkyIslands() {
+        const islandData = [
+            { x: -900, y: -60, z: -800, rx: 2.0 },
+            { x:  700, y: -80, z: -600, rx: 1.6 },
+            { x:  200, y: -50, z:-1000, rx: 1.2 },
+            { x:-1200, y: -70, z: -400, rx: 1.8 },
+        ];
+        islandData.forEach(d => {
+            const group = new THREE.Group();
+            const topGeo = new THREE.CylinderGeometry(d.rx * 90, d.rx * 80, 30, 12);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x3a7d44, roughness: 0.9, metalness: 0 });
+            const top = new THREE.Mesh(topGeo, topMat);
+            top.position.y = 15;
+            group.add(top);
+            const botGeo = new THREE.CylinderGeometry(d.rx * 60, d.rx * 30, 80, 10);
+            const botMat = new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 1.0, metalness: 0 });
+            const bot = new THREE.Mesh(botGeo, botMat);
+            bot.position.y = -25;
+            group.add(bot);
+            group.position.set(d.x, d.y, d.z);
+            group.userData.baseY = d.y;
+            group.userData.floatSpeed = 0.4 + Math.random() * 0.3;
+            group.userData.floatPhase = Math.random() * Math.PI * 2;
+            this.scene.add(group);
+            this.skyIslands.push(group);
+        });
+    },
+
+    _createClickParticle(x, y, z) {
+        const count = 8;
+        for (let i = 0; i < count; i++) {
+            const geo = new THREE.SphereGeometry(3 + Math.random() * 4, 4, 4);
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xD4AF37, transparent: true, opacity: 1, depthWrite: false
+            });
+            const p = new THREE.Mesh(geo, mat);
+            p.position.set(x + (Math.random()-0.5)*20, y + (Math.random()-0.5)*20, z);
+            const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+            const speed = 5 + Math.random() * 8;
+            p.userData.vx = Math.cos(angle) * speed;
+            p.userData.vy = Math.sin(angle) * speed + 4;
+            p.userData.vz = (Math.random()-0.5) * 3;
+            p.userData.life = 1.0;
+            this.scene.add(p);
+            this.clickParticles.push(p);
+        }
+    },
+
     _makeCloud(scale) {
         const group = new THREE.Group();
         const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.88 });
@@ -717,6 +788,42 @@ const WorldScene = {
         if (!b) return;
         this.camTarget.x = -b.group.position.x;
         this.camTarget.y = -(b.group.userData.baseY || 0);
+    },
+
+    cycleWeather() {
+        const modes = ['none', 'rain', 'snow'];
+        const idx = modes.indexOf(this.weatherMode);
+        this.weatherMode = modes[(idx + 1) % modes.length];
+
+        this.raindrops.forEach(d => this.scene.remove(d));
+        this.raindrops.length = 0;
+        this.snowflakes.forEach(f => this.scene.remove(f));
+        this.snowflakes.length = 0;
+
+        if (this.weatherMode === 'rain') {
+            for (let i = 0; i < 200; i++) {
+                const geo = new THREE.CylinderGeometry(0.5, 0.5, 18, 4);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.45 });
+                const d = new THREE.Mesh(geo, mat);
+                d.position.set((Math.random() - 0.5) * 2000, Math.random() * 800 - 100, (Math.random() - 0.5) * 600);
+                d.userData.speed = 12 + Math.random() * 6;
+                d.userData.resetY = 600;
+                this.scene.add(d);
+                this.raindrops.push(d);
+            }
+        } else if (this.weatherMode === 'snow') {
+            for (let i = 0; i < 150; i++) {
+                const geo = new THREE.SphereGeometry(3 + Math.random() * 3, 5, 5);
+                const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+                const f = new THREE.Mesh(geo, mat);
+                f.position.set((Math.random() - 0.5) * 2000, Math.random() * 800 - 100, (Math.random() - 0.5) * 600);
+                f.userData.speed = 1.5 + Math.random() * 1.5;
+                f.userData.drift = (Math.random() - 0.5) * 2;
+                f.userData.resetY = 600;
+                this.scene.add(f);
+                this.snowflakes.push(f);
+            }
+        }
     },
 
     focusHome() {
