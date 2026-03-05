@@ -1424,6 +1424,19 @@ window.updateCoordinatesUI = function(x, y, z) {
     if (elZ) elZ.textContent = z;
 };
 
+function syncCoordinatesFromScene() {
+    if (!window.WorldScene || !window.WorldScene.isReady || !window.WorldScene.getMyPosition) return;
+    const pos = window.WorldScene.getMyPosition();
+    if (!pos) return;
+    window.updateCoordinatesUI(pos.x, pos.y, pos.z);
+}
+
+function startCoordinateSyncLoop() {
+    if (window.__coordSyncLoopStarted) return;
+    window.__coordSyncLoopStarted = true;
+    setInterval(syncCoordinatesFromScene, 120);
+}
+
 function openTeleportDialog() {
     const pos = window.WorldScene ? window.WorldScene.getMyPosition() : { x: 0, y: 0 };
     document.getElementById('tp-x').value = pos.x;
@@ -1813,13 +1826,31 @@ function _startApp() {
     }
 }
 _startApp();
+startCoordinateSyncLoop();
 
 document.addEventListener('DOMContentLoaded', () => {
     const teleportBtn = document.getElementById('btn-teleport');
     if (teleportBtn) {
-        teleportBtn.addEventListener('click', openTeleportDialog);
+        teleportBtn.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openTeleportDialog();
+        });
+        teleportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openTeleportDialog();
+        });
     }
 });
+
+document.addEventListener('click', (e) => {
+    const target = e.target && e.target.closest ? e.target.closest('#btn-teleport') : null;
+    if (!target) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openTeleportDialog();
+}, true);
 
 async function saveStatusMsg(e) {
     const msg = (document.getElementById('status-msg-input')?.value || '').trim();

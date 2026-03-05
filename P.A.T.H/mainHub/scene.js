@@ -305,12 +305,19 @@ const WorldScene = {
                     vec2 c = vUv - vec2(0.5);
                     float d = length(c);
                     if (d > 0.5) discard;
-                    vec2 shadow = c - vec2(0.18, -0.1);
-                    float shadowD = length(shadow);
-                    float crescent = smoothstep(0.42, 0.44, shadowD);
-                    vec3 moonCol = mix(vec3(0.85, 0.8, 0.65), vec3(0.98, 0.96, 0.85), crescent);
                     float edge = 1.0 - smoothstep(0.44, 0.5, d);
-                    gl_FragColor = vec4(moonCol * crescent, crescent * edge);
+
+                    // Keep the moon disc centered and fake the crescent with internal shading.
+                    // This avoids the visual offset between moon core and moon glow.
+                    vec2 shadowCenter = c - vec2(0.18, -0.1);
+                    float shadowD = length(shadowCenter);
+                    float lit = smoothstep(0.30, 0.48, shadowD);
+
+                    vec3 darkSide = vec3(0.42, 0.40, 0.38);
+                    vec3 brightSide = vec3(0.98, 0.96, 0.85);
+                    vec3 moonCol = mix(darkSide, brightSide, lit);
+
+                    gl_FragColor = vec4(moonCol, edge);
                 }
             `,
             transparent: true, depthWrite: false
