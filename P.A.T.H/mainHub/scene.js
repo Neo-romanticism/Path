@@ -374,7 +374,7 @@ const WorldScene = {
         group.userData = { userId: user.id, user, balloon, label, isMe, baseY: 0 };
 
         if (isMe) {
-            const glowGeo = new THREE.CircleGeometry(110, 48);
+            const glowGeo = new THREE.CircleGeometry(70, 30);
             const glowMat = new THREE.ShaderMaterial({
                 uniforms: { uTime: { value: 0 } },
                 vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
