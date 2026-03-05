@@ -374,75 +374,16 @@ const WorldScene = {
         group.userData = { userId: user.id, user, balloon, label, isMe, baseY: 0 };
 
         if (isMe) {
-            // max() dilation 방식: 평균 대신 max를 쓰면 고스트 복사본 없이 실루엣만 확장됨
-            const GS = 2.0;
-            const glowGeo = new THREE.PlaneGeometry(160 * GS, 200 * GS);
-            const uvOffset = (1.0 - 1.0 / GS) / 2.0;  // 0.25
-            const uvScale  = 1.0 / GS;                  // 0.5
+            const glowGeo = new THREE.CircleGeometry(110, 48);
             const glowMat = new THREE.ShaderMaterial({
-                uniforms: {
-                    uTime:  { value: 0 },
-                    uTex:   { value: tex },
-                    uOff:   { value: uvOffset },
-                    uScale: { value: uvScale }
-                },
-                vertexShader: `
-                    varying vec2 vUv;
-                    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
-                `,
-                fragmentShader: `
-                    uniform sampler2D uTex;
-                    uniform float uTime, uOff, uScale;
-                    varying vec2 vUv;
-
-                    float sampleA(vec2 guv) {
-                        vec2 buv = (guv - uOff) / uScale;
-                        if (buv.x < 0.0 || buv.x > 1.0 || buv.y < 0.0 || buv.y > 1.0) return 0.0;
-                        return texture2D(uTex, buv).a;
-                    }
-
-                    void main() {
-                        // max() dilation: 인접 샘플 중 가장 큰 알파값만 취함
-                        // → 고스트 없이 열기구 실루엣이 sp만큼 바깥쪽으로 팽창
-                        float sp  = 0.045;
-                        float sp2 = sp * 1.8;
-
-                        float d = sampleA(vUv);
-                        d = max(d, sampleA(vUv + vec2( sp,  0.0)));
-                        d = max(d, sampleA(vUv + vec2(-sp,  0.0)));
-                        d = max(d, sampleA(vUv + vec2( 0.0,  sp)));
-                        d = max(d, sampleA(vUv + vec2( 0.0, -sp)));
-                        d = max(d, sampleA(vUv + vec2( sp*0.7,  sp*0.7)));
-                        d = max(d, sampleA(vUv + vec2(-sp*0.7,  sp*0.7)));
-                        d = max(d, sampleA(vUv + vec2( sp*0.7, -sp*0.7)));
-                        d = max(d, sampleA(vUv + vec2(-sp*0.7, -sp*0.7)));
-                        // 두 번째 링 — 더 멀리 번짐
-                        d = max(d, sampleA(vUv + vec2( sp2,  0.0)));
-                        d = max(d, sampleA(vUv + vec2(-sp2,  0.0)));
-                        d = max(d, sampleA(vUv + vec2( 0.0,  sp2)));
-                        d = max(d, sampleA(vUv + vec2( 0.0, -sp2)));
-                        d = max(d, sampleA(vUv + vec2( sp2*0.7,  sp2*0.7)));
-                        d = max(d, sampleA(vUv + vec2(-sp2*0.7,  sp2*0.7)));
-                        d = max(d, sampleA(vUv + vec2( sp2*0.7, -sp2*0.7)));
-                        d = max(d, sampleA(vUv + vec2(-sp2*0.7, -sp2*0.7)));
-
-                        // 안쪽은 원래 알파, 바깥으로 갈수록 부드럽게 감쇠
-                        float center = sampleA(vUv);
-                        float rim = d - center;  // 확장된 외곽 영역만 추출
-                        float glow = center * 0.4 + rim * 2.5;
-                        glow = clamp(glow, 0.0, 1.0);
-                        // 부드러운 감쇠 커브
-                        glow = glow * glow * (3.0 - 2.0 * glow);  // smoothstep 느낌
-
-                        float pulse = 0.65 + 0.35 * sin(uTime * 2.0);
-                        gl_FragColor = vec4(0.98, 0.85, 0.28, glow * pulse * 0.7);
-                    }
-                `,
+                uniforms: { uTime: { value: 0 } },
+                vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `uniform float uTime; varying vec2 vUv; void main() { float d = length(vUv - vec2(0.5)); float pulse = 0.55 + 0.45 * sin(uTime * 2.2); float a = (1.0 - smoothstep(0.2, 0.5, d)) * 0.35 * pulse; gl_FragColor = vec4(0.83, 0.69, 0.21, a); }`,
                 transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
             });
             const glowMesh = new THREE.Mesh(glowGeo, glowMat);
             glowMesh.position.y = 80;
-            glowMesh.position.z = -4;
+            glowMesh.position.z = -5; // 배치: 열기구 뒤쪽 (후광)
             group.userData.glowMat = glowMat;
             group.add(glowMesh);
         }
