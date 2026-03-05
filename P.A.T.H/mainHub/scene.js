@@ -682,6 +682,49 @@ const WorldScene = {
         this.camZTarget = 820;
     },
 
+    _showIslandInfo(islandData) {
+        let infoEl = document.getElementById('island-info');
+        if (!infoEl) {
+            infoEl = document.createElement('div');
+            infoEl.id = 'island-info';
+            infoEl.style.cssText = `
+                position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+                background:rgba(10,10,20,0.95); border:2px solid rgba(212,175,55,0.5);
+                border-radius:16px; padding:24px 32px; z-index:1000;
+                font-family:'Pretendard Variable',sans-serif;
+                backdrop-filter:blur(12px);
+                min-width:320px; text-align:center;
+            `;
+            document.body.appendChild(infoEl);
+        }
+        
+        infoEl.innerHTML = `
+            <div style="font-size:32px;margin-bottom:12px;">🏝️</div>
+            <div style="font-size:24px;color:var(--accent-gold);font-weight:700;margin-bottom:8px;">${islandData.name}</div>
+            <div style="font-size:14px;color:#aaa;margin-bottom:16px;">하늘섬 - ${islandData.landmark}</div>
+            <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:16px;">
+                이 하늘섬은 ${islandData.name}의 상징적인 공간입니다.<br>
+                맵을 탐험하며 다양한 대학의 하늘섬을 발견해보세요!
+            </div>
+            <button onclick="document.getElementById('island-info').remove()" style="
+                background:rgba(212,175,55,0.2); border:1px solid rgba(212,175,55,0.5);
+                color:var(--accent-gold); padding:8px 24px; border-radius:8px;
+                font-size:12px; font-weight:600; cursor:pointer;
+                transition:all 0.2s;
+            " onmouseover="this.style.background='rgba(212,175,55,0.3)'" 
+               onmouseout="this.style.background='rgba(212,175,55,0.2)'">닫기</button>
+        `;
+        
+        // 3초 후 자동으로 제거
+        setTimeout(() => {
+            if (infoEl.parentElement) {
+                infoEl.style.opacity = '0';
+                infoEl.style.transition = 'opacity 0.3s';
+                setTimeout(() => infoEl.remove(), 300);
+            }
+        }, 4000);
+    },
+
     zoom(delta) {
         this.camZTarget = Math.min(Math.max(400, this.camZTarget - delta * 600), 2000);
     },
@@ -805,6 +848,23 @@ const WorldScene = {
             );
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, this.camera);
+            
+            // 하늘섬 클릭 체크
+            const islandMeshes = [];
+            this.skyIslands.forEach(island => {
+                island.traverse(ch => { if (ch.isMesh) islandMeshes.push(ch); });
+            });
+            const islandHits = raycaster.intersectObjects(islandMeshes, false);
+            if (islandHits.length > 0) {
+                let island = islandHits[0].object;
+                while (island && !island.userData.name) island = island.parent;
+                if (island && island.userData.name) {
+                    this._showIslandInfo(island.userData);
+                    return;
+                }
+            }
+            
+            // 열기구 클릭 체크
             const meshes = [];
             this.balloons.forEach(b => {
                 b.group.traverse(ch => { if (ch.isMesh) meshes.push(ch); });
