@@ -374,18 +374,17 @@ const WorldScene = {
         group.userData = { userId: user.id, user, balloon, label, isMe, baseY: 0 };
 
         if (isMe) {
-            // 열기구(160×200)보다 1.8× 큰 plane — 텍스처 UV를 역산해 실루엣 글로우 생성
-            const GS = 1.8;
+            // 2.5× 큰 plane — 넉넉한 여백으로 자연스럽게 번지도록
+            const GS = 2.5;
             const glowGeo = new THREE.PlaneGeometry(160 * GS, 200 * GS);
-            // glowUV → balloonUV 변환: offset = (1-1/GS)/2, scale = 1/GS
-            const uvOffset = (1 - 1 / GS) / 2;   // ≈ 0.2222
-            const uvScale  = 1 / GS;               // ≈ 0.5556
+            const uvOffset = (1.0 - 1.0 / GS) / 2.0;  // 0.3
+            const uvScale  = 1.0 / GS;                  // 0.4
             const glowMat = new THREE.ShaderMaterial({
                 uniforms: {
-                    uTime:     { value: 0 },
-                    uTex:      { value: tex },
-                    uOff:      { value: uvOffset },
-                    uScale:    { value: uvScale }
+                    uTime:  { value: 0 },
+                    uTex:   { value: tex },
+                    uOff:   { value: uvOffset },
+                    uScale: { value: uvScale }
                 },
                 vertexShader: `
                     varying vec2 vUv;
@@ -403,26 +402,49 @@ const WorldScene = {
                     }
 
                     void main() {
-                        float sp = 0.055;
-                        float a  = sampleA(vUv)
-                                 + sampleA(vUv + vec2( sp,  0.0))
-                                 + sampleA(vUv + vec2(-sp,  0.0))
-                                 + sampleA(vUv + vec2( 0.0, sp))
-                                 + sampleA(vUv + vec2( 0.0,-sp))
-                                 + sampleA(vUv + vec2( sp*0.7,  sp*0.7))
-                                 + sampleA(vUv + vec2(-sp*0.7,  sp*0.7))
-                                 + sampleA(vUv + vec2( sp*0.7, -sp*0.7))
-                                 + sampleA(vUv + vec2(-sp*0.7, -sp*0.7));
-                        a = smoothstep(0.08, 0.85, a / 9.0);
-                        float pulse = 0.55 + 0.45 * sin(uTime * 2.2);
-                        gl_FragColor = vec4(0.98, 0.85, 0.28, a * pulse * 0.75);
+                        float sp = 0.07;
+
+                        // Ring1 — 거리 1×sp (가중치 0.50)
+                        float r1 = (sampleA(vUv + vec2( sp,   0.0 ))
+                                  + sampleA(vUv + vec2(-sp,   0.0 ))
+                                  + sampleA(vUv + vec2( 0.0,  sp  ))
+                                  + sampleA(vUv + vec2( 0.0, -sp  ))) / 4.0;
+
+                        // Ring2 — 거리 2×sp (가중치 0.33)
+                        float sp2 = sp * 2.0;
+                        float r2 = (sampleA(vUv + vec2( sp2,  0.0 ))
+                                  + sampleA(vUv + vec2(-sp2,  0.0 ))
+                                  + sampleA(vUv + vec2( 0.0,  sp2 ))
+                                  + sampleA(vUv + vec2( 0.0, -sp2 ))
+                                  + sampleA(vUv + vec2( sp*1.4,  sp*1.4))
+                                  + sampleA(vUv + vec2(-sp*1.4,  sp*1.4))
+                                  + sampleA(vUv + vec2( sp*1.4, -sp*1.4))
+                                  + sampleA(vUv + vec2(-sp*1.4, -sp*1.4))) / 8.0;
+
+                        // Ring3 — 거리 3×sp (가중치 0.17)
+                        float sp3 = sp * 3.0;
+                        float r3 = (sampleA(vUv + vec2( sp3,  0.0 ))
+                                  + sampleA(vUv + vec2(-sp3,  0.0 ))
+                                  + sampleA(vUv + vec2( 0.0,  sp3 ))
+                                  + sampleA(vUv + vec2( 0.0, -sp3 ))
+                                  + sampleA(vUv + vec2( sp*2.1,  sp*2.1))
+                                  + sampleA(vUv + vec2(-sp*2.1,  sp*2.1))
+                                  + sampleA(vUv + vec2( sp*2.1, -sp*2.1))
+                                  + sampleA(vUv + vec2(-sp*2.1, -sp*2.1))) / 8.0;
+
+                        // 가우시안 가중 합산 + pow로 부드러운 감쇠
+                        float a = r1 * 0.50 + r2 * 0.33 + r3 * 0.17;
+                        a = pow(a, 0.55);
+
+                        float pulse = 0.6 + 0.4 * sin(uTime * 2.0);
+                        gl_FragColor = vec4(0.98, 0.85, 0.28, a * pulse * 0.65);
                     }
                 `,
                 transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
             });
             const glowMesh = new THREE.Mesh(glowGeo, glowMat);
-            glowMesh.position.y = 80;  // 열기구 본체와 동일 y
-            glowMesh.position.z = -4;  // 열기구 뒤
+            glowMesh.position.y = 80;
+            glowMesh.position.z = -4;
             group.userData.glowMat = glowMat;
             group.add(glowMesh);
         }
