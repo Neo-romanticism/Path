@@ -226,14 +226,26 @@ const UI = {
         if (!this.weekData?.week || !this.elements.weekLabel) return;
         const start = this.weekData.week.start_date;
         const end = this.weekData.week.end_date;
-        this.elements.weekLabel.textContent = `${start} ~ ${end} (${this.weekOffset > 0 ? '+' : ''}${this.weekOffset}주)`;
+        const offsetText = this.weekOffset === 0
+            ? '이번 주'
+            : `${this.weekOffset > 0 ? '+' : ''}${this.weekOffset}주`;
+        this.elements.weekLabel.textContent = `${start} ~ ${end} (${offsetText})`;
     },
 
     renderCalendarTimeline() {
         if (!this.elements.calendarTimeline || !this.weekData?.week) return;
 
+        const dayStartMinute = 6 * 60;
+        const dayEndMinute = 24 * 60;
+        const hourHeight = 56;
+        const totalMinutes = dayEndMinute - dayStartMinute;
+        const timelineHeight = Math.floor((totalMinutes / 60) * hourHeight);
+
         const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
         const start = new Date(`${this.weekData.week.start_date}T00:00:00`);
+        const now = new Date();
+        const todayKey = this.toLocalYmd(now);
+        const nowMinute = now.getHours() * 60 + now.getMinutes();
         const plansByDate = new Map();
         const recordsByDate = new Map();
 
@@ -248,43 +260,127 @@ const UI = {
             recordsByDate.get(key).push(rec);
         }
 
-        let html = '';
+        const timeAxis = [];
+        for (let hour = dayStartMinute / 60; hour <= dayEndMinute / 60; hour++) {
+            const top = (hour - dayStartMinute / 60) * hourHeight;
+            const label = `${String(hour).padStart(2, '0')}:00`;
+            timeAxis.push(`<div class="tt-time-label" style="top:${top}px">${label}</div>`);
+        }
+
+        const headCols = [];
+        const dayCols = [];
+
         for (let i = 0; i < 7; i++) {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
             const key = d.toISOString().slice(0, 10);
             const plans = plansByDate.get(key) || [];
             const records = recordsByDate.get(key) || [];
+            const totalRecordSec = records.reduce((acc, r) => acc + (parseInt(r.duration_sec, 10) || 0), 0);
+            const recordDuration = this.formatDuration(totalRecordSec);
+
+            headCols.push(
+                `<div class="tt-day-head">
+                    <div class="tt-day-name">${dayNames[i]}</div>
+                    <div class="tt-day-date">${key}</div>
+                    <div class="tt-day-record">완료 ${recordDuration}</div>
+                </div>`
+            );
 
             const planItems = plans.map((p) => {
-                const status = p.is_completed ? '완료' : '예정';
-                return `<div class="timeline-item timeline-plan">
-                    <div><strong>${this.escapeHtml(p.subject_name || '미지정')}</strong> (${status})</div>
-                    <div class="timeline-meta">${this.minuteToTime(p.start_minute)} - ${this.minuteToTime(p.end_minute)}</div>
-                    <div class="timeline-meta">${this.escapeHtml(p.note || '')}</div>
+                const rawStart = parseInt(p.start_minute, 10) || 0;
+                const rawEnd = parseInt(p.end_minute, 10) || 0;
+                const clampedStart = Math.max(dayStartMinute, Math.min(rawStart, dayEndMinute));
+                const clampedEnd = Math.max(dayStartMinute, Math.min(rawEnd, dayEndMinute));
+                if (clampedEnd <= clampedStart) return '';
+
+                const top = Math.floor(((clampedStart - dayStartMinute) / totalMinutes) * timelineHeight);
+                const height = Math.max(22, Math.floor(((clampedEnd - clampedStart) / totalMinutes) * timelineHeight));
+                const statusClass = p.is_completed ? 'is-completed' : 'is-planned';
+                const subjectColor = this.getSubjectColor(p.subject_id, p.subject_name);
+                const bg = this.hexToRgba(subjectColor, p.is_completed ? 0.18 : 0.24);
+                const border = this.hexToRgba(subjectColor, 0.55);
+                return `<div class="tt-event ${statusClass}" style="top:${top}px;height:${height}px;--subject-color:${subjectColor};--subject-bg:${bg};--subject-border:${border}">
+                    <div class="tt-event-title">${this.escapeHtml(p.subject_name || '미지정')}</div>
+                    <div class="tt-event-time">${this.minuteToTime(rawStart)} - ${this.minuteToTime(rawEnd)}</div>
+                    ${p.note ? `<div class="tt-event-note">${this.escapeHtml(p.note)}</div>` : ''}
                     <button class="plan-delete-btn" data-plan-id="${p.id}" type="button">삭제</button>
                 </div>`;
             }).join('');
 
-            const recordItems = records.map((r) => {
+            const recordChips = records.map((r) => {
                 const sec = parseInt(r.duration_sec, 10) || 0;
-                const min = Math.floor(sec / 60);
-                const h = Math.floor(min / 60);
-                const mm = min % 60;
-                const duration = h > 0 ? `${h}h ${mm}m` : `${mm}m`;
-                return `<div class="timeline-item timeline-record">
-                    <div><strong>${this.escapeHtml(r.subject_name || '미지정')}</strong> (${this.escapeHtml(r.result)})</div>
-                    <div class="timeline-meta">실공부 ${duration}</div>
-                </div>`;
+                const subjectColor = this.getSubjectColor(r.subject_id, r.subject_name);
+                const bg = this.hexToRgba(subjectColor, 0.16);
+                const border = this.hexToRgba(subjectColor, 0.45);
+                return `<span class="tt-record-chip" style="--chip-color:${subjectColor};--chip-bg:${bg};--chip-border:${border}">${this.escapeHtml(r.subject_name || '미지정')} · ${this.formatDuration(sec)}</span>`;
             }).join('');
 
-            html += `<div class="calendar-day">
-                <div class="day-title">${key} (${dayNames[i]})</div>
-                <div class="day-items">${planItems}${recordItems || ''}${(!planItems && !recordItems) ? '<div class="timeline-meta">기록 없음</div>' : ''}</div>
-            </div>`;
+            let nowLine = '';
+            if (key === todayKey && nowMinute >= dayStartMinute && nowMinute <= dayEndMinute) {
+                const nowTop = Math.floor(((nowMinute - dayStartMinute) / totalMinutes) * timelineHeight);
+                nowLine = `<div class="tt-now-line" style="top:${nowTop}px"><span class="tt-now-label">지금</span></div>`;
+            }
+
+            dayCols.push(
+                `<div class="tt-day-col" style="height:${timelineHeight}px">
+                    ${planItems || ''}
+                    ${nowLine}
+                    ${records.length > 0 ? `<div class="tt-records-box">${recordChips}</div>` : ''}
+                </div>`
+            );
         }
 
-        this.elements.calendarTimeline.innerHTML = html;
+        this.elements.calendarTimeline.innerHTML = `
+            <div class="week-grid-wrap">
+                <div class="week-timetable" style="--timeline-height:${timelineHeight}px">
+                    <div class="tt-corner">TIME</div>
+                    ${headCols.join('')}
+                    <div class="tt-time-axis">${timeAxis.join('')}</div>
+                    ${dayCols.join('')}
+                </div>
+            </div>`;
+    },
+
+    formatDuration(sec) {
+        const totalMin = Math.max(0, Math.floor((sec || 0) / 60));
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        if (h <= 0) return `${m}m`;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}m`;
+    },
+
+    getSubjectColor(subjectId, subjectName) {
+        const palette = ['#f2994a', '#2d9cdb', '#27ae60', '#bb6bd9', '#eb5757', '#56ccf2', '#f2c94c', '#6fcf97'];
+        const seed = Number(subjectId) || this.hashString(String(subjectName || 'subject'));
+        const idx = Math.abs(seed) % palette.length;
+        return palette[idx];
+    },
+
+    hashString(text) {
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+            hash = ((hash << 5) - hash) + text.charCodeAt(i);
+            hash |= 0;
+        }
+        return hash;
+    },
+
+    hexToRgba(hex, alpha) {
+        const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+        if (!m) return `rgba(212,175,55,${alpha})`;
+        const r = parseInt(m[1], 16);
+        const g = parseInt(m[2], 16);
+        const b = parseInt(m[3], 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    },
+
+    toLocalYmd(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     },
 
     async handlePlanSubmit(event) {

@@ -12,11 +12,22 @@ function getBalloonSrc(skinId, isLight) {
     return isLight ? skin.lightImg : skin.darkImg;
 }
 
-function toggleTheme() {
-    const isLight = document.body.classList.toggle('light');
+const UI_SETTINGS_KEY = 'path_ui_settings';
+const DEFAULT_UI_SETTINGS = {
+    showMinimap: false,
+    showKeyboardGuide: true,
+    showCoordinates: true
+};
+
+function toggleTheme(forceLight) {
+    const isLight = typeof forceLight === 'boolean'
+        ? forceLight
+        : !document.body.classList.contains('light');
+    document.body.classList.toggle('light', isLight);
     localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
-    const btn = document.getElementById('theme-btn');
-    if (btn) btn.textContent = isLight ? '🌙' : '☀';
+
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) themeToggle.checked = isLight;
 
     if (window.WorldScene && window.WorldScene.isReady) {
         window.WorldScene.setDayNightMode(isLight, true);
@@ -27,10 +38,56 @@ function toggleTheme() {
     loadRankingAndMap();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('theme-btn');
+function getUiSettings() {
+    try {
+        const raw = localStorage.getItem(UI_SETTINGS_KEY);
+        if (!raw) return { ...DEFAULT_UI_SETTINGS };
+        return { ...DEFAULT_UI_SETTINGS, ...JSON.parse(raw) };
+    } catch (e) {
+        return { ...DEFAULT_UI_SETTINGS };
+    }
+}
+
+function applyUiSettings(settings) {
+    const minimapToggle = document.getElementById('minimap-toggle');
+    const keyboardToggle = document.getElementById('keyboard-guide-toggle');
+    const coordinatesToggle = document.getElementById('coordinates-toggle');
+
+    if (minimapToggle) minimapToggle.checked = !!settings.showMinimap;
+    if (keyboardToggle) keyboardToggle.checked = !!settings.showKeyboardGuide;
+    if (coordinatesToggle) coordinatesToggle.checked = !!settings.showCoordinates;
+
+    const keyboardGuide = document.getElementById('keyboard-guide');
+    if (keyboardGuide) keyboardGuide.classList.toggle('hidden', !settings.showKeyboardGuide);
+
+    const coordinates = document.getElementById('coordinates-display');
+    if (coordinates) coordinates.classList.toggle('hidden', !settings.showCoordinates);
+
+    setMinimapVisible(!!settings.showMinimap);
+}
+
+function loadUiSettings() {
+    const settings = getUiSettings();
     const isLight = document.body.classList.contains('light');
-    if (btn) btn.textContent = isLight ? '🌙' : '☀';
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle) themeToggle.checked = isLight;
+    applyUiSettings(settings);
+}
+
+function saveUiSettings() {
+    const next = {
+        showMinimap: !!document.getElementById('minimap-toggle')?.checked,
+        showKeyboardGuide: !!document.getElementById('keyboard-guide-toggle')?.checked,
+        showCoordinates: !!document.getElementById('coordinates-toggle')?.checked
+    };
+    localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(next));
+    applyUiSettings(next);
+    const isLight = !!document.getElementById('theme-toggle')?.checked;
+    toggleTheme(isLight);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadUiSettings();
 });
 
 let currentUser = null;
@@ -899,7 +956,7 @@ function togglePanel(id) {
         if (id === 'panel-rank') loadRankPanel(currentRankTab);
         if (id === 'panel-notif') loadNotifPanel();
         if (id === 'panel-shop') renderShopContent(currentShopTab);
-        if (id === 'panel-settings') loadCamSettings();
+        if (id === 'panel-settings') loadSettingsPanel();
     } else {
         el.classList.add('hidden');
     }
@@ -1265,6 +1322,11 @@ async function saveCamSettings() {
     } catch (e) {}
 }
 
+function loadSettingsPanel() {
+    loadUiSettings();
+    loadCamSettings();
+}
+
 // ── 친구(ALLY) 시스템 ─────────────────────────────────────────────────
 let currentAllyTab = 'list';
 let allyPanelOpen = false;
@@ -1472,21 +1534,35 @@ function toggleWeather() {
 }
 
 let minimapInterval = null;
-function toggleMinimap() {
+function setMinimapVisible(visible) {
     const minimap = document.getElementById('minimap');
-    const isHidden = minimap.classList.toggle('hidden');
-    
-    if (!isHidden) {
+    if (!minimap) return;
+
+    minimap.classList.toggle('hidden', !visible);
+
+    if (visible) {
         if (!minimapInterval) {
             updateMinimap();
             minimapInterval = setInterval(updateMinimap, 100);
         }
-    } else {
-        if (minimapInterval) {
-            clearInterval(minimapInterval);
-            minimapInterval = null;
-        }
+    } else if (minimapInterval) {
+        clearInterval(minimapInterval);
+        minimapInterval = null;
     }
+}
+
+function toggleMinimap() {
+    const minimap = document.getElementById('minimap');
+    if (!minimap) return;
+    const makeVisible = minimap.classList.contains('hidden');
+    setMinimapVisible(makeVisible);
+
+    const minimapToggle = document.getElementById('minimap-toggle');
+    if (minimapToggle) minimapToggle.checked = makeVisible;
+
+    const settings = getUiSettings();
+    settings.showMinimap = makeVisible;
+    localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(settings));
 }
 
 function updateMinimap() {

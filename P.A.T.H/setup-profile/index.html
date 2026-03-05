@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.A.T.H - 프로필 설정</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --gold: #D4AF37;
+            --border: rgba(212, 175, 55, 0.2);
+            --accent: #FF3B30;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+            min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 20px;
+        }
+        .logo { font-size: 2.5rem; font-weight: 100; letter-spacing: 18px; color: #fff; text-shadow: 0 0 30px rgba(212,175,55,0.3); margin-bottom: 8px; }
+        .tagline { font-size: 11px; letter-spacing: 4px; color: #444; margin-bottom: 50px; text-transform: uppercase; }
+        .card { width: 100%; max-width: 420px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 40px 32px; }
+        .title { font-size: 13px; letter-spacing: 3px; color: var(--gold); margin-bottom: 8px; text-align: center; text-transform: uppercase; }
+        .subtitle { font-size: 11px; color: #666; text-align: center; margin-bottom: 32px; line-height: 1.6; }
+        .form { display: flex; flex-direction: column; gap: 24px; }
+        .field { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 10px; letter-spacing: 3px; color: #555; text-transform: uppercase; }
+        input[type="text"] {
+            background: none; border: none; border-bottom: 1px solid #222;
+            color: #fff; font-size: 1.1rem; padding: 10px 0; outline: none;
+            transition: border-color 0.3s; font-family: inherit;
+        }
+        input:focus { border-bottom-color: var(--gold); }
+        .hint { font-size: 10px; color: #555; margin-top: 4px; }
+        .check-row { display: flex; align-items: center; gap: 10px; }
+        .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
+        .check-row label { font-size: 11px; letter-spacing: 1px; cursor: pointer; color: #888; text-transform: none; }
+        .error-msg { font-size: 11px; color: var(--accent); letter-spacing: 1px; text-align: center; min-height: 16px; }
+        .btn-submit {
+            margin-top: 16px; background: none; border: 1px solid #444;
+            color: #888; padding: 18px; font-size: 11px; letter-spacing: 5px;
+            cursor: pointer; text-transform: uppercase; transition: all 0.4s;
+            font-family: inherit; width: 100%;
+        }
+        .btn-submit:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+        .btn-submit:disabled { opacity: 0.3; cursor: not-allowed; }
+        .google-info { display: flex; align-items: center; gap: 12px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid #222; border-radius: 8px; margin-bottom: 24px; }
+        .google-avatar { width: 40px; height: 40px; border-radius: 50%; background: #333; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .google-details { flex: 1; }
+        .google-name { font-size: 13px; color: #ddd; margin-bottom: 2px; }
+        .google-email { font-size: 10px; color: #666; }
+        .univ-field { position: relative; }
+        .univ-results {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: #111; border: 1px solid #222; border-top: none;
+            max-height: 200px; overflow-y: auto; z-index: 100;
+            display: none;
+        }
+        .univ-results.show { display: block; }
+        .univ-item {
+            padding: 10px; font-size: 13px; color: #ccc; cursor: pointer;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .univ-item:hover { background: #1a1a1a; color: var(--gold); }
+    </style>
+</head>
+<body>
+    <div class="logo">P.A.T.H</div>
+    <div class="tagline">프로필 설정</div>
+
+    <div class="card">
+        <h1 class="title">환영합니다!</h1>
+        <p class="subtitle">P.A.T.H에서 사용할 닉네임과 목표 대학을 설정해주세요.</p>
+
+        <div id="google-info" class="google-info" style="display: none;">
+            <div class="google-avatar">👤</div>
+            <div class="google-details">
+                <div class="google-name" id="user-name">-</div>
+                <div class="google-email" id="user-email">-</div>
+            </div>
+        </div>
+
+        <form class="form" id="profile-form" onsubmit="submitProfile(event)">
+            <div class="field">
+                <label>닉네임 *</label>
+                <input type="text" id="nickname" placeholder="2~20자" autocomplete="off" required>
+                <div class="hint">다른 사용자에게 표시될 이름입니다.</div>
+            </div>
+
+            <div class="field univ-field">
+                <label>목표 대학교 *</label>
+                <input type="text" id="university" placeholder="대학명 검색 (예: 서울대)" autocomplete="off" oninput="searchUniv(this.value)" required>
+                <div id="univ-results" class="univ-results"></div>
+                <div class="hint">재수생의 경우 목표 대학을 입력해주세요.</div>
+            </div>
+
+            <div class="check-row">
+                <input type="checkbox" id="is-nsu" onchange="toggleNsu()">
+                <label for="is-nsu">N수생입니다</label>
+            </div>
+
+            <div class="field univ-field" id="prev-univ-field" style="display: none;">
+                <label>전적 대학교</label>
+                <input type="text" id="prev-university" placeholder="재학/졸업한 대학" autocomplete="off" oninput="searchPrevUniv(this.value)">
+                <div id="prev-univ-results" class="univ-results"></div>
+            </div>
+
+            <div class="error-msg" id="error-msg"></div>
+            <button type="submit" class="btn-submit">시작하기</button>
+        </form>
+    </div>
+
+    <script>
+        let tempUserId = null;
+
+        async function checkSession() {
+            try {
+                const r = await fetch('/api/auth/me', { credentials: 'include' });
+                if (!r.ok) {
+                    window.location.href = '/P.A.T.H/login/';
+                    return;
+                }
+                const data = await r.json();
+                const user = data.user;
+                
+                // 이미 닉네임이 설정된 경우 메인으로
+                if (user && user.nickname && !user.nickname.startsWith('user')) {
+                    window.location.href = '/P.A.T.H/mainHub/';
+                    return;
+                }
+
+                // 구글 정보 표시
+                if (user.google_email) {
+                    document.getElementById('google-info').style.display = 'flex';
+                    document.getElementById('user-name').textContent = user.real_name || 'Google User';
+                    document.getElementById('user-email').textContent = user.google_email;
+                }
+
+                tempUserId = user.id;
+            } catch (e) {
+                console.error('session check error:', e);
+                window.location.href = '/P.A.T.H/login/';
+            }
+        }
+
+        function toggleNsu() {
+            const checked = document.getElementById('is-nsu').checked;
+            document.getElementById('prev-univ-field').style.display = checked ? 'block' : 'none';
+        }
+
+        async function searchUniv(q) {
+            const resEl = document.getElementById('univ-results');
+            if (!q || q.length < 1) {
+                resEl.classList.remove('show');
+                return;
+            }
+            try {
+                const r = await fetch(`/api/university/search?q=${encodeURIComponent(q)}`);
+                const data = await r.json();
+                const list = data.results || [];
+                if (list.length === 0) {
+                    resEl.classList.remove('show');
+                    return;
+                }
+                resEl.innerHTML = list.map(u => `
+                    <div class="univ-item" onclick="selectUniv('${u.name}', 'university')">
+                        ${u.name} <span style="font-size:10px;color:#555">(${u.region})</span>
+                    </div>
+                `).join('');
+                resEl.classList.add('show');
+            } catch (e) {
+                console.error('univ search error', e);
+            }
+        }
+
+        async function searchPrevUniv(q) {
+            const resEl = document.getElementById('prev-univ-results');
+            if (!q || q.length < 1) {
+                resEl.classList.remove('show');
+                return;
+            }
+            try {
+                const r = await fetch(`/api/university/search?q=${encodeURIComponent(q)}`);
+                const data = await r.json();
+                const list = data.results || [];
+                if (list.length === 0) {
+                    resEl.classList.remove('show');
+                    return;
+                }
+                resEl.innerHTML = list.map(u => `
+                    <div class="univ-item" onclick="selectUniv('${u.name}', 'prev-university')">
+                        ${u.name} <span style="font-size:10px;color:#555">(${u.region})</span>
+                    </div>
+                `).join('');
+                resEl.classList.add('show');
+            } catch (e) {
+                console.error('prev univ search error', e);
+            }
+        }
+
+        function selectUniv(name, inputId) {
+            document.getElementById(inputId).value = name;
+            document.querySelectorAll('.univ-results').forEach(el => el.classList.remove('show'));
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.univ-field')) {
+                document.querySelectorAll('.univ-results').forEach(el => el.classList.remove('show'));
+            }
+        });
+
+        async function submitProfile(e) {
+            e.preventDefault();
+            const errEl = document.getElementById('error-msg');
+            errEl.textContent = '';
+
+            const nickname = document.getElementById('nickname').value.trim();
+            const university = document.getElementById('university').value.trim();
+            const is_n_su = document.getElementById('is-nsu').checked;
+            const prev_university = is_n_su ? document.getElementById('prev-university').value.trim() : '';
+
+            if (!nickname || nickname.length < 2 || nickname.length > 20) {
+                errEl.textContent = '닉네임은 2~20자여야 합니다.';
+                return;
+            }
+
+            if (!university) {
+                errEl.textContent = '목표 대학교를 입력해주세요.';
+                return;
+            }
+
+            if (is_n_su && !prev_university) {
+                errEl.textContent = 'N수생은 전적 대학교를 입력해주세요.';
+                return;
+            }
+
+            try {
+                const r = await fetch('/api/auth/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ nickname, university, is_n_su, prev_university })
+                });
+
+                const data = await r.json();
+                if (!r.ok) {
+                    errEl.textContent = data.error || '프로필 업데이트에 실패했습니다.';
+                    return;
+                }
+
+                window.location.href = '/P.A.T.H/mainHub/';
+            } catch (err) {
+                console.error('profile update error:', err);
+                errEl.textContent = '서버 연결 오류가 발생했습니다.';
+            }
+        }
+
+        checkSession();
+    </script>
+</body>
+</html>

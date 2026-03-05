@@ -384,7 +384,12 @@ router.get('/google/callback', async (req, res) => {
                 `UPDATE users SET google_id = COALESCE(google_id, $1), google_email = COALESCE(google_email, $2), auth_provider = 'google' WHERE id = $3`,
                 [googleId, email, user.id]
             );
+            
+            req.session.googleOAuthState = null;
+            req.session.userId = user.id;
+            return res.redirect(successRedirect);
         } else {
+            // 신규 사용자: 임시 계정 생성 후 프로필 설정 페이지로
             const nickname = await makeUniqueNickname((email || name).split('@')[0]);
             const randomPasswordHash = await bcrypt.hash(crypto.randomUUID(), 10);
 
@@ -397,15 +402,58 @@ router.get('/google/callback', async (req, res) => {
                 [nickname, randomPasswordHash, null, name, googleId, email]
             );
             user = created.rows[0];
+            
+            req.session.googleOAuthState = null;
+            req.session.userId = user.id;
+            // 프로필 설정 페이지로 리다이렉트
+            return res.redirect('/P.A.T.H/setup-profile/');
         }
-
-        req.session.googleOAuthState = null;
-        req.session.userId = user.id;
-        return res.redirect(successRedirect);
     } catch (err) {
         console.error('google callback error:', err);
         req.session.googleOAuthState = null;
         return res.redirect(`${errorRedirect}&reason=oauth_failed`);
+    }
+});
+
+// ===== 프로필 업데이트 (구글 로그인 후 닉네임 설정) =====
+router.post('/update-profile', requireAuth, async (req, res) => {
+    const { nickname, university, is_n_su, prev_university } = req.body;
+
+    if (!nickname || nickname.length < 2 || nickname.length > 20) {
+        return res.status(400).json({ error: '닉네임은 2~20자 사이여야 합니다.' });
+    }
+
+    if (!university) {
+        return res.status(400).json({ error: '목표 대학교를 입력해주세요.' });
+    }
+
+    if (is_n_su && !prev_university) {
+        return res.status(400).json({ error: 'N수생은 전적 대학교를 입력해주세요.' });
+    }
+
+    try {
+        // 닉네임 중복 체크
+        const existing = await pool.query(
+            'SELECT id FROM users WHERE nickname = $1 AND id != $2',
+            [nickname, req.session.userId]
+        );
+
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
+        }
+
+        // 프로필 업데이트
+        await pool.query(
+            `UPDATE users 
+             SET nickname = $1, university = $2, is_n_su = $3, prev_university = $4
+             WHERE id = $5`,
+            [nickname, university, !!is_n_su, prev_university || null, req.session.userId]
+        );
+
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('update-profile error:', err);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 });
 

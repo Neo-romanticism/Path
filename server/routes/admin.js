@@ -13,6 +13,22 @@ function requireAdmin(req, res, next) {
         .catch(() => res.status(500).json({ error: '서버 오류' }));
 }
 
+router.get('/', requireAdmin, (req, res) => {
+    res.json({
+        ok: true,
+        service: 'admin-api',
+        message: '관리자 API가 정상 동작 중입니다.',
+        endpoints: [
+            'GET /api/admin/pending',
+            'GET /api/admin/all-users',
+            'POST /api/admin/approve-score',
+            'POST /api/admin/reject-score',
+            'POST /api/admin/approve-gpa',
+            'POST /api/admin/reject-gpa'
+        ]
+    });
+});
+
 router.get('/pending', requireAdmin, async (req, res) => {
     try {
         const result = await pool.query(

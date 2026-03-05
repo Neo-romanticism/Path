@@ -54,7 +54,7 @@ const WorldScene = {
 
         const canvas = document.createElement('canvas');
         canvas.id = 'three-canvas';
-        canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;';
+        canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;touch-action:none;';
         document.body.prepend(canvas);
 
         const bgCanvas = document.getElementById('bg-canvas');
@@ -1069,16 +1069,21 @@ const WorldScene = {
         let pinchDist0 = null;
         canvas.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
+                e.preventDefault();
+                this.isDragging = false;
+                this.isDraggingBalloon = false;
+                this.lastPointer = null;
                 pinchDist0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             }
-        }, { passive: true });
+        }, { passive: false });
         canvas.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2 && pinchDist0 !== null) {
+                e.preventDefault();
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 this.zoom((pinchDist0 - dist) * 0.005);
                 pinchDist0 = dist;
             }
-        }, { passive: true });
+        }, { passive: false });
         canvas.addEventListener('touchend', () => { pinchDist0 = null; }, { passive: true });
 
         // 더블클릭으로 빠른 이동
