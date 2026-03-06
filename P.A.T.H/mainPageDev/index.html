@@ -29,15 +29,15 @@ function toggleTheme() {
     <!-- Top Status Line -->
     <header class="status-bar">
         <div class="status-left">
-            <button class="exit-timer-btn" onclick="location.href='/mainHub/'">◀</button>
-            <span class="status-label">OPERATOR</span>
+            <button class="exit-timer-btn" onclick="location.href='/mainHub/'">←</button>
+            <span class="status-label">학습자</span>
             <span class="status-val tier-text">CHALLENGER</span>
             <span class="status-val sub" id="rank-pct">0.08%</span>
         </div>
         <div class="status-right">
             <span class="resource">🪙 <span id="gold-val">14,500</span></span>
-            <span class="resource">📄 원서비 <span id="ticket-val">01</span>장</span>
-            <button class="exit-timer-btn" onclick="openTimerSettings()" title="설정" style="font-size:16px;">⚙</button>
+            <span class="resource">📄 <span id="ticket-val">01</span>장</span>
+            <button class="exit-timer-btn" onclick="openTimerSettings()" title="설정">⚙</button>
         </div>
     </header>
 
@@ -106,8 +106,8 @@ function toggleTheme() {
     <!-- Main Content -->
     <main class="focus-container">
         <div class="page-tabs" id="page-tabs">
-            <button id="tab-study-btn" class="page-tab-btn active" type="button">STUDY</button>
-            <button id="tab-calendar-btn" class="page-tab-btn" type="button">CALENDAR</button>
+            <button id="tab-study-btn" class="page-tab-btn active" type="button">학습하기</button>
+            <button id="tab-calendar-btn" class="page-tab-btn" type="button">캘린더</button>
         </div>
 
         <section id="tab-study" class="tab-panel active">
@@ -117,37 +117,37 @@ function toggleTheme() {
                     <button id="subject-add-btn" class="subject-add-btn" type="button">과목 추가</button>
                 </div>
                 <div class="subject-row">
-                    <input id="subject-input" class="subject-input" type="text" maxlength="60" placeholder="예: 미적분, 영어 독해">
-                    <span class="subject-hint">입력 귀찮으면 아래 빠른 과목 버튼만 눌러도 됩니다</span>
+                    <input id="subject-input" class="subject-input" type="text" maxlength="60" placeholder="과목명을 입력하세요 (예: 영어, 수학)">
+                    <span class="subject-hint">아래 버튼으로 빠르게 선택할 수도 있어요</span>
                 </div>
                 <div id="quick-subjects" class="quick-subjects" aria-label="빠른 과목 선택"></div>
 
                 <form id="study-plan-form" class="study-plan-form">
-                    <input id="study-plan-subject" class="plan-input" type="text" maxlength="60" placeholder="과목(선택, 비우면 현재 선택 과목)">
-                    <input id="study-plan-topic" class="plan-input" type="text" maxlength="120" placeholder="세부 계획(예: 문학 현대시 3지문)" required>
-                    <input id="study-plan-duration" class="plan-input" type="number" min="5" max="300" step="5" placeholder="예상 시간(분, 기본 50)">
-                    <input id="study-plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모(선택)">
-                    <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플래너 항목 추가</button>
+                    <input id="study-plan-subject" class="plan-input" type="text" maxlength="60" placeholder="과목 (선택)">
+                    <input id="study-plan-topic" class="plan-input" type="text" maxlength="120" placeholder="세부 계획 (예: 영단어 50개 외우기)" required>
+                    <input id="study-plan-duration" class="plan-input" type="number" min="5" max="300" step="5" placeholder="시간 (분)">
+                    <input id="study-plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모 (선택)">
+                    <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플랜 추가하기</button>
                 </form>
                 <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
-                <span class="subject-hint">시작하면 플래너 항목이 오늘 타임라인에 자동 저장됩니다</span>
+                <span class="subject-hint">학습을 시작하면 플랜이 자동으로 캘린더에 저장돼요</span>
             </div>
 
             <div class="mode-group" id="mode-group">
-                <button id="mode-timer" class="mode-btn active" type="button">TIMER</button>
-                <button id="mode-stopwatch" class="mode-btn" type="button">STOPWATCH</button>
+                <button id="mode-timer" class="mode-btn active" type="button">타이머</button>
+                <button id="mode-stopwatch" class="mode-btn" type="button">스톱워치</button>
             </div>
 
             <!-- Timer Setup (Visible initially) -->
             <div id="setup-area" class="setup-group">
                 <div class="input-unit">
                     <input type="number" id="input-hr" class="time-input" value="01" placeholder="00">
-                    <span class="unit-label">HRS</span>
+                    <span class="unit-label">시간</span>
                 </div>
                 <div class="input-sep">:</div>
                 <div class="input-unit">
                     <input type="number" id="input-min" class="time-input" value="40" placeholder="40">
-                    <span class="unit-label">MIN</span>
+                    <span class="unit-label">분</span>
                 </div>
             </div>
 
@@ -158,8 +158,8 @@ function toggleTheme() {
 
             <!-- Controls -->
             <div class="control-group">
-                <button id="enter-btn" class="btn-primary cmd-btn">INITIALIZE PATH</button>
-                <button id="break-btn" class="btn-danger cmd-btn hidden">ABORT PATH</button>
+                <button id="enter-btn" class="btn-primary cmd-btn">학습 시작하기</button>
+                <button id="break-btn" class="btn-danger cmd-btn hidden">중단하기</button>
             </div>
         </section>
 
@@ -190,7 +190,7 @@ function toggleTheme() {
     <!-- Result Overlay -->
     <div id="overlay" class="result-overlay hidden">
         <div class="result-card">
-            <h1 id="res-title" class="result-header">MISSION COMPLETE</h1>
+            <h1 id="res-title" class="result-header">학습 완료!</h1>
             <div id="res-loot" class="result-details"></div>
             <div id="study-proof-section" class="study-proof-section hidden">
                 <div class="study-proof-title">공부 인증샷 업로드</div>
@@ -199,12 +199,12 @@ function toggleTheme() {
                 <button id="study-proof-upload-btn" type="button" class="study-proof-upload-btn" disabled>인증샷들 업로드하고 추가 골드 받기</button>
                 <div id="study-proof-status" class="study-proof-status"></div>
             </div>
-            <button id="reset-btn" class="btn-primary cmd-btn">RETURN TO BASE</button>
+            <button id="reset-btn" class="btn-primary cmd-btn">돌아가기</button>
         </div>
     </div>
 
     <script src="wakelock.js?v=3"></script>
-    <script src="storage.js?v=3"></script> 
+    <script src="storage.js?v=3"></script>
     <script src="core.js?v=3"></script>
     <script src="cam.js?v=3"></script>
     <script src="ui.js?v=3"></script>
