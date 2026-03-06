@@ -410,6 +410,7 @@ const WorldScene = {
             cloud.position.set(d.x, d.y, d.z);
             cloud.userData.baseX = d.x;
             cloud.userData.speed = 0.03 + (idx % 5) * 0.008;
+            cloud.renderOrder = -10;
             cloud.visible = this.isLight;
             this.clouds.push(cloud);
             this.scene.add(cloud);
@@ -574,14 +575,15 @@ const WorldScene = {
         const rng = this._seededRng(seed);
 
         // ── Scattered background clouds (various types) ─────────────────
-        // 150 clouds distributed across the massive world, deterministic positions.
-        const CLOUD_SPREAD = WORLD_HALF * WORLD_SCALE * 0.85;
+        // 60 clouds distributed across the massive world, deterministic positions.
+        const CLOUD_SPREAD_X = WORLD_HALF * WORLD_SCALE * 0.85;
+        const CLOUD_SPREAD_Y = 800;
         const cloudTypes = ['normal', 'wispy', 'large', 'storm'];
-        for (let i = 0; i < 150; i++) {
-            const cx = (rng() - 0.5) * 2 * CLOUD_SPREAD;
-            const cy = 250 + rng() * 500;
-            const cz = -400 - rng() * 1000;
-            const scale = 0.4 + rng() * 1.8;
+        for (let i = 0; i < 60; i++) {
+            const cx = (rng() - 0.5) * 2 * CLOUD_SPREAD_X;
+            const cy = (rng() - 0.5) * CLOUD_SPREAD_Y;
+            const cz = -400 - rng() * 600;
+            const scale = 0.3 + rng() * 1.2;
             const type = cloudTypes[Math.floor(rng() * cloudTypes.length)];
             const cloud = type === 'wispy'  ? this._makeWispyCloud(scale)
                         : type === 'large'  ? this._makeLargeCumulus(scale)
@@ -590,6 +592,7 @@ const WorldScene = {
             cloud.position.set(cx, cy, cz);
             cloud.userData.baseX  = cx;
             cloud.userData.speed  = 0.005 + rng() * 0.025;
+            cloud.renderOrder = -10;
             cloud.visible = this.isLight;
             this.clouds.push(cloud);
             this.scene.add(cloud);
@@ -749,7 +752,7 @@ const WorldScene = {
 
     _makeCloud(scale) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.88 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.6 });
         const blobs = [
             { x: 0,    y: 0,    s: 60 * scale },
             { x: 80,   y: -15,  s: 50 * scale },
@@ -768,7 +771,7 @@ const WorldScene = {
 
     _makeWispyCloud(scale) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0xf0f4ff, roughness: 1, metalness: 0, transparent: true, opacity: 0.55 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xf0f4ff, roughness: 1, metalness: 0, transparent: true, opacity: 0.4 });
         const blobs = [
             { x: 0,     y: 0,   s: 35 * scale },
             { x: 100,   y: -5,  s: 25 * scale },
@@ -791,7 +794,7 @@ const WorldScene = {
 
     _makeLargeCumulus(scale) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.92 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.7 });
         const blobs = [
             { x: 0,     y: 0,    s: 90 * scale },
             { x: 110,   y: -20,  s: 75 * scale },
@@ -813,7 +816,7 @@ const WorldScene = {
 
     _makeStormCloud(scale) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color: 0x8090a0, roughness: 1, metalness: 0, transparent: true, opacity: 0.85 });
+        const mat = new THREE.MeshStandardMaterial({ color: 0x8090a0, roughness: 1, metalness: 0, transparent: true, opacity: 0.65 });
         const blobs = [
             { x: 0,     y: 0,    s: 80 * scale },
             { x: 120,   y: -25,  s: 70 * scale },
@@ -911,16 +914,19 @@ const WorldScene = {
         if (existing) { this.scene.remove(existing.group); }
 
         const group = new THREE.Group();
+        group.renderOrder = 100;
 
         const tex = this._loadTexture(src);
         const balloonGeo = new THREE.PlaneGeometry(isMe ? 160 : 100, isMe ? 200 : 125);
         const balloonMat = new THREE.MeshStandardMaterial({
             map: tex, transparent: true, alphaTest: 0.05,
             roughness: 0.85, metalness: 0.0,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthWrite: true
         });
         const balloon = new THREE.Mesh(balloonGeo, balloonMat);
         balloon.position.y = isMe ? 80 : 50;
+        balloon.renderOrder = 100;
         group.add(balloon);
 
         const shadowGeo = new THREE.CircleGeometry(isMe ? 55 : 35, 24);
