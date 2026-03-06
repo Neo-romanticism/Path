@@ -16,7 +16,9 @@
         }
     }
     </script>
-    <script type="module" src="scene.js?v=4"></script>
+    <!-- socket.io client – loaded before scene.js so it is available globally -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="scene.js?v=5"></script>
 </head>
 <body>
 <script>

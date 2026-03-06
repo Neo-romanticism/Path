@@ -2053,14 +2053,136 @@ function stopChatPoll() {
 // 30초마다 배지 갱신
 setInterval(refreshFriendBadge, 30000);
 
+// ── Real-time World Socket (socket.io) ───────────────────────────────────────
+// Connects after the user is authenticated, receives the world seed, and
+// maintains a live channel for nearby-player positions and prop interactions.
+
+const POSITION_SYNC_MS = 400;   // position update throttle interval in ms
+
+let worldSocket   = null;
+let _wsPosTimer   = null;
+const _wsNearby   = new Map(); // userId → player snapshot from socket
+
+/**
+ * Send current world position to the server if it has changed,
+ * throttled to once per POSITION_SYNC_MS.
+ */
+function _startWorldPositionSync() {
+    if (_wsPosTimer) return;
+    let lastWx = null, lastWy = null;
+    _wsPosTimer = setInterval(() => {
+        if (!worldSocket || !window.WorldScene || !window.WorldScene.isReady) return;
+        const pos = window.WorldScene.getWorldPosition();
+        if (lastWx === pos.x && lastWy === pos.y) return;
+        lastWx = pos.x;
+        lastWy = pos.y;
+        worldSocket.emit('player:move', { worldX: pos.x, worldY: pos.y });
+    }, POSITION_SYNC_MS);
+}
+
+function initWorldSocket(user) {
+    if (worldSocket) return;   // already connected
+
+    // socket.io client is loaded via <script> tag in index.html.
+    if (typeof io !== 'function') {
+        console.warn('socket.io client not loaded – skipping world socket');
+        return;
+    }
+
+    worldSocket = io({ transports: ['websocket', 'polling'] });
+
+    // ── Receive world seed → build seeded world ──────────────────────
+    worldSocket.on('world:seed', ({ seed }) => {
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.initSeed(seed);
+        } else {
+            // Queue until scene is ready.
+            const prev = window._onWorldSceneReady;
+            window._onWorldSceneReady = function() {
+                if (prev) prev();
+                window.WorldScene.initSeed(seed);
+            };
+        }
+    });
+
+    // ── Receive full nearby-player snapshot ──────────────────────────
+    worldSocket.on('players:nearby', (players) => {
+        _wsNearby.clear();
+        players.forEach(p => _wsNearby.set(p.id, p));
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.updateWorldPlayers(players, currentUser);
+        }
+    });
+
+    // ── A new player entered the nearby area ─────────────────────────
+    worldSocket.on('player:enter', (player) => {
+        _wsNearby.set(player.id, player);
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.updateWorldPlayers([...(_wsNearby.values())], currentUser);
+        }
+    });
+
+    // ── Remote player moved ──────────────────────────────────────────
+    worldSocket.on('player:moved', ({ id, worldX, worldY }) => {
+        const p = _wsNearby.get(id);
+        if (p) { p.worldX = worldX; p.worldY = worldY; }
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.moveWorldPlayer(id, worldX, worldY);
+        }
+    });
+
+    // ── Remote player disconnected ───────────────────────────────────
+    worldSocket.on('player:left', ({ id }) => {
+        _wsNearby.delete(id);
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.removeWorldPlayer(id);
+        }
+    });
+
+    // ── Interaction state snapshot on join ───────────────────────────
+    worldSocket.on('interaction:state', (stateObj) => {
+        if (!window.WorldScene || !window.WorldScene.isReady) return;
+        Object.entries(stateObj).forEach(([propId, state]) => {
+            window.WorldScene.setInteractionState(propId, state.activated);
+        });
+    });
+
+    // ── Interaction update broadcast ─────────────────────────────────
+    worldSocket.on('interaction:update', ({ propId, activated }) => {
+        if (window.WorldScene && window.WorldScene.isReady) {
+            window.WorldScene.setInteractionState(propId, activated);
+        }
+    });
+
+    // ── Announce ourselves to the server ────────────────────────────
+    worldSocket.emit('player:join', {
+        userId:         user.id,
+        nickname:       user.nickname       || '',
+        university:     user.university     || '',
+        balloon_skin:   user.balloon_skin   || 'default',
+        status_message: user.status_message || null,
+        worldX: 0,
+        worldY: 0,
+    });
+
+    // Wire up WorldScene's interaction callback so local clicks are emitted.
+    if (window.WorldScene) {
+        window.WorldScene.onInteraction = (propId, activated) => {
+            worldSocket.emit('interaction:trigger', { propId, activated });
+        };
+    }
+
+    _startWorldPositionSync();
+}
+
 function _startApp() {
     if (window._worldSceneReady && window.WorldScene) {
         window.WorldScene.init();
-        initHub();
+        initHub().then(() => { if (currentUser) initWorldSocket(currentUser); });
     } else {
         window._onWorldSceneReady = function() {
             window.WorldScene.init();
-            initHub();
+            initHub().then(() => { if (currentUser) initWorldSocket(currentUser); });
         };
     }
 }
