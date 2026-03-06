@@ -255,6 +255,7 @@ const UI = {
         this.elements.tabStudy.classList.toggle('active', !isCalendar);
         this.elements.tabCalendar.classList.toggle('active', isCalendar);
         this.elements.body.classList.remove('active');
+        this.elements.body.classList.toggle('tab-calendar-active', isCalendar);
 
         if (isCalendar) {
             this.loadWeekCalendar(this.weekOffset).catch(() => {});
