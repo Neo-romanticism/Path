@@ -577,7 +577,7 @@ const WorldScene = {
         // ── Scattered background clouds (various types) ─────────────────
         // 60 clouds distributed across the massive world, deterministic positions.
         const CLOUD_SPREAD_X = WORLD_HALF * WORLD_SCALE * 0.85;
-        const CLOUD_SPREAD_Y = 800;
+        const CLOUD_SPREAD_Y = 8000;
         const cloudTypes = ['normal', 'wispy', 'large', 'storm'];
         for (let i = 0; i < 60; i++) {
             const cx = (rng() - 0.5) * 2 * CLOUD_SPREAD_X;
@@ -624,7 +624,7 @@ const WorldScene = {
         const ROCK_SPREAD = WORLD_HALF * WORLD_SCALE * 0.7;
         for (let i = 0; i < 80; i++) {
             const rx = (rng() - 0.5) * 2 * ROCK_SPREAD;
-            const ry = -100 + rng() * 400;
+            const ry = (rng() - 0.5) * 4000;
             const rz = -300 - rng() * 900;
             const size = 10 + rng() * 40;
             const geo = new THREE.DodecahedronGeometry(size, 0);
@@ -649,7 +649,7 @@ const WorldScene = {
         for (let i = 0; i < 25; i++) {
             const group = new THREE.Group();
             const cx2 = (rng() - 0.5) * 2 * CRYSTAL_SPREAD;
-            const cy2 = -50 + rng() * 300;
+            const cy2 = (rng() - 0.5) * 3000;
             const cz2 = -500 - rng() * 700;
             const numCrystals = 3 + Math.floor(rng() * 4);
             const hue = rng();
@@ -710,7 +710,7 @@ const WorldScene = {
         ];
         for (let i = 0; i < 20; i++) {
             const wx = (rng() - 0.5) * 2 * ISLAND_SPREAD;
-            const wy = -60 - rng() * 60;
+            const wy = (rng() - 0.5) * 2500;
             const wz = -500 - rng() * 600;
             const rx = 1.0 + rng() * 1.5;
             const propId = `island_${seed}_${i}`;
@@ -1974,6 +1974,9 @@ class InteractableProp {
         bot.userData.propId = id;
         this.group.add(bot);
 
+        // Castle structure
+        this._buildCastle(rx);
+
         // Activation glow ring
         const ringGeo = new THREE.TorusGeometry(rx * 85, 8, 8, 32);
         this._glowMat = new THREE.MeshBasicMaterial({
@@ -1995,6 +1998,127 @@ class InteractableProp {
 
         this.group.position.set(x, y, z);
         scene.add(this.group);
+    }
+
+    _buildCastle(rx) {
+        // Castle stone material
+        const stoneMat = new THREE.MeshStandardMaterial({
+            color: 0x8b8b8b,
+            roughness: 0.95,
+            metalness: 0.05
+        });
+
+        // Main castle tower
+        const towerGeo = new THREE.CylinderGeometry(rx * 25, rx * 28, 70, 8);
+        const tower = new THREE.Mesh(towerGeo, stoneMat);
+        tower.position.set(0, 55, 0);
+        this.group.add(tower);
+
+        // Tower top (cone roof)
+        const roofGeo = new THREE.ConeGeometry(rx * 32, 35, 8);
+        const roofMat = new THREE.MeshStandardMaterial({
+            color: 0x8b4513,
+            roughness: 0.9,
+            metalness: 0
+        });
+        const roof = new THREE.Mesh(roofGeo, roofMat);
+        roof.position.set(0, 107, 0);
+        this.group.add(roof);
+
+        // Battlements (crenellations) around tower top
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const bx = Math.cos(angle) * rx * 27;
+            const bz = Math.sin(angle) * rx * 27;
+            const battlementGeo = new THREE.BoxGeometry(rx * 8, 10, rx * 8);
+            const battlement = new THREE.Mesh(battlementGeo, stoneMat);
+            battlement.position.set(bx, 95, bz);
+            this.group.add(battlement);
+        }
+
+        // Side towers (4 smaller towers around main)
+        const towerPositions = [
+            { x: rx * 50, z: rx * 50 },
+            { x: -rx * 50, z: rx * 50 },
+            { x: rx * 50, z: -rx * 50 },
+            { x: -rx * 50, z: -rx * 50 }
+        ];
+
+        towerPositions.forEach(pos => {
+            const sideTowerGeo = new THREE.CylinderGeometry(rx * 15, rx * 17, 50, 6);
+            const sideTower = new THREE.Mesh(sideTowerGeo, stoneMat);
+            sideTower.position.set(pos.x, 40, pos.z);
+            this.group.add(sideTower);
+
+            // Small roof on side tower
+            const sideRoofGeo = new THREE.ConeGeometry(rx * 20, 25, 6);
+            const sideRoof = new THREE.Mesh(sideRoofGeo, roofMat);
+            sideRoof.position.set(pos.x, 77, pos.z);
+            this.group.add(sideRoof);
+        });
+
+        // Castle walls connecting the towers
+        const wallMat = new THREE.MeshStandardMaterial({
+            color: 0x7a7a7a,
+            roughness: 0.95,
+            metalness: 0.05
+        });
+
+        // Front and back walls
+        const wallGeoX = new THREE.BoxGeometry(rx * 100, 35, rx * 8);
+        const frontWall = new THREE.Mesh(wallGeoX, wallMat);
+        frontWall.position.set(0, 32.5, rx * 50);
+        this.group.add(frontWall);
+
+        const backWall = new THREE.Mesh(wallGeoX, wallMat);
+        backWall.position.set(0, 32.5, -rx * 50);
+        this.group.add(backWall);
+
+        // Left and right walls
+        const wallGeoZ = new THREE.BoxGeometry(rx * 8, 35, rx * 100);
+        const leftWall = new THREE.Mesh(wallGeoZ, wallMat);
+        leftWall.position.set(-rx * 50, 32.5, 0);
+        this.group.add(leftWall);
+
+        const rightWall = new THREE.Mesh(wallGeoZ, wallMat);
+        rightWall.position.set(rx * 50, 32.5, 0);
+        this.group.add(rightWall);
+
+        // Gate entrance
+        const gateGeo = new THREE.BoxGeometry(rx * 20, 25, rx * 10);
+        const gateMat = new THREE.MeshStandardMaterial({
+            color: 0x4a2f1a,
+            roughness: 0.9,
+            metalness: 0
+        });
+        const gate = new THREE.Mesh(gateGeo, gateMat);
+        gate.position.set(0, 27.5, rx * 50);
+        this.group.add(gate);
+
+        // Windows on main tower
+        const windowMat = new THREE.MeshBasicMaterial({ color: 0x4a4a1a });
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const wx = Math.cos(angle) * rx * 26;
+            const wz = Math.sin(angle) * rx * 26;
+            const windowGeo = new THREE.BoxGeometry(rx * 6, 8, 2);
+            const window = new THREE.Mesh(windowGeo, windowMat);
+            window.position.set(wx, 60, wz);
+            window.lookAt(0, 60, 0);
+            this.group.add(window);
+        }
+
+        // Flags on towers
+        const flagMat = new THREE.MeshStandardMaterial({
+            color: 0xcc0000,
+            roughness: 0.8,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+        const flagGeo = new THREE.PlaneGeometry(rx * 15, rx * 10);
+        const mainFlag = new THREE.Mesh(flagGeo, flagMat);
+        mainFlag.position.set(0, 125, 0);
+        this.group.add(mainFlag);
     }
 
     _makeLabel(text) {
