@@ -178,9 +178,9 @@ const UI = {
             this.elements.breakBtn.style.display = 'inline-block';
 
             if (this.currentMode === 'stopwatch') {
-                this.elements.breakBtn.textContent = 'COMPLETE PATH';
+                this.elements.breakBtn.textContent = '학습 완료하기';
             } else {
-                this.elements.breakBtn.textContent = 'ABORT PATH';
+                this.elements.breakBtn.textContent = '중단하기';
             }
         };
 
@@ -934,21 +934,21 @@ const UI = {
         this.elements.overlay.classList.remove('hidden');
 
         if (type === 'SUCCESS') {
-            this.elements.resTitle.innerText   = 'MISSION COMPLETE';
+            this.elements.resTitle.innerText   = '학습 완료!';
             this.elements.resTitle.style.color = 'var(--gold)';
             this.elements.resLoot.innerHTML    =
                 `<span style="font-size:2.5rem;color:#fff">+${gold.toLocaleString()}G</span><br>` +
-                `<small>${mode === 'stopwatch' ? '스톱워치 모드 (골드 50%)' : '목표 달성 완수 보너스'}</small>`;
+                `<small>${mode === 'stopwatch' ? '스톱워치 모드 (골드 50%)' : '목표 달성 완수!'}</small>`;
         } else if (type === 'INTERRUPTED') {
-            this.elements.resTitle.innerText   = 'PATH BROKEN';
+            this.elements.resTitle.innerText   = '학습 중단됨';
             this.elements.resTitle.style.color = '#444';
             this.elements.resLoot.innerHTML    =
-                `<span style="font-size:2.5rem;color:var(--accent)">0G</span><br><small>중도 중단 골드 몰수</small>`;
+                `<span style="font-size:2.5rem;color:var(--accent)">0G</span><br><small>중도 중단</small>`;
         } else {
-            this.elements.resTitle.innerText   = 'MISSION FAILED';
+            this.elements.resTitle.innerText   = '학습 실패';
             this.elements.resTitle.style.color = 'var(--accent)';
             this.elements.resLoot.innerHTML    =
-                `<span style="color:var(--accent);font-size:1.1rem">탈주 감지: 모든 보상이 소멸되었습니다.</span>`;
+                `<span style="color:var(--accent);font-size:1.1rem">이탈이 감지되었습니다.</span>`;
         }
     }
 };
