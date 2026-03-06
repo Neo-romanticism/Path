@@ -1030,6 +1030,41 @@ const WorldScene = {
                 primary: 0xcc0000,
                 secondary: 0xffffff,
                 accent: 0xcc0000
+            },
+            golden: {
+                primary: 0xffd700,
+                secondary: 0xdaa520,
+                accent: 0xffdf00
+            },
+            cosmic: {
+                primary: 0x0d1b2a,
+                secondary: 0x1b263b,
+                accent: 0x415a77
+            },
+            sunset: {
+                primary: 0xff6b35,
+                secondary: 0xff9a56,
+                accent: 0xffcc00
+            },
+            emerald: {
+                primary: 0x2ecc71,
+                secondary: 0x27ae60,
+                accent: 0x1abc9c
+            },
+            phoenix: {
+                primary: 0xff4500,
+                secondary: 0xff8c00,
+                accent: 0xffd700
+            },
+            galaxy: {
+                primary: 0x6a0dad,
+                secondary: 0x9932cc,
+                accent: 0x00ced1
+            },
+            diamond: {
+                primary: 0xe8f4f8,
+                secondary: 0xb0e0e6,
+                accent: 0xffffff
             }
         };
         return schemes[colorScheme] || schemes.default;
