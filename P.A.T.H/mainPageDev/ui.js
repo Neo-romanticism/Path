@@ -1007,7 +1007,7 @@ const UI = {
             this.elements.resTitle.style.color = 'var(--gold)';
             this.elements.resLoot.innerHTML    =
                 `<span style="font-size:2.5rem;color:#fff">+${gold.toLocaleString()}G</span><br>` +
-                `<small>${mode === 'stopwatch' ? '스톱워치 모드 (골드 50%)' : '목표 달성 완수!'}</small>`;
+                `<small>${mode === 'stopwatch' ? '스톱워치 모드 (골드 50%)' : '목표 달성 완수 보너스'}</small>`;
 
             if (studyRecordId && this.elements.proofSection) {
                 this.elements.proofSection.classList.remove('hidden');
