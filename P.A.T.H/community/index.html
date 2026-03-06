@@ -5,53 +5,99 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="수험생 전용 익명 커뮤니티 — P.A.T.H">
   <title>커뮤니티 — P.A.T.H</title>
-
-  <!-- Pretendard 폰트 (메인 앱과 동일) -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
     rel="stylesheet"
   >
-
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="community-layout">
-
-  <!-- ── 헤더 ─────────────────────────────────────── -->
-  <header class="community-header">
-    <div class="header-left">
-      <a href="/mainHub/" class="header-back-btn" aria-label="메인으로">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-          <path d="M11 4L6 9L11 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- ── 헤더 ──────────────────────────────────────────────────── -->
+<header class="c-header" id="app-header">
+  <div class="c-header__inner">
+    <div class="c-header__left">
+      <a href="/mainHub/" class="c-header__back" aria-label="메인으로">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M12 5L7 10L12 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
-      <div class="header-brand">
-        <span class="brand-name">커뮤니티</span>
-        <span class="brand-sub">P.A.T.H  ·  익명 게시판</span>
+      <div class="c-header__brand">
+        <span class="c-header__logo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 11h-6"/><path d="M20 8v6"/>
+          </svg>
+        </span>
+        <span class="c-header__title">커뮤니티</span>
+        <span class="c-header__badge" id="post-count-badge">--</span>
       </div>
     </div>
-    <div class="header-right">
-      <span class="post-count-badge"><span id="post-count">--</span></span>
+    <div class="c-header__right">
+      <button class="c-header__icon-btn" id="search-toggle" aria-label="검색" aria-expanded="false">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+      <button class="c-write-header-btn" id="write-header-btn" aria-label="글쓰기">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        글쓰기
+      </button>
     </div>
-  </header>
-
-  <!-- ── 필터 탭 바 ──────────────────────────────── -->
-  <div class="filter-section">
-    <div id="filter-bar" role="tablist" aria-label="게시글 필터"></div>
   </div>
 
-  <!-- ── 게시글 리스트 ───────────────────────────── -->
-  <main class="community-main">
-    <ul id="post-list" aria-live="polite" aria-label="게시글 목록"></ul>
-    <div id="scroll-sentinel" aria-hidden="true"></div>
-  </main>
+  <!-- 검색 바 (슬라이드 다운) -->
+  <div class="c-search-wrap" id="search-wrap" aria-hidden="true">
+    <div class="c-search-inner">
+      <svg class="c-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="search" id="search-input" class="c-search-input"
+        placeholder="제목, 내용 검색..." autocomplete="off" enterkeyhint="search">
+      <button class="c-search-clear hidden" id="search-clear" aria-label="검색어 지우기">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
 
-</div><!-- /community-layout -->
+<!-- ── 카테고리 탭 ──────────────────────────────────────────── -->
+<div class="c-category-bar" id="category-bar-wrap">
+  <div class="c-category-bar__inner" id="category-bar" role="tablist" aria-label="카테고리"></div>
+</div>
 
-<!-- ── 글쓰기 FAB ────────────────────────────────── -->
-<button id="write-btn" aria-label="글쓰기">
+<!-- ── 베스트 게시글 ────────────────────────────────────────── -->
+<section class="c-hot-section" id="hot-section">
+  <div class="c-hot-section__title">
+    <span class="c-hot-fire">🔥</span>
+    <span>베스트</span>
+  </div>
+  <ul class="c-hot-list" id="hot-list" aria-label="베스트 게시글"></ul>
+</section>
+
+<!-- ── 게시글 목록 헤더 ──────────────────────────────────────── -->
+<div class="c-list-header">
+  <span class="c-list-header__num">번호</span>
+  <span class="c-list-header__title">제목</span>
+  <span class="c-list-header__author">작성자</span>
+  <span class="c-list-header__date">날짜</span>
+  <span class="c-list-header__views">조회</span>
+  <span class="c-list-header__likes">추천</span>
+</div>
+
+<!-- ── 게시글 리스트 ─────────────────────────────────────────── -->
+<main class="c-main">
+  <ul id="post-list" class="c-post-list" aria-live="polite" aria-label="게시글 목록"></ul>
+  <div id="scroll-sentinel" aria-hidden="true"></div>
+</main>
+
+<!-- ── 글쓰기 FAB ──────────────────────────────────────────── -->
+<button id="write-fab" aria-label="글쓰기">
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
     <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
   </svg>

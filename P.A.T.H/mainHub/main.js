@@ -1125,18 +1125,11 @@ function togglePanel(id) {
         if (id === 'panel-notif') loadNotifPanel();
         if (id === 'panel-shop') renderShopContent(currentShopTab);
         if (id === 'panel-settings') loadSettingsPanel();
-        if (id === 'panel-community') loadCommunityPanel();
+
     } else {
         el.classList.add('hidden');
         // Clean up shop 3D renderers when closing shop panel
         if (id === 'panel-shop') cleanupShopBalloonRenderers();
-    }
-}
-
-function loadCommunityPanel() {
-    const iframe = document.getElementById('community-iframe');
-    if (iframe && !iframe.src) {
-        iframe.src = resolveHubPath('/P.A.T.H/community/index.html', '../community/index.html');
     }
 }
 
