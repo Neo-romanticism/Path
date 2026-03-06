@@ -44,12 +44,21 @@
         .univ-item:hover { background: #1a1a1a; color: var(--gold); }
         .univ-item:last-child { border-bottom: none; }
         label { font-size: 10px; letter-spacing: 3px; color: #555; text-transform: uppercase; }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], select {
             background: none; border: none; border-bottom: 1px solid #222;
             color: #fff; font-size: 1.1rem; padding: 10px 0; outline: none;
             transition: border-color 0.3s; font-family: inherit;
         }
+        select {
+            appearance: none;
+            cursor: pointer;
+        }
+        select option {
+            background: #111;
+            color: #fff;
+        }
         input:focus { border-bottom-color: var(--gold); }
+        select:focus { border-bottom-color: var(--gold); }
         .check-row { display: flex; align-items: center; gap: 10px; }
         .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); cursor: pointer; }
         .check-row label { font-size: 11px; letter-spacing: 1px; cursor: pointer; color: #888; }
@@ -93,9 +102,13 @@
         body.light .tab { color: #a0a8b8; }
         body.light .tab.active { color: var(--gold); }
         body.light label { color: #8090a8; }
-        body.light input[type="text"], body.light input[type="password"] {
+        body.light input[type="text"], body.light input[type="password"], body.light select {
             color: #1a1f2e;
             border-bottom-color: #b8c4d0;
+        }
+        body.light select option {
+            background: #fff;
+            color: #1a1f2e;
         }
         body.light .btn-submit { border-color: #b8c4d0; color: #7a8898; }
         body.light .btn-submit:hover { border-color: #1a1f2e; color: #1a1f2e; }
@@ -195,8 +208,9 @@ function toggleTheme() {
             </div>
             <div class="field">
                 <label>목표 대학교</label>
-                <input type="text" id="reg-univ" placeholder="대학명 검색 (예: 연세)" autocomplete="off" oninput="searchUniv(this.value, 'reg-univ-results')">
-                <div id="reg-univ-results" class="univ-results"></div>
+                <select id="reg-univ" required>
+                    <option value="">대학교를 선택하세요</option>
+                </select>
             </div>
             <div class="field">
                 <label>비밀번호</label>
@@ -211,8 +225,9 @@ function toggleTheme() {
             <div class="nsu-fields" id="nsu-fields">
                 <div class="field">
                     <label>전적 대학교 (재학/졸업)</label>
-                    <input type="text" id="reg-prev-univ" placeholder="대학명 검색" autocomplete="off" oninput="searchUniv(this.value, 'reg-prev-results')">
-                    <div id="reg-prev-results" class="univ-results"></div>
+                    <select id="reg-prev-univ">
+                        <option value="">전적 대학교를 선택하세요</option>
+                    </select>
                 </div>
             </div>
 
@@ -266,6 +281,9 @@ function toggleTheme() {
         function toggleNsu() {
             const checked = document.getElementById('reg-nsu').checked;
             document.getElementById('nsu-fields').classList.toggle('show', checked);
+            if (!checked) {
+                document.getElementById('reg-prev-univ').value = '';
+            }
         }
 
         function togglePrivacy(e) {
@@ -277,42 +295,34 @@ function toggleTheme() {
             document.getElementById('reg-submit').disabled = !document.getElementById('reg-privacy').checked;
         }
 
-        async function searchUniv(q, resultsId) {
-            const resEl = document.getElementById(resultsId);
-            if (!q || q.length < 1) {
-                resEl.classList.remove('show');
-                return;
-            }
+        async function loadUniversityOptions() {
+            const targetSelect = document.getElementById('reg-univ');
+            const prevSelect = document.getElementById('reg-prev-univ');
+
             try {
-                const r = await fetch(`/api/university/search?q=${encodeURIComponent(q)}`);
+                const r = await fetch('/api/university/list');
                 const data = await r.json();
-                const list = data.results || [];
-                if (list.length === 0) {
-                    resEl.classList.remove('show');
-                    return;
+                const list = data.universities || [];
+
+                for (const u of list) {
+                    const label = `${u.name} (${u.region})`;
+
+                    const targetOption = document.createElement('option');
+                    targetOption.value = u.name;
+                    targetOption.textContent = label;
+                    targetSelect.appendChild(targetOption);
+
+                    const prevOption = document.createElement('option');
+                    prevOption.value = u.name;
+                    prevOption.textContent = label;
+                    prevSelect.appendChild(prevOption);
                 }
-                resEl.innerHTML = list.map(u => `
-                    <div class="univ-item" onclick="selectUniv('${u.name}', '${resultsId.replace('-results', '')}', '${resultsId}')">
-                        ${u.name} <span style="font-size:10px;color:#555">(${u.region})</span>
-                    </div>
-                `).join('');
-                resEl.classList.add('show');
             } catch (e) {
-                console.error('univ search error', e);
+                console.error('university list load error', e);
             }
         }
 
-        function selectUniv(name, inputId, resultsId) {
-            document.getElementById(inputId).value = name;
-            document.getElementById(resultsId).classList.remove('show');
-        }
-
-        // Close results when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.field')) {
-                document.querySelectorAll('.univ-results').forEach(el => el.classList.remove('show'));
-            }
-        });
+        loadUniversityOptions();
 
         async function doLogin(e) {
             e.preventDefault();
