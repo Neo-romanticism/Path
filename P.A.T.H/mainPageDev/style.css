@@ -205,6 +205,14 @@ body.tab-calendar-active .focus-container {
     justify-content: flex-start;
 }
 
+body.tab-calendar-active {
+    overflow-y: auto;
+}
+
+body.tab-calendar-active .focus-container {
+    justify-content: flex-start;
+}
+
 .focus-container {
     width: min(1080px, 100%);
     flex: 1;
