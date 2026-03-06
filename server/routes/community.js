@@ -109,6 +109,28 @@ router.get('/posts/hot', async (req, res) => {
 });
 
 /* ════════════════════════════════════════════════════════════ */
+/* GET /posts/:id — 게시글 단건 조회                            */
+/* ════════════════════════════════════════════════════════════ */
+router.get('/posts/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: '잘못된 요청입니다.' });
+
+    try {
+        const result = await pool.query(
+            `SELECT id, category, title, body, nickname, ip_prefix,
+                    views, likes, comments_count, created_at
+             FROM community_posts WHERE id = $1`,
+            [id]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
+        res.json({ post: result.rows[0] });
+    } catch (err) {
+        console.error('[community] GET /posts/:id', err.message);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+});
+
+/* ════════════════════════════════════════════════════════════ */
 /* POST /posts — 글 작성                                        */
 /* ════════════════════════════════════════════════════════════ */
 router.post('/posts', requireAuth, async (req, res) => {

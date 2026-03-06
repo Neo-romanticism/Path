@@ -1,475 +1,684 @@
 /**
- * community.js — P.A.T.H 커뮤니티 컨트롤러
+ * community.js — P.A.T.H 커뮤니티 컨트롤러 (실서버 연동)
  *
- * 새 DCinside 스타일 (Toss 디자인) 커뮤니티 게시판
- * - 카테고리 탭 (전체 / 념글 / 정보 / Q&A / 잡담)
- * - 베스트 게시글 가로 스크롤 카드
- * - DCinside 스타일 목록 (번호 · 카테고리 · 제목 · 작성자 · 날짜 · 조회 · 추천)
- * - 검색 (제목 필터)
- * - 무한 스크롤
- * - 글쓰기 모달 (bottom-sheet / centered dialog)
+ * API:
+ *   GET  /api/community/posts?page=&limit=&category=&q=
+ *   GET  /api/community/posts/hot?category=
+ *   POST /api/community/posts
+ *   POST /api/community/posts/:id/view
+ *   POST /api/community/posts/:id/like
+ *   GET  /api/community/posts/:id/comments
+ *   POST /api/community/posts/:id/comments
  */
 
 import { PostListItem, SkeletonItem, CATEGORY_META } from './PostListItem.js';
 import { useInfiniteScroll }                          from './useInfiniteScroll.js';
 
-/* ─── 상수 ────────────────────────────────────────────────────── */
+/* ─── 상수 ─────────────────────────────────────────────────── */
 const PAGE_SIZE     = 25;
-const FAKE_DELAY    = 500;
-const HOT_THRESHOLD = 15;   // 추천 수 ≥ 이 값이면 베스트
+const HOT_THRESHOLD = 10;  // 프론트 베스트 배지 표시 기준
 
-/* 카테고리 탭 정의 */
+/* ─── 카테고리 탭 ───────────────────────────────────────────── */
 const CATEGORIES = [
-  { key: '전체', label: '전체' },
-  { key: '념글', label: '베스트' },
-  { key: '정보', label: '정보' },
-  { key: '질문', label: 'Q&A' },
-  { key: '잡담', label: '잡담' },
+    { key: '전체', label: '전체' },
+    { key: '념글', label: '베스트' },
+    { key: '정보', label: '정보'  },
+    { key: '질문', label: 'Q&A'   },
+    { key: '잡담', label: '잡담'  },
 ];
 
-/* ─── 상태 ────────────────────────────────────────────────────── */
-let currentCat  = '전체';
-let currentPage = 0;
-let searchQuery = '';
-let allPosts    = [];
-let scrollHook  = null;
+/* ─── 상태 ─────────────────────────────────────────────────── */
+let currentCat   = '전체';
+let currentPage  = 0;
+let totalPosts   = 0;
+let searchQuery  = '';
+let scrollHook   = null;
+let isLoading    = false;
+let currentUser  = null;  // { id, nickname } | null
 
-/* ─── DOM ─────────────────────────────────────────────────────── */
-const categoryBar     = document.getElementById('category-bar');
-const hotList         = document.getElementById('hot-list');
-const hotSection      = document.getElementById('hot-section');
-const postList        = document.getElementById('post-list');
-const sentinel        = document.getElementById('scroll-sentinel');
-const postCountBadge  = document.getElementById('post-count-badge');
-const searchToggle    = document.getElementById('search-toggle');
-const searchWrap      = document.getElementById('search-wrap');
-const searchInput     = document.getElementById('search-input');
-const searchClear     = document.getElementById('search-clear');
-const writeFab        = document.getElementById('write-fab');
-const writeHeaderBtn  = document.getElementById('write-header-btn');
+/* ─── DOM ───────────────────────────────────────────────────── */
+const categoryBar    = document.getElementById('category-bar');
+const hotList        = document.getElementById('hot-list');
+const hotSection     = document.getElementById('hot-section');
+const postList       = document.getElementById('post-list');
+const sentinel       = document.getElementById('scroll-sentinel');
+const postCountBadge = document.getElementById('post-count-badge');
+const searchToggle   = document.getElementById('search-toggle');
+const searchWrap     = document.getElementById('search-wrap');
+const searchInput    = document.getElementById('search-input');
+const searchClear    = document.getElementById('search-clear');
+const writeFab       = document.getElementById('write-fab');
+const writeHeaderBtn = document.getElementById('write-header-btn');
 
-/* ─── 초기화 ──────────────────────────────────────────────────── */
-function init() {
-  generateFakeData();
-  buildCategoryBar();
-  renderHotPosts();
-  resetAndLoad();
-  bindEvents();
+/* ─── 초기화 ──────────────────────────────────────────────── */
+async function init() {
+    buildCategoryBar();
+    bindEvents();
+
+    // 로그인 상태 확인 (실패해도 게시판은 열람 가능)
+    try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) currentUser = await res.json();
+    } catch (_) { /* 무시 */ }
+
+    await Promise.all([renderHotPosts(), resetAndLoad()]);
 }
 
-/* ─── 카테고리 탭 ────────────────────────────────────────────── */
+/* ─── 카테고리 탭 빌드 ───────────────────────────────────── */
 function buildCategoryBar() {
-  categoryBar.innerHTML = '';
-  CATEGORIES.forEach(({ key, label }) => {
-    const btn = document.createElement('button');
-    btn.className = 'c-cat-chip';
-    btn.textContent = label;
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', key === currentCat ? 'true' : 'false');
-    btn.addEventListener('click', () => onCatChange(key));
-    categoryBar.appendChild(btn);
-  });
+    categoryBar.innerHTML = '';
+    CATEGORIES.forEach(({ key, label }) => {
+        const btn = document.createElement('button');
+        btn.className = 'c-cat-chip';
+        btn.textContent = label;
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', key === currentCat ? 'true' : 'false');
+        btn.addEventListener('click', () => onCatChange(key));
+        categoryBar.appendChild(btn);
+    });
 }
 
 function onCatChange(key) {
-  if (key === currentCat) return;
-  currentCat = key;
-  categoryBar.querySelectorAll('.c-cat-chip').forEach((btn, i) => {
-    const active = CATEGORIES[i].key === key;
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
-  });
-  renderHotPosts();
-  resetAndLoad();
+    if (key === currentCat) return;
+    currentCat = key;
+    categoryBar.querySelectorAll('.c-cat-chip').forEach((btn, i) => {
+        const active = CATEGORIES[i].key === key;
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    renderHotPosts();
+    resetAndLoad();
 }
 
-/* ─── 베스트 게시글 ──────────────────────────────────────────── */
-function renderHotPosts() {
-  const filtered = getFilteredPosts();
-  const hot = filtered
-    .filter(p => p.likes >= HOT_THRESHOLD)
-    .sort((a, b) => b.likes - a.likes)
-    .slice(0, 8);
-
-  if (hot.length === 0) {
-    hotSection.hidden = true;
-    return;
-  }
-  hotSection.hidden = false;
-
-  // skeletons while "loading"
-  hotList.innerHTML = '';
-  Array.from({ length: Math.min(hot.length, 4) }).forEach(() => {
-    const s = document.createElement('li');
-    s.className = 'c-hot-skel';
-    hotList.appendChild(s);
-  });
-
-  setTimeout(() => {
+/* ─── 베스트 게시글 ─────────────────────────────────────── */
+async function renderHotPosts() {
+    // 스켈레톤
     hotList.innerHTML = '';
-    hot.forEach(post => hotList.appendChild(HotCard(post)));
-  }, 300);
+    hotSection.hidden = false;
+    for (let i = 0; i < 4; i++) {
+        const s = document.createElement('li');
+        s.className = 'c-hot-skel';
+        hotList.appendChild(s);
+    }
+
+    try {
+        const url = `/api/community/posts/hot${currentCat !== '전체' ? `?category=${encodeURIComponent(currentCat)}` : ''}`;
+        const res  = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(res.status);
+        const { posts } = await res.json();
+
+        hotList.innerHTML = '';
+        if (!posts.length) { hotSection.hidden = true; return; }
+        posts.forEach(p => hotList.appendChild(HotCard(p)));
+    } catch (_) {
+        hotSection.hidden = true;
+    }
 }
 
 function HotCard(post) {
-  const cat = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
-  const li  = document.createElement('li');
-  li.innerHTML = `
-    <div class="c-hot-card" role="button" tabindex="0" aria-label="${escHtml(post.title)}">
-      <div class="c-hot-card__cat ${cat.cls}">${cat.label}</div>
-      <p class="c-hot-card__title">${escHtml(post.title)}</p>
-      <div class="c-hot-card__footer">
-        <span class="c-hot-card__author">${escHtml(post.nickname)}</span>
-        <span class="c-hot-card__stats">
-          <span class="c-hot-card__stat">
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M6 1 7.5 4.5H11L8.2 6.8 9.3 10.5 6 8.3 2.7 10.5 3.8 6.8 1 4.5H4.5Z"/>
-            </svg>
-            ${post.likes}
+    const cat = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
+    const li  = document.createElement('li');
+    li.innerHTML = `
+      <div class="c-hot-card" role="button" tabindex="0" data-post-id="${post.id}">
+        <div class="c-hot-card__cat ${cat.cls}">${cat.label}</div>
+        <p class="c-hot-card__title">${escHtml(post.title)}</p>
+        <div class="c-hot-card__footer">
+          <span class="c-hot-card__author">${escHtml(post.nickname ?? '익명')}(${escHtml(post.ip_prefix ?? '?')})</span>
+          <span class="c-hot-card__stats">
+            <span class="c-hot-card__stat">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M6 1 7.5 4.5H11L8.2 6.8 9.3 10.5 6 8.3 2.7 10.5 3.8 6.8 1 4.5H4.5Z"/>
+              </svg>${post.likes}
+            </span>
+            <span class="c-hot-card__stat" style="color:var(--text-2)">
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <path d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4l-2 2V3a1 1 0 0 1 1-1z"/>
+              </svg>${post.comments_count}
+            </span>
           </span>
-          <span class="c-hot-card__stat" style="color:var(--text-2)">
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-              <path d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4l-2 2V3a1 1 0 0 1 1-1z"/>
-            </svg>
-            ${post.comments}
-          </span>
-        </span>
-      </div>
-    </div>
-  `;
-  return li;
+        </div>
+      </div>`;
+    li.querySelector('.c-hot-card').addEventListener('click', () => openPostDetail(post.id));
+    return li;
 }
 
-/* ─── 목록 초기화 및 첫 로드 ──────────────────────────────────── */
-function resetAndLoad() {
-  currentPage = 0;
-  postList.innerHTML = '';
-  if (scrollHook) scrollHook.disconnect();
+/* ─── 목록 초기화 + 첫 로드 ─────────────────────────────── */
+async function resetAndLoad() {
+    currentPage = 0;
+    totalPosts  = 0;
+    postList.innerHTML = '';
+    if (scrollHook) { scrollHook.disconnect(); scrollHook = null; }
 
-  // 초기 스켈레톤
-  const skels = Array.from({ length: 10 }, SkeletonItem);
-  skels.forEach(s => postList.appendChild(s));
+    // 스켈레톤
+    for (let i = 0; i < 10; i++) postList.appendChild(SkeletonItem());
 
-  loadNextPage().then(() => {
+    await loadNextPage();
+
     scrollHook = useInfiniteScroll({
-      onLoadMore: loadNextPage,
-      hasMore:    hasMorePages,
-      sentinel,
+        onLoadMore: loadNextPage,
+        hasMore:    () => currentPage * PAGE_SIZE < totalPosts,
+        sentinel,
     });
-  });
 }
 
-/* ─── 다음 페이지 로드 ───────────────────────────────────────── */
+/* ─── 페이지 로드 ────────────────────────────────────────── */
 async function loadNextPage() {
-  const extra = Array.from({ length: 4 }, SkeletonItem);
-  extra.forEach(s => postList.appendChild(s));
+    if (isLoading) return;
+    isLoading = true;
 
-  const filtered = getFilteredPosts();
-  const start    = currentPage * PAGE_SIZE;
-  const slice    = filtered.slice(start, start + PAGE_SIZE);
-  const total    = filtered.length;
+    // 추가 스켈레톤 (2페이지~ )
+    const extraSkels = [];
+    if (currentPage > 0) {
+        for (let i = 0; i < 5; i++) {
+            const s = SkeletonItem();
+            postList.appendChild(s);
+            extraSkels.push(s);
+        }
+    }
 
-  await delay(FAKE_DELAY);
+    const params = new URLSearchParams({
+        page:  currentPage,
+        limit: PAGE_SIZE,
+        category: currentCat,
+    });
+    if (searchQuery) params.set('q', searchQuery);
 
-  postList.querySelectorAll('.skel-row').forEach(s => s.remove());
+    try {
+        const res = await fetch(`/api/community/posts?${params}`, { credentials: 'include' });
+        if (!res.ok) throw new Error(res.status);
+        const { total, posts } = await res.json();
 
-  if (start === 0 && slice.length === 0) {
-    renderEmpty();
-    updateBadge(0);
-    return;
-  }
+        // 스켈레톤 제거
+        postList.querySelectorAll('.skel-row').forEach(s => s.remove());
+        extraSkels.forEach(s => s.remove());
 
-  const frag = document.createDocumentFragment();
-  slice.forEach((post, i) => {
-    const displayNum = total - start - i;
-    frag.appendChild(PostListItem({ ...post, displayNum, isHot: post.likes >= HOT_THRESHOLD }));
-  });
-  postList.appendChild(frag);
+        totalPosts = total;
+        updateBadge(total);
 
-  currentPage++;
-  updateBadge(total);
+        if (currentPage === 0 && posts.length === 0) {
+            renderEmpty();
+            isLoading = false;
+            return;
+        }
+
+        const offset = currentPage * PAGE_SIZE;
+        const frag   = document.createDocumentFragment();
+        posts.forEach((post, i) => {
+            const isHot      = post.likes >= HOT_THRESHOLD;
+            const displayNum = total - offset - i;
+            frag.appendChild(PostListItem({
+                id:           post.id,
+                displayNum,
+                isHot,
+                category:     post.category,
+                title:        post.title,
+                nickname:     post.nickname ?? '익명',
+                ipPrefix:     post.ip_prefix ?? '?.?',
+                likes:        post.likes,
+                comments:     post.comments_count,
+                views:        post.views,
+                createdAt:    post.created_at,
+            }));
+        });
+        postList.appendChild(frag);
+
+        // 클릭 이벤트 (게시글 상세)
+        bindPostClicks();
+
+        currentPage++;
+    } catch (err) {
+        postList.querySelectorAll('.skel-row').forEach(s => s.remove());
+        extraSkels.forEach(s => s.remove());
+        if (currentPage === 0) renderError();
+        console.error('[community] loadNextPage', err);
+    } finally {
+        isLoading = false;
+    }
 }
 
-/* ─── 필터 ────────────────────────────────────────────────────── */
-function getFilteredPosts() {
-  let list = currentCat === '전체'
-    ? allPosts
-    : allPosts.filter(p => p.category === currentCat);
-
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    list = list.filter(p => p.title.toLowerCase().includes(q));
-  }
-  return list;
+/* ─── 게시글 클릭 → 조회수 증가 + 상세 열기 ──────────────── */
+function bindPostClicks() {
+    postList.querySelectorAll('.post-row:not([data-bound])').forEach(row => {
+        row.dataset.bound = '1';
+        row.addEventListener('click', e => {
+            e.preventDefault();
+            const id = parseInt(row.dataset.id);
+            if (id) openPostDetail(id);
+        });
+    });
 }
 
-function hasMorePages() {
-  return currentPage * PAGE_SIZE < getFilteredPosts().length;
+/* ─── 게시글 상세 모달 ───────────────────────────────────── */
+async function openPostDetail(postId) {
+    // 조회수 증가 (fire-and-forget)
+    fetch(`/api/community/posts/${postId}/view`, {
+        method: 'POST', credentials: 'include',
+    }).catch(() => {});
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="write-modal post-detail-modal" role="dialog" aria-modal="true" style="max-width:640px">
+        <div class="write-modal-handle"></div>
+        <div class="write-modal-header">
+          <button class="write-modal-close" aria-label="닫기" id="detail-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
+            </svg>
+          </button>
+        </div>
+        <div class="write-modal-body" id="detail-body">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="skel" style="height:20px;width:70%"></div>
+            <div class="skel" style="height:14px;width:40%"></div>
+            <div class="skel" style="height:100px;width:100%"></div>
+          </div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => backdrop.classList.add('visible'));
+
+    const closeDetail = () => {
+        backdrop.classList.remove('visible');
+        backdrop.addEventListener('transitionend', () => backdrop.remove(), { once: true });
+    };
+    backdrop.querySelector('#detail-close').addEventListener('click', closeDetail);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeDetail(); });
+
+    try {
+        // 게시글 + 댓글 병렬 로드
+        const [postRes, cmtRes] = await Promise.all([
+            fetch(`/api/community/posts/${postId}`, { credentials: 'include' }),
+            fetch(`/api/community/posts/${postId}/comments`, { credentials: 'include' }),
+        ]);
+
+        if (!postRes.ok) throw new Error('not found');
+        const { post } = await postRes.json();
+        const cmts = cmtRes.ok ? (await cmtRes.json()).comments : [];
+
+        renderDetailBody(backdrop.querySelector('#detail-body'), { post, postId, comments: cmts });
+    } catch (_) {
+        backdrop.querySelector('#detail-body').innerHTML =
+            `<p style="color:var(--text-2);text-align:center;padding:32px">게시글을 불러올 수 없어요.</p>`;
+    }
 }
 
-/* ─── UI 헬퍼 ─────────────────────────────────────────────────── */
+function renderDetailBody(container, { post, postId, comments }) {
+    const cat     = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
+    const cmtHtml = comments.map(c => `
+      <li class="cmt-item">
+        <div class="cmt-meta">
+          <span class="cmt-nick">${escHtml(c.nickname ?? '익명')}</span>
+          <span class="cmt-ip">(${escHtml(c.ip_prefix ?? '?.?')})</span>
+          <span class="cmt-date">${fmtRelative(c.created_at)}</span>
+        </div>
+        <p class="cmt-body">${escHtml(c.body)}</p>
+      </li>`).join('');
+
+    container.innerHTML = `
+      <div class="detail-cat-row">
+        <span class="post-row__cat ${cat.cls}">${cat.label}</span>
+        <span class="detail-date">${fmtRelative(post.created_at)}</span>
+      </div>
+      <h3 class="detail-title">${escHtml(post.title)}</h3>
+      <div class="detail-author-row">
+        <span class="cmt-nick">${escHtml(post.nickname ?? '익명')}</span>
+        <span class="cmt-ip">(${escHtml(post.ip_prefix ?? '?.?')})</span>
+        <span class="detail-stat">조회 ${post.views}</span>
+        <span class="detail-stat" style="color:var(--accent-red)">추천 ${post.likes}</span>
+      </div>
+      ${post.body ? `<div class="detail-body-text">${escHtml(post.body)}</div>` : ''}
+      <div class="detail-actions">
+        <button class="detail-like-btn" id="detail-like-btn">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M6 1 7.5 4.5H11L8.2 6.8 9.3 10.5 6 8.3 2.7 10.5 3.8 6.8 1 4.5H4.5Z"/>
+          </svg>
+          추천 <span id="like-count">${post.likes}</span>
+        </button>
+      </div>
+      <div class="detail-comments">
+        <p class="detail-cmt-head">댓글 <strong>${comments.length}</strong></p>
+        <ul class="cmt-list" id="cmt-list">${cmtHtml || '<li class="cmt-empty">아직 댓글이 없어요.</li>'}</ul>
+        <div class="cmt-write">
+          <textarea id="cmt-input" class="write-textarea" rows="2" placeholder="댓글을 입력하세요 (최대 1,000자)" maxlength="1000"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="write-submit-btn" id="cmt-submit">등록</button>
+          </div>
+        </div>
+      </div>`;
+
+    // 추천
+    container.querySelector('#detail-like-btn').addEventListener('click', async () => {
+        if (!currentUser) { showToast('로그인 후 이용할 수 있어요'); return; }
+        try {
+            const r = await fetch(`/api/community/posts/${postId}/like`, {
+                method: 'POST', credentials: 'include',
+            });
+            if (r.ok) {
+                const { liked, likes } = await r.json();
+                const btn = container.querySelector('#detail-like-btn');
+                btn.style.color = liked ? 'var(--accent-red)' : '';
+                btn.querySelector('svg').style.fill = liked ? 'var(--accent-red)' : '';
+                const countSpan = container.querySelector('#like-count');
+                if (countSpan) countSpan.textContent = likes;
+                showToast(liked ? `추천 ${likes}` : '추천을 취소했어요');
+                // 목록 카운트 갱신
+                const likeEl = postList.querySelector(`[data-id="${postId}"] .post-row__likes`);
+                if (likeEl) likeEl.lastChild.textContent = likes;
+            }
+        } catch (_) { showToast('오류가 발생했어요'); }
+    });
+
+    // 댓글 등록
+    container.querySelector('#cmt-submit').addEventListener('click', async () => {
+        if (!currentUser) { showToast('로그인 후 댓글을 달 수 있어요'); return; }
+        const input = container.querySelector('#cmt-input');
+        const body  = input.value.trim();
+        if (!body) { input.focus(); return; }
+
+        try {
+            const r = await fetch(`/api/community/posts/${postId}/comments`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ body }),
+            });
+            if (!r.ok) {
+                const { error } = await r.json();
+                showToast(error || '오류가 발생했어요');
+                return;
+            }
+            const { comment } = await r.json();
+            input.value = '';
+
+            const li = document.createElement('li');
+            li.className = 'cmt-item';
+            li.innerHTML = `
+              <div class="cmt-meta">
+                <span class="cmt-nick">${escHtml(comment.nickname ?? '익명')}</span>
+                <span class="cmt-ip">(${escHtml(comment.ip_prefix ?? '?.?')})</span>
+                <span class="cmt-date">방금</span>
+              </div>
+              <p class="cmt-body">${escHtml(comment.body)}</p>`;
+
+            const emptyEl = container.querySelector('.cmt-empty');
+            if (emptyEl) emptyEl.remove();
+            container.querySelector('#cmt-list').appendChild(li);
+
+            // 댓글 수 갱신
+            const headEl = container.querySelector('.detail-cmt-head strong');
+            if (headEl) headEl.textContent = parseInt(headEl.textContent) + 1;
+            const cmtBadge = postList.querySelector(`[data-id="${postId}"] .post-row__cmts`);
+            if (cmtBadge) cmtBadge.textContent = parseInt(cmtBadge.textContent || '0') + 1;
+        } catch (_) { showToast('오류가 발생했어요'); }
+    });
+}
+
+/* ─── 이벤트 바인딩 ─────────────────────────────────────── */
+function bindEvents() {
+    // 검색 토글
+    searchToggle.addEventListener('click', () => {
+        const open = searchWrap.classList.toggle('open');
+        searchToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) { searchInput.focus(); }
+        else {
+            searchInput.value = '';
+            searchClear.classList.add('hidden');
+            if (searchQuery) { searchQuery = ''; resetAndLoad(); renderHotPosts(); }
+        }
+    });
+
+    // 검색 입력 (디바운스)
+    let searchTimer;
+    searchInput.addEventListener('input', () => {
+        const val = searchInput.value.trim();
+        searchClear.classList.toggle('hidden', !val);
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            searchQuery = val;
+            resetAndLoad();
+        }, 320);
+    });
+
+    searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { clearTimeout(searchTimer); searchQuery = searchInput.value.trim(); resetAndLoad(); }
+        if (e.key === 'Escape') searchToggle.click();
+    });
+
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.classList.add('hidden');
+        searchInput.focus();
+        searchQuery = '';
+        resetAndLoad();
+        renderHotPosts();
+    });
+
+    // 글쓰기
+    writeFab.addEventListener('click', handleWriteClick);
+    writeHeaderBtn.addEventListener('click', handleWriteClick);
+}
+
+function handleWriteClick() {
+    if (!currentUser) {
+        showToast('로그인 후 글을 작성할 수 있어요');
+        setTimeout(() => { window.location.href = '/login/'; }, 1200);
+        return;
+    }
+    showWriteModal();
+}
+
+/* ─── 글쓰기 모달 ─────────────────────────────────────────── */
+function showWriteModal() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    const cats = CATEGORIES.filter(c => c.key !== '전체');
+    let selectedCat = currentCat !== '전체' ? currentCat : '정보';
+
+    backdrop.innerHTML = `
+      <div class="write-modal" role="dialog" aria-modal="true" aria-label="게시글 작성">
+        <div class="write-modal-handle"></div>
+        <div class="write-modal-header">
+          <h2 class="write-modal-title">게시글 작성</h2>
+          <button class="write-modal-close" aria-label="닫기">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
+            </svg>
+          </button>
+        </div>
+        <div class="write-modal-body">
+          <div class="write-field">
+            <label class="write-label">카테고리</label>
+            <div class="write-cat-chips">
+              ${cats.map(c => `<button class="write-cat-chip${c.key === selectedCat ? ' active' : ''}" data-cat="${c.key}">${c.label}</button>`).join('')}
+            </div>
+          </div>
+          <div class="write-field">
+            <label class="write-label" for="wt-title">제목</label>
+            <input id="wt-title" class="write-input" type="text" placeholder="제목을 입력하세요" maxlength="200" autocomplete="off">
+          </div>
+          <div class="write-field">
+            <label class="write-label" for="wt-body">내용</label>
+            <textarea id="wt-body" class="write-textarea" placeholder="자유롭게 작성해 보세요 (최대 5,000자)" maxlength="5000"></textarea>
+            <span class="write-char-count" id="wt-char">0 / 5,000</span>
+          </div>
+        </div>
+        <div class="write-modal-footer">
+          <button class="write-cancel-btn">취소</button>
+          <button class="write-submit-btn" id="wt-submit-btn">등록하기</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => backdrop.classList.add('visible'));
+
+    const closeModal = () => {
+        backdrop.classList.remove('visible');
+        backdrop.addEventListener('transitionend', () => backdrop.remove(), { once: true });
+    };
+
+    backdrop.querySelector('.write-modal-close').addEventListener('click', closeModal);
+    backdrop.querySelector('.write-cancel-btn').addEventListener('click', closeModal);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+
+    // 카테고리 선택
+    backdrop.querySelectorAll('.write-cat-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            backdrop.querySelectorAll('.write-cat-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedCat = btn.dataset.cat;
+        });
+    });
+
+    // 글자수
+    const textarea  = backdrop.querySelector('#wt-body');
+    const charCount = backdrop.querySelector('#wt-char');
+    textarea.addEventListener('input', () => {
+        const len = textarea.value.length;
+        charCount.textContent = `${len.toLocaleString('ko-KR')} / 5,000`;
+        charCount.classList.toggle('warn', len > 4500);
+    });
+
+    // 제출
+    const submitBtn = backdrop.querySelector('#wt-submit-btn');
+    submitBtn.addEventListener('click', async () => {
+        const title = backdrop.querySelector('#wt-title').value.trim();
+        const body  = textarea.value.trim();
+        if (!title) { backdrop.querySelector('#wt-title').focus(); return; }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '등록 중...';
+
+        try {
+            const r = await fetch('/api/community/posts', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ category: selectedCat, title, body }),
+            });
+            if (r.status === 401) {
+                showToast('로그인이 필요해요');
+                closeModal();
+                return;
+            }
+            if (!r.ok) {
+                const { error } = await r.json();
+                showToast(error || '오류가 발생했어요');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '등록하기';
+                return;
+            }
+            closeModal();
+            showToast('게시글이 등록됐어요 ✓');
+            // 최신 글이 맨 위: 카테고리 전체로 리셋 후 리로드
+            if (currentCat !== '전체' && currentCat !== selectedCat) {
+                currentCat = '전체';
+                buildCategoryBar();
+            }
+            await Promise.all([renderHotPosts(), resetAndLoad()]);
+        } catch (_) {
+            showToast('네트워크 오류가 발생했어요');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '등록하기';
+        }
+    });
+
+    setTimeout(() => backdrop.querySelector('#wt-title')?.focus(), 260);
+}
+
+/* ─── UI 헬퍼 ────────────────────────────────────────────── */
 function renderEmpty() {
-  if (postList.querySelector('.c-empty')) return;
-  const li = document.createElement('li');
-  li.className = 'c-empty';
-  li.innerHTML = `
-    <div class="c-empty__icon">📭</div>
-    <p class="c-empty__title">${searchQuery ? '검색 결과가 없어요' : '게시글이 없어요'}</p>
-    <p class="c-empty__desc">${searchQuery ? `"${escHtml(searchQuery)}" 에 해당하는 글이 없습니다` : '첫 번째 글을 작성해 보세요!'}</p>
-  `;
-  postList.appendChild(li);
+    if (postList.querySelector('.c-empty')) return;
+    const li = document.createElement('li');
+    li.className = 'c-empty';
+    li.innerHTML = `
+      <div class="c-empty__icon">📭</div>
+      <p class="c-empty__title">${searchQuery ? '검색 결과가 없어요' : '아직 게시글이 없어요'}</p>
+      <p class="c-empty__desc">${searchQuery ? `"${escHtml(searchQuery)}"에 해당하는 글이 없습니다` : '첫 번째 글을 작성해 보세요!'}</p>`;
+    postList.appendChild(li);
+}
+
+function renderError() {
+    const li = document.createElement('li');
+    li.className = 'c-empty';
+    li.innerHTML = `
+      <div class="c-empty__icon">⚠️</div>
+      <p class="c-empty__title">게시글을 불러올 수 없어요</p>
+      <p class="c-empty__desc">잠시 후 다시 시도해 주세요</p>`;
+    postList.appendChild(li);
 }
 
 function updateBadge(total) {
-  postCountBadge.textContent = total >= 1000
-    ? `${(total / 1000).toFixed(1)}k`
-    : `${total}`;
+    postCountBadge.textContent = total >= 1000
+        ? `${(total / 1000).toFixed(1)}k`
+        : String(total);
 }
 
-/* ─── 이벤트 바인딩 ──────────────────────────────────────────── */
-function bindEvents() {
-  // 검색 토글
-  searchToggle.addEventListener('click', () => {
-    const open = searchWrap.classList.toggle('open');
-    searchToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) {
-      searchInput.focus();
-    } else {
-      searchInput.value = '';
-      searchClear.classList.add('hidden');
-      if (searchQuery) { searchQuery = ''; resetAndLoad(); renderHotPosts(); }
-    }
-  });
-
-  // 검색 입력
-  let searchTimer;
-  searchInput.addEventListener('input', () => {
-    const val = searchInput.value.trim();
-    searchClear.classList.toggle('hidden', !val);
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      searchQuery = val;
-      resetAndLoad();
-    }, 320);
-  });
-
-  // 검색 clear
-  searchClear.addEventListener('click', () => {
-    searchInput.value = '';
-    searchClear.classList.add('hidden');
-    searchInput.focus();
-    searchQuery = '';
-    resetAndLoad();
-    renderHotPosts();
-  });
-
-  // 글쓰기
-  writeFab.addEventListener('click', showWriteModal);
-  writeHeaderBtn.addEventListener('click', showWriteModal);
-}
-
-/* ─── 글쓰기 모달 ────────────────────────────────────────────── */
-function showWriteModal() {
-  const backdrop = document.createElement('div');
-  backdrop.className = 'modal-backdrop';
-
-  const cats = CATEGORIES.filter(c => c.key !== '전체');
-  let selectedCat = currentCat !== '전체' ? currentCat : '정보';
-
-  backdrop.innerHTML = `
-    <div class="write-modal" role="dialog" aria-modal="true" aria-label="게시글 작성">
-      <div class="write-modal-handle"></div>
-      <div class="write-modal-header">
-        <h2 class="write-modal-title">게시글 작성</h2>
-        <button class="write-modal-close" aria-label="닫기">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
-            <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
-          </svg>
-        </button>
-      </div>
-      <div class="write-modal-body">
-        <div class="write-field">
-          <label class="write-label">카테고리</label>
-          <div class="write-cat-chips">
-            ${cats.map(c => `<button class="write-cat-chip${c.key === selectedCat ? ' active' : ''}" data-cat="${c.key}">${c.label}</button>`).join('')}
-          </div>
-        </div>
-        <div class="write-field">
-          <label class="write-label" for="wt-title">제목</label>
-          <input id="wt-title" class="write-input" type="text" placeholder="제목을 입력하세요" maxlength="100" autocomplete="off">
-        </div>
-        <div class="write-field">
-          <label class="write-label" for="wt-body">내용</label>
-          <textarea id="wt-body" class="write-textarea" placeholder="자유롭게 작성해 보세요 (최대 2,000자)" maxlength="2000"></textarea>
-          <span class="write-char-count" id="wt-char">0 / 2,000</span>
-        </div>
-      </div>
-      <div class="write-modal-footer">
-        <button class="write-cancel-btn">취소</button>
-        <button class="write-submit-btn">등록하기</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(backdrop);
-  requestAnimationFrame(() => backdrop.classList.add('visible'));
-
-  const closeModal = () => {
-    backdrop.classList.remove('visible');
-    backdrop.addEventListener('transitionend', () => backdrop.remove(), { once: true });
-  };
-
-  backdrop.querySelector('.write-modal-close').addEventListener('click', closeModal);
-  backdrop.querySelector('.write-cancel-btn').addEventListener('click', closeModal);
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
-
-  // category chips
-  backdrop.querySelectorAll('.write-cat-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      backdrop.querySelectorAll('.write-cat-chip').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedCat = btn.dataset.cat;
-    });
-  });
-
-  // char count
-  const textarea  = backdrop.querySelector('#wt-body');
-  const charCount = backdrop.querySelector('#wt-char');
-  textarea.addEventListener('input', () => {
-    const len = textarea.value.length;
-    charCount.textContent = `${len.toLocaleString()} / 2,000`;
-    charCount.classList.toggle('warn', len > 1800);
-  });
-
-  // submit
-  backdrop.querySelector('.write-submit-btn').addEventListener('click', () => {
-    const title = backdrop.querySelector('#wt-title').value.trim();
-    const body  = textarea.value.trim();
-    if (!title) { backdrop.querySelector('#wt-title').focus(); return; }
-    submitPost({ title, body, category: selectedCat });
-    closeModal();
-    showToast('게시글이 등록됐어요 ✓');
-  });
-
-  // focus title
-  setTimeout(() => backdrop.querySelector('#wt-title').focus(), 250);
-}
-
-/* ─── 게시글 등록 ────────────────────────────────────────────── */
-function submitPost({ title, body, category }) {
-  const post = generatePost(Date.now(), title, body, category);
-  allPosts.unshift(post);
-  renderHotPosts();
-  resetAndLoad();
-}
-
-/* ─── Toast ──────────────────────────────────────────────────── */
+/* ─── Toast ─────────────────────────────────────────────── */
 function showToast(msg) {
-  const t = document.createElement('div');
-  t.className = 'c-toast';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => t.classList.add('visible'));
-  });
-  setTimeout(() => {
-    t.classList.remove('visible');
-    t.addEventListener('transitionend', () => t.remove(), { once: true });
-  }, 2200);
+    const t = document.createElement('div');
+    t.className = 'c-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('visible')));
+    setTimeout(() => {
+        t.classList.remove('visible');
+        t.addEventListener('transitionend', () => t.remove(), { once: true });
+    }, 2400);
 }
 
-/* ─── 목업 데이터 ─────────────────────────────────────────────── */
-const SAMPLE_TITLES = [
-  '수능 국어 독서 고득점 전략 공유합니다',
-  '미적분 극한 개념 정리본 올립니다 (오르비 스타일)',
-  '재수 6개월 차 근황 + 멘탈 관리법',
-  '현강 vs 인강 뭐가 더 나은가요? 제 경험 기준',
-  '화학 킬러 유형 분석 — 2024 기출 기반',
-  '국어 비문학 시간 단축하는 법',
-  'EBS 연계 올해 어떻게 나올 것 같냐',
-  '수험생 수면 시간 몇 시간으로 유지하세요?',
-  '탐구 선택 과목 조합 추천해줘요',
-  '모의고사 2등급 → 수능 1등급 후기',
-  '수학 가형 백점 나왔을 때 공부법 공개',
-  '영어 절대평가 1등급 기준이 너무 낮지 않음?',
-  '사탐 vs 과탐 N수생 입장에서 비교',
-  '국어 등급 잘 안 오르는 사람들 특징',
-  '인수분해 빠르게 하는 꿀팁 (킬러 대비)',
-  '시대인재 현강 끊을지 인강으로 갈아탈지 고민',
-  '수능 D-100 타임테이블 공유해요',
-  '6월 모의 이후 공부 방향 잡는 법',
-  '비문학 지문 처음 볼 때 어디서 막히세요?',
-  '수학 시간 부족한 사람들을 위한 연습 방법',
-  '논술 준비 언제부터 시작하면 적당할까',
-  '내신 vs 수능 모드 전환 타이밍',
-  '탐구 1+1 전략 — 생1+지1 조합 어때요',
-  '재수 결정하고 제일 힘들었던 순간',
-  'N수 기숙학원 꼭 가야 하나요? 솔직 후기',
-  '매일 공부 12시간 하는 루틴 공개',
-  '수능 D-200부터 시작한 플래너 방식',
-  '킬러 문항 한 문제에 20분 쓸 가치 있음?',
-  '이과 → 문과 전향 N수생 솔직 후기',
-  '공부하다 멘탈 무너질 때 극복법',
-  '수능 당일 컨디션 관리 팁 모음',
-  '오르비 vs 메가 커뮤니티 어디 더 좋음?',
-  '국어 만점자 공부법 요약 정리',
-  '영어 독해 빠르게 읽는 훈련법',
-  '수능 끝나고 바로 뭐 할 예정이에요?',
-];
-
-const NICKNAMES = [
-  '익명', '고3탈출러', '수험생활', '공부의신', '갤러리인',
-  '현역수능', '재수챌린저', '논술준비', '이과탈출', '문과선택',
-  '미적분왕', '국어고수', '영어만점', '탐구신',  '수험일기',
-];
-
-const IP_PREFIXES = [
-  '118.235', '175.196', '210.94', '61.255', '223.62',
-  '1.225',   '125.130', '39.7',   '106.240', '14.52',
-];
-
-const CAT_KEYS    = ['념글', '정보', '질문', '잡담'];
-const CAT_WEIGHTS = [0.12,   0.35,   0.33,   0.20];
-
-function weightedCat() {
-  const r = Math.random();
-  let acc = 0;
-  for (let i = 0; i < CAT_KEYS.length; i++) {
-    acc += CAT_WEIGHTS[i];
-    if (r < acc) return CAT_KEYS[i];
-  }
-  return '정보';
+/* ─── 유틸리티 ───────────────────────────────────────────── */
+function fmtRelative(iso) {
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60)    return '방금';
+    if (diff < 3600)  return `${Math.floor(diff / 60)}분 전`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
+    const d = new Date(iso);
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${mm}.${dd}`;
 }
 
-function generatePost(id, title, body, category) {
-  const ago = Math.floor(Math.random() * 86400 * 5);
-  return {
-    id,
-    category:  category  || weightedCat(),
-    title:     title     || SAMPLE_TITLES[id % SAMPLE_TITLES.length],
-    body:      body      || '',
-    nickname:  NICKNAMES[id % NICKNAMES.length],
-    ipPrefix:  IP_PREFIXES[id % IP_PREFIXES.length],
-    likes:     Math.floor(Math.random() * 120),
-    comments:  Math.floor(Math.random() * 60),
-    views:     Math.floor(Math.random() * 2800) + 20,
-    createdAt: new Date(Date.now() - ago * 1000).toISOString(),
-  };
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
-function generateFakeData() {
-  allPosts = Array.from({ length: 200 }, (_, i) => generatePost(i + 1));
+/* ─── 상세 모달 추가 스타일 (동적 주입 — style.css 의존 최소화) */
+const detailStyle = document.createElement('style');
+detailStyle.textContent = `
+.post-detail-modal { max-height: 90dvh; }
+.detail-cat-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.detail-date { font-size:11.5px; color:var(--text-3); margin-left:auto; }
+.detail-title { font-size:16px; font-weight:700; color:var(--text-1); line-height:1.5; margin-bottom:8px; word-break:break-word; }
+.detail-author-row { display:flex; align-items:center; gap:6px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.detail-stat { font-size:11.5px; color:var(--text-3); margin-left:4px; }
+.detail-body-text { font-size:14px; color:var(--text-1); line-height:1.7; white-space:pre-wrap; word-break:break-word; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.detail-actions { display:flex; gap:8px; margin-bottom:18px; }
+.detail-like-btn {
+  display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 14px;
+  background:var(--surface-2); border-radius:var(--radius-pill); font-size:12.5px;
+  font-weight:600; color:var(--text-2); border:1.5px solid var(--border-mid);
+  transition:color var(--transition),border-color var(--transition);
 }
+.detail-like-btn:hover { color:var(--accent-red); border-color:rgba(255,69,58,0.3); }
+.detail-comments { display:flex; flex-direction:column; gap:12px; }
+.detail-cmt-head { font-size:13px; font-weight:700; color:var(--text-2); }
+.cmt-list { display:flex; flex-direction:column; }
+.cmt-item { padding:11px 0; border-bottom:1px solid var(--border); }
+.cmt-item:last-child { border-bottom:none; }
+.cmt-empty { padding:24px 0; text-align:center; color:var(--text-3); font-size:13px; }
+.cmt-meta { display:flex; align-items:center; gap:5px; margin-bottom:5px; }
+.cmt-nick { font-size:12px; font-weight:600; color:var(--text-1); }
+.cmt-ip   { font-size:11px; color:var(--text-3); }
+.cmt-date { font-size:11px; color:var(--text-3); margin-left:auto; }
+.cmt-body { font-size:13.5px; color:var(--text-1); line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+.cmt-write { display:flex; flex-direction:column; padding-top:10px; border-top:1px solid var(--border); }
+`;
+document.head.appendChild(detailStyle);
 
-/* ─── 유틸리티 ───────────────────────────────────────────────── */
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-/* ─── 부트스트랩 ─────────────────────────────────────────────── */
+/* ─── 부트스트랩 ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', init);

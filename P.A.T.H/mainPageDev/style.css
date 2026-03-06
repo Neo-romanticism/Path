@@ -980,6 +980,7 @@ body.active .tab-panel {
     width: min(1080px, 100%);
     margin-top: 16px;
     text-align: center;
+    display: none !important;
 }
 
 .system-msg {
