@@ -5,6 +5,8 @@ const UI = {
     weekOffset: 0,
     weekData: null,
     dragState: null,
+    undoTimeoutId: null,
+    pendingUndo: null,
     timetableConfig: {
         dayStartMinute: 6 * 60,
         dayEndMinute: 24 * 60,
@@ -48,7 +50,7 @@ const UI = {
         overlay:     document.getElementById('overlay'),
         resTitle:    document.getElementById('res-title'),
         resLoot:     document.getElementById('res-loot'),
-        bottomInfo:  document.querySelector('.bottom-info')
+        bottomInfo:  document.querySelector('.footer-info .system-msg')
     },
 
     async init() {
@@ -60,6 +62,7 @@ const UI = {
             this.elements.bottomInfo.textContent = `DOMAIN: ${userData.university || '-'}`;
         }
 
+        this.ensureUndoSnackbar();
         this.setTodayDefaults();
         this.loadRankInfo();
         this.bindEvents();
@@ -119,6 +122,11 @@ const UI = {
         this.elements.calendarTimeline.addEventListener('pointerdown', (e) => this.handlePlanPointerDown(e));
         window.addEventListener('pointermove', (e) => this.handlePlanPointerMove(e));
         window.addEventListener('pointerup', () => this.handlePlanPointerUp());
+        document.body.addEventListener('click', (e) => {
+            if (e.target.closest('.undo-btn')) {
+                this.handleUndoClick();
+            }
+        });
 
         this.elements.enterBtn.onclick = async () => {
             const hr  = parseInt(this.elements.inputHr.value)  || 0;
@@ -319,11 +327,12 @@ const UI = {
                 const subjectColor = this.getSubjectColor(p.subject_id, p.subject_name);
                 const bg = this.hexToRgba(subjectColor, p.is_completed ? 0.18 : 0.24);
                 const border = this.hexToRgba(subjectColor, 0.55);
-                return `<div class="tt-event ${statusClass}" data-plan-id="${p.id}" data-plan-date="${key}" data-start-minute="${rawStart}" data-end-minute="${rawEnd}" style="top:${top}px;height:${height}px;--subject-color:${subjectColor};--subject-bg:${bg};--subject-border:${border}">
+                return `<div class="tt-event ${statusClass}" data-plan-id="${p.id}" data-plan-date="${key}" data-day-index="${i}" data-start-minute="${rawStart}" data-end-minute="${rawEnd}" style="top:${top}px;height:${height}px;--subject-color:${subjectColor};--subject-bg:${bg};--subject-border:${border}">
                     <div class="tt-event-title">${this.escapeHtml(p.subject_name || '미지정')}</div>
                     <div class="tt-event-time">${this.minuteToTime(rawStart)} - ${this.minuteToTime(rawEnd)}</div>
                     ${p.note ? `<div class="tt-event-note">${this.escapeHtml(p.note)}</div>` : ''}
                     <button class="plan-delete-btn" data-plan-id="${p.id}" type="button">삭제</button>
+                    <div class="tt-resize-handle" title="길이 조절"></div>
                 </div>`;
             }).join('');
 
@@ -377,14 +386,23 @@ const UI = {
         const rawStart = parseInt(eventBox.dataset.startMinute, 10) || 0;
         const rawEnd = parseInt(eventBox.dataset.endMinute, 10) || 0;
         const duration = Math.max(5, rawEnd - rawStart);
+        const dayIndex = Math.max(0, Math.min(6, parseInt(eventBox.dataset.dayIndex, 10) || 0));
+        const dayCol = eventBox.closest('.tt-day-col');
+        const colWidth = dayCol ? dayCol.getBoundingClientRect().width : 140;
+        const dragMode = event.target.closest('.tt-resize-handle') ? 'resize' : 'move';
 
         this.dragState = {
             planId,
+            mode: dragMode,
             eventEl: eventBox,
+            startX: event.clientX,
             startY: event.clientY,
             originalStart: rawStart,
             originalEnd: rawEnd,
             duration,
+            dayIndex,
+            nextDayIndex: dayIndex,
+            colWidth,
             planDate: eventBox.dataset.planDate,
             changed: false,
             nextStart: rawStart,
@@ -404,21 +422,46 @@ const UI = {
         const snap = this.timetableConfig.snapMinute;
         const deltaMinute = Math.round(deltaMinuteRaw / snap) * snap;
 
-        const minStart = this.timetableConfig.dayStartMinute;
-        const maxStart = this.timetableConfig.dayEndMinute - this.dragState.duration;
-        const nextStart = Math.max(minStart, Math.min(maxStart, this.dragState.originalStart + deltaMinute));
-        const nextEnd = nextStart + this.dragState.duration;
+        let nextStart = this.dragState.nextStart;
+        let nextEnd = this.dragState.nextEnd;
+        let nextDayIndex = this.dragState.nextDayIndex;
 
-        if (nextStart === this.dragState.nextStart && nextEnd === this.dragState.nextEnd) return;
+        if (this.dragState.mode === 'resize') {
+            const minEnd = this.dragState.originalStart + this.timetableConfig.snapMinute;
+            const maxEnd = this.timetableConfig.dayEndMinute;
+            nextEnd = Math.max(minEnd, Math.min(maxEnd, this.dragState.originalEnd + deltaMinute));
+            nextStart = this.dragState.originalStart;
+        } else {
+            const minStart = this.timetableConfig.dayStartMinute;
+            const maxStart = this.timetableConfig.dayEndMinute - this.dragState.duration;
+            nextStart = Math.max(minStart, Math.min(maxStart, this.dragState.originalStart + deltaMinute));
+            nextEnd = nextStart + this.dragState.duration;
+
+            const deltaDayRaw = (event.clientX - this.dragState.startX) / Math.max(40, this.dragState.colWidth);
+            const deltaDay = Math.round(deltaDayRaw);
+            nextDayIndex = Math.max(0, Math.min(6, this.dragState.dayIndex + deltaDay));
+        }
+
+        if (nextStart === this.dragState.nextStart && nextEnd === this.dragState.nextEnd && nextDayIndex === this.dragState.nextDayIndex) return;
 
         this.dragState.nextStart = nextStart;
         this.dragState.nextEnd = nextEnd;
+        this.dragState.nextDayIndex = nextDayIndex;
         this.dragState.changed = true;
 
         const totalMinutes = this.timetableConfig.dayEndMinute - this.timetableConfig.dayStartMinute;
         const timelineHeight = Math.floor((totalMinutes / 60) * this.timetableConfig.hourHeight);
         const top = Math.floor(((nextStart - this.timetableConfig.dayStartMinute) / totalMinutes) * timelineHeight);
         this.dragState.eventEl.style.top = `${top}px`;
+
+        if (this.dragState.mode === 'resize') {
+            const nextHeight = Math.max(22, Math.floor(((nextEnd - nextStart) / totalMinutes) * timelineHeight));
+            this.dragState.eventEl.style.height = `${nextHeight}px`;
+            this.dragState.eventEl.style.transform = 'translateX(0px)';
+        } else {
+            const x = (nextDayIndex - this.dragState.dayIndex) * this.dragState.colWidth;
+            this.dragState.eventEl.style.transform = `translateX(${x}px)`;
+        }
 
         const timeEl = this.dragState.eventEl.querySelector('.tt-event-time');
         if (timeEl) timeEl.textContent = `${this.minuteToTime(nextStart)} - ${this.minuteToTime(nextEnd)}`;
@@ -430,6 +473,7 @@ const UI = {
         const ctx = this.dragState;
         this.dragState = null;
         ctx.eventEl.classList.remove('is-dragging');
+        ctx.eventEl.style.transform = '';
 
         if (!ctx.changed) return;
 
@@ -440,11 +484,24 @@ const UI = {
         }
 
         try {
-            await StorageManager.updatePlan(ctx.planId, {
+            const beforePayload = {
                 plan_date: ctx.planDate,
+                start_time: this.minuteToTime(ctx.originalStart),
+                end_time: this.minuteToTime(ctx.originalEnd),
+                note: plan.note || ''
+            };
+            const nextDate = this.getWeekDateByIndex(ctx.nextDayIndex);
+
+            await StorageManager.updatePlan(ctx.planId, {
+                plan_date: nextDate,
                 start_time: this.minuteToTime(ctx.nextStart),
                 end_time: this.minuteToTime(ctx.nextEnd),
                 note: plan.note || ''
+            });
+
+            this.showUndoSnackbar({
+                planId: ctx.planId,
+                beforePayload
             });
             await this.loadWeekCalendar(this.weekOffset);
         } catch (e) {
@@ -492,6 +549,56 @@ const UI = {
         const m = String(dateObj.getMonth() + 1).padStart(2, '0');
         const d = String(dateObj.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
+    },
+
+    getWeekDateByIndex(index) {
+        const startText = this.weekData?.week?.start_date;
+        const safeIndex = Math.max(0, Math.min(6, index || 0));
+        if (!startText) return this.toLocalYmd(new Date());
+        const d = new Date(`${startText}T00:00:00`);
+        d.setDate(d.getDate() + safeIndex);
+        return this.toLocalYmd(d);
+    },
+
+    ensureUndoSnackbar() {
+        if (document.getElementById('calendar-undo-snackbar')) return;
+        const el = document.createElement('div');
+        el.id = 'calendar-undo-snackbar';
+        el.className = 'calendar-undo-snackbar';
+        el.innerHTML = `<span class="undo-text">타임라인이 변경되었습니다.</span><button type="button" class="undo-btn">되돌리기</button>`;
+        document.body.appendChild(el);
+    },
+
+    showUndoSnackbar(payload) {
+        this.pendingUndo = payload;
+        const el = document.getElementById('calendar-undo-snackbar');
+        if (!el) return;
+        el.classList.add('show');
+        if (this.undoTimeoutId) clearTimeout(this.undoTimeoutId);
+        this.undoTimeoutId = setTimeout(() => {
+            el.classList.remove('show');
+            this.pendingUndo = null;
+        }, 6000);
+    },
+
+    async handleUndoClick() {
+        if (!this.pendingUndo) return;
+        const payload = this.pendingUndo;
+        this.pendingUndo = null;
+
+        const el = document.getElementById('calendar-undo-snackbar');
+        if (el) el.classList.remove('show');
+        if (this.undoTimeoutId) {
+            clearTimeout(this.undoTimeoutId);
+            this.undoTimeoutId = null;
+        }
+
+        try {
+            await StorageManager.updatePlan(payload.planId, payload.beforePayload);
+            await this.loadWeekCalendar(this.weekOffset);
+        } catch (e) {
+            alert(e.message || '되돌리기 실패');
+        }
     },
 
     async handlePlanSubmit(event) {
@@ -617,4 +724,12 @@ const UI = {
     }
 };
 
-window.onload = () => UI.init();
+function initUiWhenReady() {
+    UI.init();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUiWhenReady, { once: true });
+} else {
+    initUiWhenReady();
+}

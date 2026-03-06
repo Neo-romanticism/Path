@@ -18,6 +18,25 @@ const DEFAULT_UI_SETTINGS = {
     showKeyboardGuide: true,
     showCoordinates: true
 };
+const ONBOARDING_PENDING_KEY = 'path_onboarding_pending';
+const ONBOARDING_DONE_PREFIX = 'path_onboarding_done_user_';
+const ONBOARDING_STEPS = [
+    {
+        target: '#btn-enter-path',
+        title: '공부 시작하기',
+        text: '하단 INITIALIZE PATH 버튼을 누르면 공부 타이머 화면으로 이동합니다.'
+    },
+    {
+        target: '#tutorial-btn-rank',
+        title: '랭킹 확인',
+        text: '오른쪽(모바일은 하단) 메뉴의 RANK 버튼에서 전체/오늘 랭킹을 확인할 수 있습니다.'
+    },
+    {
+        target: '#tutorial-btn-settings',
+        title: '설정과 로그아웃',
+        text: '우측 상단 설정 버튼에서 UI 표시, 라이트 모드, 로그아웃을 관리할 수 있습니다.'
+    }
+];
 
 function toggleTheme(forceLight) {
     const isLight = typeof forceLight === 'boolean'
@@ -99,11 +118,147 @@ let myTotalSec = 0;
 let allUsers = [];
 let allUniversities = [];
 let selectedUser = null;
+const onboardingState = {
+    active: false,
+    currentIndex: 0
+};
 let isDragging = false;
 let dragStartX, dragStartY;
 let mapOffsetX = 0, mapOffsetY = 0;
 let scale = 1.0;
 let currentRankTab = 'total';
+
+function getOnboardingDoneKey(userId) {
+    return `${ONBOARDING_DONE_PREFIX}${userId}`;
+}
+
+function clamp(val, min, max) {
+    return Math.max(min, Math.min(max, val));
+}
+
+function getOnboardingElements() {
+    return {
+        layer: document.getElementById('onboarding-tutorial'),
+        highlight: document.getElementById('onboarding-highlight'),
+        bubble: document.getElementById('onboarding-bubble'),
+        step: document.getElementById('onboarding-step'),
+        title: document.getElementById('onboarding-title'),
+        text: document.getElementById('onboarding-text'),
+        nextBtn: document.getElementById('onboarding-next'),
+        skipBtn: document.getElementById('onboarding-skip')
+    };
+}
+
+function positionOnboardingBubble(targetEl) {
+    const { bubble, highlight } = getOnboardingElements();
+    if (!bubble || !highlight) return;
+
+    if (!targetEl) {
+        highlight.style.width = '0px';
+        highlight.style.height = '0px';
+        bubble.style.left = '12px';
+        bubble.style.top = '12px';
+        return;
+    }
+
+    const rect = targetEl.getBoundingClientRect();
+    const pad = 8;
+
+    highlight.style.left = `${Math.max(0, rect.left - pad)}px`;
+    highlight.style.top = `${Math.max(0, rect.top - pad)}px`;
+    highlight.style.width = `${Math.max(0, rect.width + pad * 2)}px`;
+    highlight.style.height = `${Math.max(0, rect.height + pad * 2)}px`;
+
+    const bubbleRect = bubble.getBoundingClientRect();
+    const bw = bubbleRect.width || 320;
+    const bh = bubbleRect.height || 180;
+    const margin = 10;
+
+    let x = rect.left + (rect.width / 2) - (bw / 2);
+    x = clamp(x, margin, window.innerWidth - bw - margin);
+
+    let y = rect.bottom + 12;
+    if (y + bh > window.innerHeight - margin) {
+        y = rect.top - bh - 12;
+    }
+    y = clamp(y, margin, window.innerHeight - bh - margin);
+
+    bubble.style.left = `${Math.round(x)}px`;
+    bubble.style.top = `${Math.round(y)}px`;
+}
+
+function renderOnboardingStep() {
+    if (!onboardingState.active) return;
+
+    const els = getOnboardingElements();
+    const stepData = ONBOARDING_STEPS[onboardingState.currentIndex];
+    if (!els.layer || !els.step || !els.title || !els.text || !els.nextBtn || !stepData) return;
+
+    els.step.textContent = `${onboardingState.currentIndex + 1} / ${ONBOARDING_STEPS.length}`;
+    els.title.textContent = stepData.title;
+    els.text.textContent = stepData.text;
+    els.nextBtn.textContent = onboardingState.currentIndex === ONBOARDING_STEPS.length - 1 ? '완료' : '다음';
+
+    const targetEl = document.querySelector(stepData.target);
+    positionOnboardingBubble(targetEl);
+}
+
+function finishOnboardingTutorial(markDone) {
+    const els = getOnboardingElements();
+    onboardingState.active = false;
+
+    if (els.layer) {
+        els.layer.classList.add('hidden');
+        els.layer.setAttribute('aria-hidden', 'true');
+    }
+
+    if (markDone && currentUser?.id) {
+        localStorage.setItem(getOnboardingDoneKey(currentUser.id), 'true');
+    }
+    localStorage.removeItem(ONBOARDING_PENDING_KEY);
+    window.removeEventListener('resize', renderOnboardingStep);
+}
+
+function startOnboardingTutorialIfNeeded() {
+    if (!currentUser?.id) return false;
+
+    const pending = localStorage.getItem(ONBOARDING_PENDING_KEY) === 'true';
+    const alreadyDone = localStorage.getItem(getOnboardingDoneKey(currentUser.id)) === 'true';
+    if (!pending || alreadyDone) {
+        if (alreadyDone) localStorage.removeItem(ONBOARDING_PENDING_KEY);
+        return false;
+    }
+
+    const els = getOnboardingElements();
+    if (!els.layer || !els.nextBtn || !els.skipBtn) return false;
+
+    if (!els.nextBtn.dataset.bound) {
+        els.nextBtn.addEventListener('click', () => {
+            if (!onboardingState.active) return;
+            if (onboardingState.currentIndex >= ONBOARDING_STEPS.length - 1) {
+                finishOnboardingTutorial(true);
+                return;
+            }
+            onboardingState.currentIndex += 1;
+            renderOnboardingStep();
+        });
+        els.nextBtn.dataset.bound = 'true';
+    }
+
+    if (!els.skipBtn.dataset.bound) {
+        els.skipBtn.addEventListener('click', () => finishOnboardingTutorial(true));
+        els.skipBtn.dataset.bound = 'true';
+    }
+
+    onboardingState.active = true;
+    onboardingState.currentIndex = 0;
+    els.layer.classList.remove('hidden');
+    els.layer.setAttribute('aria-hidden', 'false');
+
+    renderOnboardingStep();
+    window.addEventListener('resize', renderOnboardingStep);
+    return true;
+}
 
 // ── 합격 확률 계산 (프론트엔드) ───────────────────────────────────────
 (function() {
@@ -208,8 +363,10 @@ async function initHub() {
             if (window.WorldScene) window.WorldScene.setFriendIds(friends.map(f => f.id));
         }).catch(() => {});
 
+        const onboardingShown = startOnboardingTutorialIfNeeded();
+
         // [Agent Notice] Show once
-        if (!localStorage.getItem('agent_notice_v1')) {
+        if (!onboardingShown && !localStorage.getItem('agent_notice_v1')) {
             setTimeout(() => togglePanel('panel-agent-notice'), 800);
             localStorage.setItem('agent_notice_v1', 'true');
         }

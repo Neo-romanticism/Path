@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P.A.T.H - Command</title>
+    <link rel="prefetch" href="/P.A.T.H/mainPageDev/index.html" as="document">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=5">
     <script type="importmap">
     {
         "imports": {
@@ -51,13 +52,13 @@
                     <button class="sys-btn" onclick="togglePanel('panel-notif')">
                         LOGS <span id="notif-badge" class="dot hidden"></span>
                     </button>
-                    <button class="sys-btn" onclick="togglePanel('panel-settings')" title="설정">⚙</button>
+                    <button id="tutorial-btn-settings" class="sys-btn" onclick="togglePanel('panel-settings')" title="설정">⚙</button>
                 </div>
             </div>
         </header>
 
         <nav class="fab-rail" aria-label="메뉴">
-            <button class="fab-btn" onclick="togglePanel('panel-rank')" title="RANK" aria-label="랭킹">
+            <button id="tutorial-btn-rank" class="fab-btn" onclick="togglePanel('panel-rank')" title="RANK" aria-label="랭킹">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             </button>
             <button class="fab-btn" onclick="togglePanel('panel-shop')" title="SHOP" aria-label="상점">
@@ -347,7 +348,20 @@
         </div>
     </div>
 
-    <script src="bg.js?v=4"></script>
-    <script src="main.js?v=4"></script>
+    <div id="onboarding-tutorial" class="onboarding-layer hidden" aria-hidden="true">
+        <div id="onboarding-highlight" class="onboarding-highlight" aria-hidden="true"></div>
+        <div id="onboarding-bubble" class="onboarding-bubble" role="dialog" aria-live="polite" aria-label="처음 사용자 튜토리얼">
+            <div id="onboarding-step" class="onboarding-step">1 / 3</div>
+            <div id="onboarding-title" class="onboarding-title">환영합니다</div>
+            <p id="onboarding-text" class="onboarding-text">여기서 튜토리얼 내용이 표시됩니다.</p>
+            <div class="onboarding-actions">
+                <button id="onboarding-skip" class="onboarding-btn onboarding-btn-muted" type="button">건너뛰기</button>
+                <button id="onboarding-next" class="onboarding-btn" type="button">다음</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="bg.js?v=5"></script>
+    <script src="main.js?v=5"></script>
 </body>
 </html>

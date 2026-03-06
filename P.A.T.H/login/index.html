@@ -329,6 +329,7 @@ function toggleTheme() {
                 });
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
+                localStorage.setItem('path_onboarding_pending', 'true');
                 window.location.href = '/P.A.T.H/mainHub/index.html';
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }

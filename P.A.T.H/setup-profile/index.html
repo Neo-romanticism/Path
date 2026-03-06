@@ -251,6 +251,7 @@
                     return;
                 }
 
+                localStorage.setItem('path_onboarding_pending', 'true');
                 window.location.href = '/P.A.T.H/mainHub/';
             } catch (err) {
                 console.error('profile update error:', err);
