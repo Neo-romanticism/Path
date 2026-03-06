@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="수험생 전용 익명 커뮤니티 — P.A.T.H">
+  <title>커뮤니티 — P.A.T.H</title>
+
+  <!-- Pretendard 폰트 (메인 앱과 동일) -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="community-layout">
+
+  <!-- ── 헤더 ─────────────────────────────────────── -->
+  <header class="community-header">
+    <div class="header-left">
+      <a href="/P.A.T.H/mainHub/index.html" class="header-back-btn" aria-label="메인으로">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M11 4L6 9L11 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <div class="header-brand">
+        <span class="brand-name">커뮤니티</span>
+        <span class="brand-sub">P.A.T.H  ·  익명 게시판</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="post-count-badge"><span id="post-count">--</span></span>
+    </div>
+  </header>
+
+  <!-- ── 필터 탭 바 ──────────────────────────────── -->
+  <div class="filter-section">
+    <div id="filter-bar" role="tablist" aria-label="게시글 필터"></div>
+  </div>
+
+  <!-- ── 게시글 리스트 ───────────────────────────── -->
+  <main class="community-main">
+    <ul id="post-list" aria-live="polite" aria-label="게시글 목록"></ul>
+    <div id="scroll-sentinel" aria-hidden="true"></div>
+  </main>
+
+</div><!-- /community-layout -->
+
+<!-- ── 글쓰기 FAB ────────────────────────────────── -->
+<button id="write-btn" aria-label="글쓰기">
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<script type="module" src="community.js"></script>
+</body>
+</html>
