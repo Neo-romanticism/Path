@@ -1,51 +1,70 @@
 /**
- * PostListItem
- * 게시글 단일 아이템을 렌더링하는 순수 함수형 컴포넌트
+ * PostListItem — DCinside-style table row (Toss design)
  *
+ * Columns (desktop): 번호 | [카테고리] 제목 [댓글] | 작성자(ip) | 날짜 | 조회 | 추천
+ * Mobile: compact card row
+ */
+
+/* ── Category metadata ─────────────────────────────────────────────────── */
+export const CATEGORY_META = {
+  '전체': { label: '전체', cls: 'cat--all' },
+  '념글': { label: '베스트', cls: 'cat--best' },
+  '정보': { label: '정보', cls: 'cat--info' },
+  '질문': { label: 'Q&A',  cls: 'cat--qa'   },
+  '잡담': { label: '잡담', cls: 'cat--chat'  },
+};
+
+/**
  * @param {object} post
  * @param {number}  post.id
- * @param {string}  post.category    - '전체' | '념글' | '정보' | '질문'
+ * @param {number}  post.displayNum  - 게시글 번호 (1-based descending)
+ * @param {string}  post.category
  * @param {string}  post.title
  * @param {string}  post.nickname
- * @param {string}  post.ipPrefix    - 예: '118.235'
+ * @param {string}  post.ipPrefix
  * @param {number}  post.likes
  * @param {number}  post.comments
- * @param {string}  post.createdAt   - ISO timestamp
+ * @param {number}  post.views
+ * @param {string}  post.createdAt    - ISO timestamp
+ * @param {boolean} post.isHot        - true if likes ≥ HOT_THRESHOLD
  * @returns {HTMLElement}
  */
 export function PostListItem(post) {
   const el = document.createElement('li');
-  el.className = 'post-item';
-  el.setAttribute('data-id', post.id);
+  el.className = 'post-row' + (post.isHot ? ' is-hot' : '');
+  el.dataset.id = post.id;
 
-  const timeLabel = formatRelativeTime(post.createdAt);
-  const categoryMeta = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
+  const cat    = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
+  const date   = formatDate(post.createdAt);
+  const views  = fmtNum(post.views);
+  const likes  = fmtNum(post.likes);
+
+  const numCell = post.isHot
+    ? `<span class="post-row__num post-row__num--hot">
+         <span class="post-row__hot-badge">HOT</span>
+       </span>`
+    : `<span class="post-row__num">${post.displayNum}</span>`;
 
   el.innerHTML = `
-    <a class="post-link" href="#post-${post.id}" aria-label="${escapeHtml(post.title)}">
-      <div class="post-category-badge" style="--badge-color:${categoryMeta.color}">${categoryMeta.label}</div>
-      <p class="post-title">${escapeHtml(post.title)}</p>
-      <div class="post-meta">
-        <span class="post-author">
-          <span class="post-nickname">${escapeHtml(post.nickname)}</span>
-          <span class="post-ip">(${escapeHtml(post.ipPrefix)})</span>
-        </span>
-        <span class="post-stats">
-          <span class="stat-item stat-likes" title="추천">
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M6 1L7.5 4.5H11L8.2 6.8L9.3 10.5L6 8.3L2.7 10.5L3.8 6.8L1 4.5H4.5L6 1Z" fill="currentColor"/>
-            </svg>
-            ${post.likes}
-          </span>
-          <span class="stat-item stat-comments" title="댓글">
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M2 2h8a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4l-2 2V3a1 1 0 0 1 1-1z" fill="currentColor"/>
-            </svg>
-            ${post.comments}
-          </span>
-          <span class="stat-time">${timeLabel}</span>
-        </span>
+    <a class="post-row__link" href="#post-${post.id}" aria-label="${escHtml(post.title)}">
+      ${numCell}
+      <div class="post-row__top">
+        <span class="post-row__cat ${cat.cls}">${cat.label}</span>
+        <span class="post-row__title">${escHtml(post.title)}</span>
+        ${post.comments > 0 ? `<span class="post-row__cmts" aria-label="댓글 ${post.comments}개">${post.comments}</span>` : ''}
       </div>
+      <span class="post-row__author">
+        <span class="post-row__author-nick">${escHtml(post.nickname)}</span><!-- --><span class="post-author-ip">(${escHtml(post.ipPrefix)})</span>
+      </span>
+      <span class="post-row__sep">·</span>
+      <span class="post-row__date">${date}</span>
+      <span class="post-row__views">${views}</span>
+      <span class="post-row__likes">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          <path d="M6 1 7.5 4.5H11L8.2 6.8 9.3 10.5 6 8.3 2.7 10.5 3.8 6.8 1 4.5H4.5Z"/>
+        </svg>
+        ${likes}
+      </span>
     </a>
   `;
 
@@ -53,47 +72,50 @@ export function PostListItem(post) {
 }
 
 /**
- * SkeletonItem
- * 로딩 중에 표시할 스켈레톤 아이템
- * @returns {HTMLElement}
+ * SkeletonItem — loading placeholder
  */
 export function SkeletonItem() {
   const el = document.createElement('li');
-  el.className = 'post-item skeleton-item';
+  el.className = 'skel-row';
   el.setAttribute('aria-hidden', 'true');
   el.innerHTML = `
-    <div class="post-link">
+    <div class="skel-top">
       <div class="skel skel-badge"></div>
       <div class="skel skel-title"></div>
-      <div class="skel skel-title skel-title--short"></div>
-      <div class="post-meta">
-        <div class="skel skel-meta"></div>
-        <div class="skel skel-meta skel-meta--wide"></div>
-      </div>
+    </div>
+    <div class="skel-bottom">
+      <div class="skel skel-meta"></div>
+      <div class="skel skel-meta skel-meta-w"></div>
     </div>
   `;
   return el;
 }
 
-/* ─── 내부 유틸리티 ──────────────────────────────── */
+/* ── Utilities ───────────────────────────────────────────────────────────── */
 
-const CATEGORY_META = {
-  '전체': { label: '전체', color: 'var(--text-2)' },
-  '념글': { label: '념글', color: 'var(--accent)' },
-  '정보': { label: '정보', color: '#34C759' },
-  '질문': { label: '질문', color: '#0A84FF' },
-};
-
-function formatRelativeTime(isoString) {
-  const diff = (Date.now() - new Date(isoString).getTime()) / 1000;
-  if (diff < 60)   return '방금';
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
+function formatDate(iso) {
+  const now  = Date.now();
+  const diff = (now - new Date(iso).getTime()) / 1000;
+  if (diff < 60)    return '방금';
+  if (diff < 3600)  return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  const d = new Date(isoString);
-  return `${d.getMonth() + 1}.${d.getDate()}`;
+  const d = new Date(iso);
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  // Same year → MM.DD, different year → YY.MM.DD
+  return d.getFullYear() === new Date().getFullYear()
+    ? `${mm}.${dd}`
+    : `${String(yy).slice(2)}.${mm}.${dd}`;
 }
 
-function escapeHtml(str) {
+function fmtNum(n) {
+  if (n >= 10000) return `${(n / 10000).toFixed(1)}만`;
+  if (n >= 1000)  return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

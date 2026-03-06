@@ -405,7 +405,7 @@ function updateMyBuilding(user) {
     const label = document.getElementById('my-castle-label');
     if (label) label.textContent = user?.university || 'MY BALLOON';
     if (window.WorldScene && window.WorldScene.isReady) {
-        window.WorldScene.updateMyBalloon(src);
+        window.WorldScene.updateMyBalloon(skinId);
     }
 }
 

@@ -450,22 +450,18 @@ const WorldScene = {
 
     _buildSkyIslands() {
         const islandData = [
-            // Row 1 – near (z: -300 ~ -550) : 3개, x 넓게 분산
-            { x:    0, y:  -30, z: -320, rx: 2.1, name: '바람의 탑',   landmark: '바람개비 탑',    type: 'wind'      },
-            { x:-2200, y:  -50, z: -480, rx: 1.8, name: '폭포 섬',     landmark: '하늘 폭포',      type: 'waterfall' },
-            { x: 2400, y:  -45, z: -520, rx: 2.4, name: '구름 요새',   landmark: '하늘 성벽',      type: 'fortress'  },
-            // Row 2 – mid (z: -720 ~ -950) : 4개
-            { x: -950, y:  -70, z: -730, rx: 1.5, name: '무지개 섬',   landmark: '무지개 다리',    type: 'rainbow'   },
-            { x:  350, y: -100, z: -850, rx: 2.0, name: '에메랄드 섬', landmark: '초록 숲',        type: 'forest'    },
-            { x: 1700, y:  -55, z: -780, rx: 1.6, name: '수정 섬',     landmark: '크리스탈 동굴',  type: 'crystal'   },
-            { x:-2600, y:  -90, z: -950, rx: 1.3, name: '달빛 정원',   landmark: '은빛 연못',      type: 'moon'      },
-            // Row 3 – deep (z: -1150 ~ -1500) : 3개
-            { x:-1700, y:  -60, z:-1150, rx: 1.4, name: '바위 섬',     landmark: '거인의 돌',      type: 'rock'      },
-            { x:  750, y:  -75, z:-1300, rx: 2.2, name: '꽃 섬',       landmark: '벚꽃 정원',      type: 'flower'    },
-            { x: 2100, y: -115, z:-1450, rx: 1.7, name: '용의 둥지',   landmark: '화염 바위',      type: 'dragon'    },
-            // Row 4 – very far (z: -1850 ~ -2100) : 2개
-            { x: -350, y:  -45, z:-1850, rx: 1.2, name: '안개 섬',     landmark: '안개 계곡',      type: 'misty'     },
-            { x: 1400, y:  -65, z:-2100, rx: 1.9, name: '별빛 섬',     landmark: '별자리 광장',    type: 'star'      },
+            { x: -900, y: -60, z: -800, rx: 2.0, name: '에메랄드 섬', landmark: '초록 숲', type: 'forest' },
+            { x:  700, y: -80, z: -600, rx: 1.6, name: '수정 섬', landmark: '크리스탈 동굴', type: 'crystal' },
+            { x:  200, y: -50, z:-1000, rx: 1.2, name: '안개 섬', landmark: '안개 계곡', type: 'misty' },
+            { x:-1200, y: -70, z: -400, rx: 1.8, name: '폭포 섬', landmark: '하늘 폭포', type: 'waterfall' },
+            { x: 1400, y: -55, z: -700, rx: 2.2, name: '꽃 섬', landmark: '벚꽃 정원', type: 'flower' },
+            { x:-1600, y: -90, z: -900, rx: 1.4, name: '바위 섬', landmark: '거인의 돌', type: 'rock' },
+            { x:  500, y: -40, z:-1200, rx: 1.9, name: '별빛 섬', landmark: '별자리 광장', type: 'star' },
+            { x:-600,  y: -75, z: -500, rx: 1.5, name: '무지개 섬', landmark: '무지개 다리', type: 'rainbow' },
+            { x: 1800, y: -65, z: -400, rx: 2.4, name: '구름 요새', landmark: '하늘 성벽', type: 'fortress' },
+            { x:-2000, y: -85, z: -600, rx: 1.3, name: '달빛 정원', landmark: '은빛 연못', type: 'moon' },
+            { x: 1100, y: -45, z:-1100, rx: 1.7, name: '용의 둥지', landmark: '화염 바위', type: 'dragon' },
+            { x:-400,  y: -95, z: -300, rx: 2.1, name: '바람의 탑', landmark: '바람개비 탑', type: 'wind' },
         ];
         islandData.forEach(d => {
             const group = new THREE.Group();
@@ -594,7 +590,7 @@ const WorldScene = {
         for (let i = 0; i < 60; i++) {
             const cx = (rng() - 0.5) * 2 * CLOUD_SPREAD_X;
             const cy = (rng() - 0.5) * CLOUD_SPREAD_Y;
-            const cz = -200 - rng() * 2200;
+            const cz = -400 - rng() * 600;
             const scale = 0.3 + rng() * 1.2;
             const type = cloudTypes[Math.floor(rng() * cloudTypes.length)];
             const cloud = type === 'wispy'  ? this._makeWispyCloud(scale)
@@ -616,7 +612,7 @@ const WorldScene = {
         for (let i = 0; i < 60; i++) {
             const bx = (rng() - 0.5) * 2 * BUILDING_SPREAD;
             const by = -200 - rng() * 150;
-            const bz = -1200 - rng() * 1800;
+            const bz = -800 - rng() * 800;
             const h  = 80 + rng() * 250;
             const w  = 30 + rng() * 60;
             const geo = new THREE.BoxGeometry(w, h, w * 0.8);
@@ -637,7 +633,7 @@ const WorldScene = {
         for (let i = 0; i < 80; i++) {
             const rx = (rng() - 0.5) * 2 * ROCK_SPREAD;
             const ry = (rng() - 0.5) * 4000;
-            const rz = -200 - rng() * 2000;
+            const rz = -300 - rng() * 900;
             const size = 10 + rng() * 40;
             const geo = new THREE.DodecahedronGeometry(size, 0);
             const shade = 0.3 + rng() * 0.3;
@@ -662,7 +658,7 @@ const WorldScene = {
             const group = new THREE.Group();
             const cx2 = (rng() - 0.5) * 2 * CRYSTAL_SPREAD;
             const cy2 = (rng() - 0.5) * 3000;
-            const cz2 = -400 - rng() * 1800;
+            const cz2 = -500 - rng() * 700;
             const numCrystals = 3 + Math.floor(rng() * 4);
             const hue = rng();
             for (let j = 0; j < numCrystals; j++) {
@@ -695,7 +691,7 @@ const WorldScene = {
         for (let i = 0; i < 15; i++) {
             const px = (rng() - 0.5) * 2 * PILLAR_SPREAD;
             const py = -80;
-            const pz = -500 - rng() * 1700;
+            const pz = -600 - rng() * 600;
             const height = 200 + rng() * 400;
             const geo = new THREE.CylinderGeometry(3, 3, height, 6);
             const hue2 = rng();
@@ -723,7 +719,7 @@ const WorldScene = {
         for (let i = 0; i < 20; i++) {
             const wx = (rng() - 0.5) * 2 * ISLAND_SPREAD;
             const wy = (rng() - 0.5) * 2500;
-            const wz = -350 - rng() * 1800;
+            const wz = -500 - rng() * 600;
             const rx = 1.0 + rng() * 1.5;
             const propId = `island_${seed}_${i}`;
             const name = islandNames[i % islandNames.length];
@@ -2036,10 +2032,11 @@ const WorldScene = {
 
         // 거리 기반 LOD 업데이트 (10프레임마다)
         if (this.frameCount % 10 === 0 && this.myBalloon) {
-            const myPos = this.myBalloon.group.position;
+            const myPosX = this.camPos.x;
+            const myPosY = this.camPos.y;
             this.balloons.forEach((b) => {
                 if (b.isMe) return;
-                const dist = myPos.distanceTo(b.group.position);
+                const dist = Math.hypot(b.group.position.x - myPosX, b.group.position.y - myPosY);
                 if (dist > 6000) {
                     b.group.visible = false;
                 } else {
