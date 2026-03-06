@@ -1,4 +1,6 @@
 const express = require('express');
+const { createServer } = require('http');
+const { Server: SocketServer } = require('socket.io');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const cors = require('cors');
@@ -6,6 +8,7 @@ const compression = require('compression');
 const path = require('path');
 const pool = require('./db');
 const { initSchema } = require('./schema');
+const worldManager = require('./world');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -85,7 +88,22 @@ app.get('/login', (req, res) => {
 
 initSchema()
     .then(() => {
-        app.listen(PORT, '0.0.0.0', () => {
+        const httpServer = createServer(app);
+
+        const io = new SocketServer(httpServer, {
+            cors: {
+                origin(origin, callback) {
+                    if (!origin) return callback(null, true);
+                    if (allowedOrigins.length === 0) return callback(null, true);
+                    return callback(null, allowedOrigins.includes(origin));
+                },
+                credentials: true,
+            },
+            transports: ['websocket', 'polling'],
+        });
+        worldManager.setup(io);
+
+        httpServer.listen(PORT, '0.0.0.0', () => {
             console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
         });
     })
