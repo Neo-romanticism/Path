@@ -1078,10 +1078,10 @@ const WorldScene = {
         const shown = items.slice(0, MAX);
 
         this._offscreenEl.innerHTML = shown.map(({ user, ex, ey, angle, isFriend }) => {
-            const clr = isFriend ? '#D4AF37' : 'rgba(200,210,230,0.9)';
-            const bg = isFriend ? 'rgba(40,30,10,0.82)' : 'rgba(15,18,30,0.78)';
-            const border = isFriend ? '1px solid rgba(212,175,55,0.5)' : '1px solid rgba(255,255,255,0.12)';
-            const prefix = isFriend ? '<span style="margin-right:2px;font-size:9px">★</span>' : '';
+            const clr = isFriend ? '#00C471' : 'rgba(200,210,230,0.9)';
+            const bg = isFriend ? 'rgba(0,196,113,0.10)' : 'rgba(15,18,30,0.78)';
+            const border = isFriend ? '1px solid rgba(0,196,113,0.4)' : '1px solid rgba(255,255,255,0.12)';
+            const prefix = isFriend ? '<span style="margin-right:3px;font-size:8px;opacity:0.8">●</span>' : '';
             return `<div style="position:absolute;left:${ex}px;top:${ey}px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;">
                 <div style="font-size:14px;color:${clr};transform:rotate(${angle + 90}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,0.8));line-height:1">▲</div>
                 <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${prefix}${user.nickname}</div>
@@ -2216,10 +2216,10 @@ class InteractableProp {
         ctx.beginPath();
         ctx.roundRect(4, 4, 312, 80, 14);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(212,175,55,0.5)';
+        ctx.strokeStyle = 'rgba(49,130,246,0.55)';
         ctx.lineWidth   = 2;
         ctx.stroke();
-        ctx.fillStyle   = '#D4AF37';
+        ctx.fillStyle   = '#3182F6';
         ctx.font        = 'bold 26px "Pretendard Variable",sans-serif';
         ctx.textAlign   = 'center';
         ctx.textBaseline = 'middle';
@@ -2264,26 +2264,30 @@ class InteractableProp {
             el.id = 'island-info';
             el.style.cssText = [
                 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);',
-                'background:rgba(10,10,20,0.95);border:2px solid rgba(212,175,55,0.5);',
-                'border-radius:16px;padding:24px 32px;z-index:1000;',
+                'background:var(--surface-color,#1B2130);border:1.5px solid rgba(49,130,246,0.35);',
+                'border-radius:20px;padding:28px 36px;z-index:1000;',
                 "font-family:'Pretendard Variable',sans-serif;",
-                'backdrop-filter:blur(12px);min-width:320px;text-align:center;',
+                'backdrop-filter:blur(24px);min-width:320px;text-align:center;',
+                'box-shadow:0 8px 40px rgba(0,0,0,0.6);',
             ].join('');
             document.body.appendChild(el);
         }
         const statusText  = this.activated ? '✨ 활성화됨 – 근처 모든 플레이어에게 실시간 반영됩니다' : '💤 비활성화됨';
-        const statusColor = this.activated ? '#D4AF37' : '#888';
+        const statusColor = this.activated ? '#00C471' : 'var(--text-secondary,#7E94B8)';
         el.innerHTML = `
             <div style="font-size:32px;margin-bottom:12px;">🏝️</div>
-            <div style="font-size:22px;color:#D4AF37;font-weight:700;margin-bottom:8px;">${this.name}</div>
+            <div style="font-size:22px;color:var(--accent,#3182F6);font-weight:800;margin-bottom:8px;letter-spacing:-0.3px;">${this.name}</div>
             <div style="font-size:13px;color:${statusColor};margin-bottom:16px;">${statusText}</div>
-            <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:16px;">
+            <div style="font-size:12px;color:var(--text-secondary,#7E94B8);line-height:1.65;margin-bottom:18px;">
                 클릭으로 활성화하면 근처의 모든 플레이어에게 실시간으로 반영됩니다.
             </div>
             <button onclick="document.getElementById('island-info').remove()" style="
-                background:rgba(212,175,55,0.2);border:1px solid rgba(212,175,55,0.5);
-                color:#D4AF37;padding:8px 24px;border-radius:8px;
-                font-size:12px;font-weight:600;cursor:pointer;">닫기</button>
+                background:rgba(49,130,246,0.12);border:1.5px solid rgba(49,130,246,0.35);
+                color:#3182F6;padding:10px 28px;border-radius:999px;
+                font-size:13px;font-weight:700;cursor:pointer;
+                font-family:'Pretendard Variable',sans-serif;"
+                onmouseover="this.style.background='#3182F6';this.style.color='#fff'"
+                onmouseout="this.style.background='rgba(49,130,246,0.12)';this.style.color='#3182F6'">닫기</button>
         `;
         setTimeout(() => {
             if (el && el.parentElement) {

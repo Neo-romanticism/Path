@@ -1212,7 +1212,7 @@ async function renderApplyPanel() {
                     probStr = ` · 확률 ${app.accept_prob}%`;
                 }
                 return `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid ${won ? 'rgba(212,175,55,0.3)' : 'var(--border)'};border-radius:4px;background:${won ? 'rgba(212,175,55,0.05)' : 'transparent'};">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border:1px solid ${won ? 'rgba(0,196,113,0.3)' : 'var(--border)'};border-radius:4px;background:${won ? 'rgba(0,196,113,0.05)' : 'transparent'};">
                         <div>
                             <div style="font-size:12px;font-weight:600;color:var(--text);">${esc(app.target_university || '?')}</div>
                             <div style="font-size:10px;color:#666;margin-top:1px;">${esc(app.target_nickname)} · ${date}${probStr}</div>
@@ -2015,7 +2015,7 @@ async function saveCamSettings() {
         if (note) {
             const visLabel = select.value === 'all' ? '전체공개' : '관리자만';
             note.textContent = `저장됨 — 공개 범위: ${visLabel}`;
-            note.style.color = 'var(--accent-gold)';
+            note.style.color = 'var(--accent)';
             setTimeout(() => {
                 note.textContent = '공개 범위는 모든 유저에게 표시됩니다.';
                 note.style.color = '';
@@ -2329,8 +2329,8 @@ function updateMinimap() {
     
     // 내 위치
     if (window.WorldScene.myBalloon) {
-        ctx.fillStyle = '#D4AF37';
-        ctx.strokeStyle = 'rgba(212,175,55,0.5)';
+        ctx.fillStyle = '#3182F6';
+        ctx.strokeStyle = 'rgba(49,130,246,0.5)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
