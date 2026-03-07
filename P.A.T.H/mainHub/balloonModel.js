@@ -155,21 +155,24 @@ export function create3DBalloon(scale, colorScheme, isMe) {
     colorParts.primary.push(envelope);
     group.add(envelope);
 
-    // Vertical gore seams and alternating fabric bands.
+    // Gore seams following the balloon envelope surface.
     const seamCount = 12;
-    const seamHeight = 82 * scale;
     for (let i = 0; i < seamCount; i++) {
         const angle = (i / seamCount) * Math.PI * 2;
 
-        const seamGeo = new THREE.CylinderGeometry(scale * 0.55, scale * 0.55, seamHeight, 6);
+        const seamPoints = profile.map(v => new THREE.Vector3(
+            Math.cos(angle) * v.x,
+            v.y + scale * 22,
+            Math.sin(angle) * v.x
+        ));
+        const seamCurve = new THREE.CatmullRomCurve3(seamPoints);
+        const seamGeo = new THREE.TubeGeometry(seamCurve, 12, scale * 0.55, 6, false);
         const seamMat = new THREE.MeshStandardMaterial({
             color: colors.secondary,
             roughness: materialProfile.seamRoughness,
             metalness: 0.03
         });
         const seam = new THREE.Mesh(seamGeo, seamMat);
-        const radius = 34 * scale;
-        seam.position.set(Math.cos(angle) * radius, scale * 24, Math.sin(angle) * radius);
         colorParts.secondary.push(seam);
         group.add(seam);
 

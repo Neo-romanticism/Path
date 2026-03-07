@@ -2320,7 +2320,7 @@ function updateMinimap() {
         const x = centerX + pos.x * scale;
         const y = centerY - pos.y * scale;
         if (x >= 0 && x <= w && y >= 0 && y <= h) {
-            ctx.fillStyle = window.WorldScene.friendIds.has(b.user.id) ? 'rgba(255,215,0,0.7)' : 'rgba(100,150,255,0.5)';
+            ctx.fillStyle = window.WorldScene.friendIds.has(b.user.id) ? 'rgba(0,196,113,0.8)' : 'rgba(100,150,255,0.5)';
             ctx.beginPath();
             ctx.arc(x, y, 2, 0, Math.PI * 2);
             ctx.fill();

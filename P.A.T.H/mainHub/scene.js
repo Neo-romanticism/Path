@@ -881,10 +881,10 @@ const WorldScene = {
         ctx.lineTo(8, 8 + rr); ctx.arcTo(8, 8, 8 + rr, 8, rr);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = isMe ? 'rgba(212,175,55,0.6)' : 'rgba(255,255,255,0.15)';
+        ctx.strokeStyle = isMe ? 'rgba(49,130,246,0.7)' : 'rgba(255,255,255,0.15)';
         ctx.lineWidth = isMe ? 2 : 1;
         ctx.stroke();
-        ctx.fillStyle = isMe ? '#D4AF37' : '#E8E8ED';
+        ctx.fillStyle = isMe ? '#3182F6' : '#E8E8ED';
         ctx.font = `bold 22px "Pretendard Variable", sans-serif`;
         ctx.textAlign = 'center';
         ctx.fillText(user.nickname, 128, 34);
@@ -906,7 +906,7 @@ const WorldScene = {
         const x0 = (256 - textW) / 2;
         const y0 = 4;
         const r = 12;
-        ctx.fillStyle = isMe ? 'rgba(212,175,55,0.92)' : 'rgba(240,242,255,0.94)';
+        ctx.fillStyle = isMe ? 'rgba(49,130,246,0.92)' : 'rgba(240,242,255,0.94)';
         ctx.beginPath();
         ctx.moveTo(x0 + r, y0);
         ctx.lineTo(x0 + textW - r, y0); ctx.arcTo(x0 + textW, y0, x0 + textW, y0 + r, r);
@@ -1400,10 +1400,11 @@ const WorldScene = {
             infoEl.id = 'island-info';
             infoEl.style.cssText = `
                 position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
-                background:rgba(10,10,20,0.95); border:2px solid rgba(212,175,55,0.5);
-                border-radius:16px; padding:24px 32px; z-index:1000;
+                background:var(--surface-color,#1B2130); border:1.5px solid rgba(49,130,246,0.35);
+                border-radius:20px; padding:28px 36px; z-index:1000;
                 font-family:'Pretendard Variable',sans-serif;
-                backdrop-filter:blur(12px);
+                backdrop-filter:blur(24px);
+                box-shadow:0 8px 40px rgba(0,0,0,0.6);
                 min-width:320px; text-align:center;
             `;
             document.body.appendChild(infoEl);
@@ -1411,19 +1412,19 @@ const WorldScene = {
         
         infoEl.innerHTML = `
             <div style="font-size:32px;margin-bottom:12px;">🏝️</div>
-            <div style="font-size:24px;color:var(--accent-gold);font-weight:700;margin-bottom:8px;">${islandData.name}</div>
-            <div style="font-size:14px;color:#aaa;margin-bottom:16px;">하늘섬 - ${islandData.landmark}</div>
-            <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:16px;">
+            <div style="font-size:22px;color:var(--accent,#3182F6);font-weight:800;margin-bottom:8px;letter-spacing:-0.3px;">${islandData.name}</div>
+            <div style="font-size:13px;color:var(--text-secondary,#7E94B8);margin-bottom:16px;">하늘섬 · ${islandData.landmark}</div>
+            <div style="font-size:12px;color:var(--text-secondary,#7E94B8);line-height:1.65;margin-bottom:18px;">
                 이 하늘섬은 ${islandData.name}의 상징적인 공간입니다.<br>
                 맵을 탐험하며 다양한 대학의 하늘섬을 발견해보세요!
             </div>
             <button onclick="document.getElementById('island-info').remove()" style="
-                background:rgba(212,175,55,0.2); border:1px solid rgba(212,175,55,0.5);
-                color:var(--accent-gold); padding:8px 24px; border-radius:8px;
-                font-size:12px; font-weight:600; cursor:pointer;
-                transition:all 0.2s;
-            " onmouseover="this.style.background='rgba(212,175,55,0.3)'" 
-               onmouseout="this.style.background='rgba(212,175,55,0.2)'">닫기</button>
+                background:rgba(49,130,246,0.12); border:1.5px solid rgba(49,130,246,0.35);
+                color:#3182F6; padding:10px 28px; border-radius:999px;
+                font-size:13px; font-weight:700; cursor:pointer;
+                transition:all 0.2s; font-family:'Pretendard Variable',sans-serif;
+            " onmouseover="this.style.background='#3182F6';this.style.color='#fff'"
+               onmouseout="this.style.background='rgba(49,130,246,0.12)';this.style.color='#3182F6'">닫기</button>
         `;
         
         // 3초 후 자동으로 제거
@@ -1721,11 +1722,12 @@ const WorldScene = {
             el.id = 'travel-hint';
             el.style.cssText = `
                 position:fixed; bottom:140px; left:50%; transform:translateX(-50%);
-                background:rgba(10,10,20,0.82); border:1px solid rgba(212,175,55,0.5);
-                color:#D4AF37; font-family:"Pretendard Variable",sans-serif; font-size:13px;
-                padding:8px 18px; border-radius:20px; z-index:50;
+                background:var(--surface-color,#1B2130); border:1.5px solid rgba(49,130,246,0.35);
+                color:#3182F6; font-family:"Pretendard Variable",sans-serif; font-size:13px;
+                font-weight:600; padding:9px 20px; border-radius:999px; z-index:50;
                 pointer-events:none; transition:opacity 0.3s;
-                letter-spacing:0.04em;
+                box-shadow:0 4px 20px rgba(49,130,246,0.25);
+                backdrop-filter:blur(16px);
             `;
             document.body.appendChild(el);
         }
