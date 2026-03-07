@@ -20,6 +20,7 @@
 - `PORT=5000` (Render가 자동 주입하는 경우 생략 가능)
 - `DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db>?sslmode=require`
 - `SESSION_SECRET=<랜덤_긴_문자열>`
+- `SITE_URL=https://sdij.cloud` (SEO canonical/sitemap 절대 URL 기준)
 - `CORS_ORIGIN=https://sdij.cloud,https://www.sdij.cloud`
 - `SESSION_SAME_SITE=lax`
 - `SESSION_COOKIE_DOMAIN=.sdij.cloud`
@@ -86,6 +87,14 @@ Cloudflare DNS에서:
 - [ ] 회원가입/로그인 시 쿠키 저장 확인
 - [ ] `Set-Cookie`에 `Secure`, `Domain=.sdij.cloud`, `SameSite` 값 확인
 - [ ] `/api/*` 응답 헤더에서 캐시 비활성 확인
+
+### 검색 노출(SEO) 점검
+- [ ] `https://api.sdij.cloud/robots.txt` 응답 확인
+- [ ] `https://api.sdij.cloud/sitemap.xml` 응답 확인
+- [ ] `sitemap.xml`에 `/community/` 와 `/community/post/:id` URL 포함 확인
+- [ ] 샘플 게시글 URL(`https://api.sdij.cloud/community/post/<id>`)의 `title/meta canonical/JSON-LD` 확인
+- [ ] Google Search Console에 `https://sdij.cloud` 속성 등록 후 sitemap 제출
+- [ ] Naver Search Advisor에 사이트 등록 후 sitemap 제출
 
 ### 휴대폰 인증 점검
 - [ ] 알리고 잔액 확인 (최소 5만원 권장)

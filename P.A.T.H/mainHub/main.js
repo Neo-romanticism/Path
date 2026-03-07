@@ -31,19 +31,64 @@ const ONBOARDING_PENDING_KEY = 'path_onboarding_pending';
 const ONBOARDING_DONE_PREFIX = 'path_onboarding_done_user_';
 const ONBOARDING_STEPS = [
     {
+        target: '#tutorial-profile',
+        title: '프로필 커스텀',
+        text: '좌측 상단 프로필을 누르면 닉네임/프로필 사진을 바로 수정할 수 있습니다.'
+    },
+    {
         target: '#btn-enter-path',
         title: '공부 시작하기',
         text: '하단 공부 시작하기 버튼을 누르면 공부 타이머 화면으로 이동합니다.'
     },
     {
+        target: '#tutorial-btn-shop',
+        title: '상점 (SHOP)',
+        text: 'SHOP에서 원서비를 구매하고, 열기구 스킨을 획득/장착할 수 있습니다.'
+    },
+    {
+        target: '#tutorial-btn-apply',
+        title: '모의지원 패널',
+        text: '모의지원에서 슬롯/지원 가능 횟수/지원 이력을 확인하고 랭킹에서 바로 도전할 수 있습니다.'
+    },
+    {
         target: '#tutorial-btn-rank',
         title: '랭킹 확인',
-        text: '오른쪽(모바일은 하단) 메뉴의 RANK 버튼에서 전체/오늘 랭킹을 확인할 수 있습니다.'
+        text: 'RANK에서 TOTAL/TODAY 랭킹을 보고 유저를 선택해 정보 확인, 메시지, 도전을 진행할 수 있습니다.'
+    },
+    {
+        target: '#btn-ally',
+        title: '동맹 시스템',
+        text: 'ALLY 버튼에서 동맹 목록/신청을 관리할 수 있고, 점은 새로운 신청이 있다는 뜻입니다.'
+    },
+    {
+        target: '#btn-msg',
+        title: '메신저',
+        text: 'MSG에서 동맹 유저와 대화하고 파일도 전송할 수 있습니다.'
+    },
+    {
+        target: '#btn-community',
+        title: '커뮤니티',
+        text: 'COMMUNITY 버튼으로 게시판으로 이동해 글/댓글 기반 소통을 할 수 있습니다.'
+    },
+    {
+        target: '#tutorial-btn-search',
+        title: '검색과 빠른 포커스',
+        text: '상단 SEARCH에 닉네임/대학명을 입력하면 맵의 유저가 필터링되고 대상 위치로 빠르게 포커스됩니다.'
+    },
+    {
+        target: '#btn-teleport',
+        title: '좌표 & 텔레포트',
+        text: '좌측 하단 좌표 패널에서 현재 위치를 확인하고 원하는 좌표로 즉시 이동할 수 있습니다.'
     },
     {
         target: '#tutorial-btn-settings',
-        title: '설정과 로그아웃',
-        text: '우측 상단 설정 버튼에서 UI 표시, 라이트 모드, 로그아웃을 관리할 수 있습니다.'
+        title: '설정 / 환경 제어',
+        text: '설정에서 라이트 모드, 미니맵, 키보드 가이드, 좌표 패널, 캠인증 공개 범위를 관리할 수 있습니다.'
+    },
+    {
+        target: '#weather-btn',
+        title: '날씨 전환',
+        text: '날씨 버튼(또는 R 키)으로 연출을 바꿀 수 있고, HOME(H 키)으로 내 위치로 복귀할 수 있습니다.'
     }
 ];
 
@@ -136,6 +181,7 @@ let dragStartX, dragStartY;
 let mapOffsetX = 0, mapOffsetY = 0;
 let scale = 1.0;
 let currentRankTab = 'total';
+let pendingProfileImageFile = null;
 
 function getOnboardingDoneKey(userId) {
     return `${ONBOARDING_DONE_PREFIX}${userId}`;
@@ -395,9 +441,67 @@ function secToHour(sec) {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function getNicknameInitial(nickname) {
+    return (nickname || '?').trim().charAt(0).toUpperCase() || '?';
+}
+
+function getProfileImageSrc(user) {
+    if (!user?.profile_image_url) return '';
+    const stamp = user.id ? `u=${encodeURIComponent(user.id)}` : `t=${Date.now()}`;
+    return `${user.profile_image_url}${user.profile_image_url.includes('?') ? '&' : '?'}${stamp}`;
+}
+
+function getExternalProfileImageSrc(profileImageUrl, userId) {
+    if (!profileImageUrl) return '';
+    const stamp = userId ? `u=${encodeURIComponent(userId)}` : `t=${Date.now()}`;
+    return `${profileImageUrl}${profileImageUrl.includes('?') ? '&' : '?'}${stamp}`;
+}
+
+function renderAvatarHtml({ nickname, profileImageUrl, userId, className = 'user-avatar' }) {
+    const initial = esc(getNicknameInitial(nickname));
+    const imageSrc = getExternalProfileImageSrc(profileImageUrl, userId);
+    if (imageSrc) {
+        return `<div class="${className}"><img src="${esc(imageSrc)}" alt="${esc(nickname || 'user')}" loading="lazy"></div>`;
+    }
+    return `<div class="${className}">${initial}</div>`;
+}
+
+function updateProfilePreview(imageSrc, initial) {
+    const previewImg = document.getElementById('profile-avatar-preview-img');
+    const previewInitial = document.getElementById('profile-avatar-preview-initial');
+    if (!previewImg || !previewInitial) return;
+
+    if (imageSrc) {
+        previewImg.src = imageSrc;
+        previewImg.classList.remove('hidden');
+        previewInitial.classList.add('hidden');
+    } else {
+        previewImg.classList.add('hidden');
+        previewImg.removeAttribute('src');
+        previewInitial.textContent = initial;
+        previewInitial.classList.remove('hidden');
+    }
+}
+
 function updateHUD(user) {
-    document.getElementById('badge-char').textContent = (user.nickname || '?').charAt(0).toUpperCase();
-    document.getElementById('hud-univ').textContent = user.university || '-';
+    const initial = getNicknameInitial(user.nickname);
+    const profileImageSrc = getProfileImageSrc(user);
+    const badgePhoto = document.getElementById('badge-photo');
+    const badgeInitial = document.getElementById('badge-initial');
+    if (badgePhoto && badgeInitial) {
+        if (profileImageSrc) {
+            badgePhoto.src = profileImageSrc;
+            badgePhoto.classList.remove('hidden');
+            badgeInitial.classList.add('hidden');
+        } else {
+            badgePhoto.classList.add('hidden');
+            badgePhoto.removeAttribute('src');
+            badgeInitial.textContent = initial;
+            badgeInitial.classList.remove('hidden');
+        }
+    }
+
+    document.getElementById('hud-univ').textContent = user.nickname || '-';
     document.getElementById('hud-gold').textContent = (user.gold || 0).toLocaleString();
     document.getElementById('hud-hours').textContent = secToHour(myTotalSec);
     document.getElementById('hud-tickets').textContent = (user.tickets || 0) + '장';
@@ -414,6 +518,15 @@ function updateMyBuilding(user) {
     if (window.WorldScene && window.WorldScene.isReady) {
         window.WorldScene.updateMyBalloon(skinId);
     }
+}
+
+function applyCurrentUserState(user, { syncWorld = true, refreshMap = false } = {}) {
+    if (!user) return;
+    currentUser = user;
+    updateHUD(user);
+    updateMyBuilding(user);
+    if (syncWorld) _emitWorldPresence(user);
+    if (refreshMap) loadRankingAndMap();
 }
 
 async function loadRankingAndMap() {
@@ -497,8 +610,15 @@ async function loadRankPanel(tab) {
             const val = tab === 'today'
                 ? `<span style="color:#aaa">${secToHour(u.today_sec || 0)}</span>`
                 : `<span style="color:#aaa">${secToHour(u.total_sec || 0)}</span>`;
+            const avatar = renderAvatarHtml({
+                nickname: u.nickname,
+                profileImageUrl: u.profile_image_url,
+                userId: u.id,
+                className: 'rank-avatar'
+            });
             return `<div class="rank-item ${isMe ? 'me' : ''}" onclick="focusUser(${u.id})">
                 <span class="rank-num">${i + 1}</span>
+                ${avatar}
                 <div style="flex:1;min-width:0">
                     <div class="rank-nick">${u.nickname} ${u.is_studying ? '<span class="rank-studying">📖</span>' : ''}</div>
                     <div class="rank-univ">${u.university || '-'}</div>
@@ -834,8 +954,7 @@ async function refreshCurrentUser() {
         const r = await fetch('/api/auth/me', { credentials: 'include' });
         if (r.ok) {
             const data = await r.json();
-            currentUser = data.user;
-            updateHUD(currentUser);
+            applyCurrentUserState(data.user, { syncWorld: false });
         }
     } catch (e) {}
 }
@@ -893,7 +1012,21 @@ function openUserModal(user) {
         probHTML = `<div style="margin-top:10px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:#666;">해당 대학 정보가 없습니다.</div>`;
     }
 
+    const userAvatar = renderAvatarHtml({
+        nickname: user.nickname,
+        profileImageUrl: user.profile_image_url,
+        userId: user.id,
+        className: 'user-modal-avatar'
+    });
+
     document.getElementById('user-modal-body').innerHTML = `
+        <div class="user-modal-profile-head">
+            ${userAvatar}
+            <div class="user-modal-profile-meta">
+                <div class="user-modal-profile-nick">${esc(user.nickname || '-')}</div>
+                <div class="user-modal-profile-sub">${esc(user.university || '대학 미정')}</div>
+            </div>
+        </div>
         <div class="estate-section">
             <div class="estate-label">🏫 모의진학 대학</div>
             <div class="estate-val">${esc(user.university) || '-'}</div>
@@ -1027,11 +1160,8 @@ async function doInvade() {
             ? `🎉 모의지원 합격!\n\n내 점수: ${data.attacker_score}점${probLine}\n🏫 대학: ${data.defender_university}(으)로 변경!`
             : `📝 모의지원 불합격\n\n내 점수: ${data.attacker_score}점${probLine}\n\n더 열심히 공부해서 다시 도전하세요!`;
         alert(msg);
-        currentUser = data.user;
-        updateHUD(data.user);
-        updateMyBuilding(data.user);
+        applyCurrentUserState(data.user, { syncWorld: true, refreshMap: true });
         closeModal('modal-user');
-        loadRankingAndMap();
     } catch (e) { alert('서버 오류 발생'); }
 }
 
@@ -1173,8 +1303,92 @@ function togglePanel(id) {
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+function openProfileCustomizer() {
+    if (!currentUser) return;
+    pendingProfileImageFile = null;
+
+    const nicknameInput = document.getElementById('profile-nickname-input');
+    const imageInput = document.getElementById('profile-image-input');
+    if (nicknameInput) nicknameInput.value = currentUser.nickname || '';
+    if (imageInput) imageInput.value = '';
+
+    updateProfilePreview(getProfileImageSrc(currentUser), getNicknameInitial(currentUser.nickname));
+    document.getElementById('modal-profile-custom').classList.remove('hidden');
+}
+
+function closeProfileCustomizer() {
+    pendingProfileImageFile = null;
+    closeModal('modal-profile-custom');
+}
+
+function onProfileImageSelected(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        alert('이미지 용량은 5MB 이하여야 합니다.');
+        event.target.value = '';
+        return;
+    }
+
+    pendingProfileImageFile = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+        updateProfilePreview(reader.result, getNicknameInitial(currentUser?.nickname || 'U'));
+    };
+    reader.readAsDataURL(file);
+}
+
+async function saveProfileCustomizer() {
+    if (!currentUser) return;
+    const nicknameInput = document.getElementById('profile-nickname-input');
+    const nickname = (nicknameInput?.value || '').trim();
+    if (nickname.length < 2 || nickname.length > 20) {
+        alert('닉네임은 2~20자 사이여야 합니다.');
+        return;
+    }
+
+    const nicknameChanged = nickname !== (currentUser.nickname || '');
+    const imageChanged = !!pendingProfileImageFile;
+    if (!nicknameChanged && !imageChanged) {
+        alert('변경된 내용이 없습니다.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('nickname', nickname);
+        if (pendingProfileImageFile) {
+            formData.append('profileImage', pendingProfileImageFile);
+        }
+
+        const r = await fetch('/api/auth/profile-custom', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            alert(data.error || '프로필 저장에 실패했습니다.');
+            return;
+        }
+
+        applyCurrentUserState(data.user, { syncWorld: true, refreshMap: true });
+        closeProfileCustomizer();
+        alert('프로필이 저장되었습니다.');
+    } catch (e) {
+        alert('프로필 저장 중 오류가 발생했습니다.');
+    }
+}
+
 document.querySelectorAll('.modal-backdrop').forEach(el => {
-    el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+    el.addEventListener('click', e => {
+        if (e.target !== el) return;
+        if (el.id === 'modal-profile-custom') {
+            closeProfileCustomizer();
+            return;
+        }
+        el.classList.add('hidden');
+    });
 });
 
 // ── 드래그 / 줌 ── WorldScene이 입력을 직접 처리 ──────────────────────
@@ -1643,8 +1857,7 @@ async function buyApplicationFee(targetUniversity, unitPrice) {
         const data = await r.json();
         if (!r.ok) { alert(data.error || '구매 실패'); return; }
         alert(`[${targetUniversity}] 원서비 1장 구매 완료! (-${data.spent.toLocaleString()}G)`);
-        currentUser = data.user;
-        updateHUD(data.user);
+        applyCurrentUserState(data.user, { syncWorld: false });
         renderShopContent('item');
     } catch (e) { alert('오류 발생'); }
 }
@@ -1894,6 +2107,7 @@ async function loadFriendList(content) {
             }
             return `
             <div class="ally-item" onclick="focusFriend(${f.id})">
+                ${renderAvatarHtml({ nickname: f.nickname, profileImageUrl: f.profile_image_url, userId: f.id, className: 'ally-avatar' })}
                 <div class="ally-status-dot ${f.is_studying ? 'studying' : ''}"></div>
                 <div class="ally-info">
                     <div class="ally-nick">${esc(f.nickname)}</div>
@@ -1922,6 +2136,7 @@ async function loadFriendRequests(content) {
         }
         content.innerHTML = reqs.map(req => `
             <div class="ally-item">
+                ${renderAvatarHtml({ nickname: req.nickname, profileImageUrl: req.profile_image_url, userId: req.id, className: 'ally-avatar' })}
                 <div class="ally-status-dot"></div>
                 <div class="ally-info">
                     <div class="ally-nick">${esc(req.nickname)}</div>
@@ -2170,7 +2385,7 @@ async function loadConversations() {
 
         const convHtml = convs.map(c => `
             <div class="conv-item" onclick="openChat(${c.other_user},'${esc(c.nickname)}')">
-                <div class="conv-avatar">${esc(c.nickname)[0]}</div>
+                ${renderAvatarHtml({ nickname: c.nickname, profileImageUrl: c.profile_image_url, userId: c.other_user, className: 'conv-avatar' })}
                 <div class="conv-info">
                     <div class="conv-nick">${esc(c.nickname)} ${c.unread_count > 0 ? `<span class="conv-unread">${c.unread_count}</span>` : ''}</div>
                     <div class="conv-last">${esc(c.last_msg || '')}</div>
@@ -2183,7 +2398,7 @@ async function loadConversations() {
             <div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">동맹 — 새 대화 시작</div>
             ${newFriends.map(f => `
                 <div class="conv-item" onclick="openChat(${f.id},'${esc(f.nickname)}')">
-                    <div class="conv-avatar" style="opacity:0.7">${esc(f.nickname)[0]}</div>
+                    ${renderAvatarHtml({ nickname: f.nickname, profileImageUrl: f.profile_image_url, userId: f.id, className: 'conv-avatar' })}
                     <div class="conv-info">
                         <div class="conv-nick" style="color:var(--text-secondary)">${esc(f.nickname)}</div>
                         <div class="conv-last" style="color:#555">첫 메시지를 보내보세요</div>
@@ -2408,6 +2623,38 @@ function _startWorldPositionSync() {
     }, POSITION_SYNC_MS);
 }
 
+function _emitWorldPresence(user = currentUser) {
+    if (!worldSocket || !user) return;
+    const pos = (window.WorldScene && window.WorldScene.isReady)
+        ? window.WorldScene.getWorldPosition()
+        : { x: 0, y: 0 };
+
+    worldSocket.emit('player:join', {
+        userId:         user.id,
+        nickname:       user.nickname       || '',
+        university:     user.university     || '',
+        balloon_skin:   user.balloon_skin   || 'default',
+        status_message: user.status_message || null,
+        worldX: pos.x,
+        worldY: pos.y,
+    });
+
+    const meId = _normalizeUserId(user.id);
+    if (meId !== null) {
+        const prev = _wsNearby.get(meId) || {};
+        _wsNearby.set(meId, {
+            ...prev,
+            id: meId,
+            nickname: user.nickname || '',
+            university: user.university || '',
+            balloon_skin: user.balloon_skin || 'default',
+            status_message: user.status_message || null,
+            worldX: pos.x,
+            worldY: pos.y
+        });
+    }
+}
+
 function initWorldSocket(user) {
     if (worldSocket) return;   // already connected
 
@@ -2487,19 +2734,7 @@ function initWorldSocket(user) {
     });
 
     // ── Announce ourselves to the server ────────────────────────────
-    const pos = (window.WorldScene && window.WorldScene.isReady)
-        ? window.WorldScene.getWorldPosition()
-        : { x: 0, y: 0 };
-
-    worldSocket.emit('player:join', {
-        userId:         user.id,
-        nickname:       user.nickname       || '',
-        university:     user.university     || '',
-        balloon_skin:   user.balloon_skin   || 'default',
-        status_message: user.status_message || null,
-        worldX: pos.x,
-        worldY: pos.y,
-    });
+    _emitWorldPresence(user);
 
     // Wire up WorldScene's interaction callback so local clicks are emitted.
     if (window.WorldScene) {
@@ -2599,4 +2834,8 @@ async function saveStatusMsg(e) {
 // Keep inline handlers stable for all browsers/build modes.
 window.goToCommunity = goToCommunity;
 window.goToTimer = goToTimer;
+window.openProfileCustomizer = openProfileCustomizer;
+window.closeProfileCustomizer = closeProfileCustomizer;
+window.onProfileImageSelected = onProfileImageSelected;
+window.saveProfileCustomizer = saveProfileCustomizer;
 

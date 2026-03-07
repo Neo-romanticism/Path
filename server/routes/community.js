@@ -4,7 +4,7 @@
  *
  * GET  /api/community/posts          - 목록 조회
  * GET  /api/community/posts/hot      - 베스트 (추천 Top 8)
- * POST /api/community/posts          - 글 작성 (auth)
+ * POST /api/community/posts          - 글 작성 (비로그인 허용)
  * POST /api/community/posts/:id/view - 조회수 +1
  * POST /api/community/posts/:id/like - 추천 토글 (auth)
  * GET  /api/community/posts/:id/comments  - 댓글 목록
@@ -172,9 +172,9 @@ router.get('/posts/:id', async (req, res) => {
 });
 
 /* ════════════════════════════════════════════════════════════ */
-/* POST /posts — 글 작성                                        */
+/* POST /posts — 글 작성 (비로그인 허용)                         */
 /* ════════════════════════════════════════════════════════════ */
-router.post('/posts', requireAuth, async (req, res) => {
+router.post('/posts', async (req, res) => {
     const { category, title, body = '', anonymous_nickname } = req.body;
 
     if (!title || !title.trim()) {
@@ -198,14 +198,17 @@ router.post('/posts', requireAuth, async (req, res) => {
     const ipPrefix = getIpPrefix(req);
 
     try {
-        const userRes = await pool.query('SELECT id FROM users WHERE id = $1', [req.session.userId]);
-        if (!userRes.rows.length) return res.status(401).json({ error: '유효하지 않은 사용자입니다.' });
+        let userId = null;
+        if (req.session.userId) {
+            const userRes = await pool.query('SELECT id FROM users WHERE id = $1', [req.session.userId]);
+            if (userRes.rows.length) userId = req.session.userId;
+        }
 
         const result = await pool.query(
             `INSERT INTO community_posts (user_id, category, title, body, ip_prefix, nickname)
              VALUES ($1, $2, $3, $4, $5, $6)
              RETURNING id, category, title, nickname, ip_prefix, views, likes, comments_count, created_at`,
-            [req.session.userId, category, title.trim(), body.trim(), ipPrefix, nickname]
+            [userId, category, title.trim(), body.trim(), ipPrefix, nickname]
         );
         res.status(201).json({ post: result.rows[0] });
     } catch (err) {

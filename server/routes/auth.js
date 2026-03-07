@@ -11,7 +11,7 @@ const aligoService = require('../utils/aligo');
 
 const router = express.Router();
 
-const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, balloon_skin, owned_skins, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role';
+const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, profile_image_url, balloon_skin, owned_skins, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role';
 
 function escapeHtml(str) {
     if (!str) return str;
@@ -45,6 +45,18 @@ const gpaStorage = multer.diskStorage({
     }
 });
 
+const profileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../../uploads/profiles');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname) || '.jpg';
+        cb(null, `profile_${req.session.userId}_${Date.now()}${ext}`);
+    }
+});
+
 const imageFilter = (req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.heic'];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -53,6 +65,18 @@ const imageFilter = (req, file, cb) => {
 
 const upload = multer({ storage: scoreStorage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
 const uploadGpa = multer({ storage: gpaStorage, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFilter });
+const uploadProfile = multer({ storage: profileStorage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFilter });
+
+function validateNickname(nickname) {
+    const value = (nickname || '').trim();
+    if (value.length < 2 || value.length > 20) {
+        return { ok: false, error: '닉네임은 2~20자 사이여야 합니다.' };
+    }
+    if (!/^[a-zA-Z0-9가-힣_]+$/.test(value)) {
+        return { ok: false, error: '닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.' };
+    }
+    return { ok: true, value };
+}
 
 function makeOAuthState() {
     return crypto.randomBytes(24).toString('hex');
@@ -269,6 +293,56 @@ router.get('/gpa-image/:filename', requireAuth, async (req, res) => {
     res.sendFile(filePath);
 });
 
+router.get('/profile-image/:filename', requireAuth, async (req, res) => {
+    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [req.session.userId]);
+    const isAdmin = adminCheck.rows[0]?.is_admin;
+    const filename = path.basename(req.params.filename);
+
+    if (!isAdmin) {
+        const ownerMatch = filename.match(/^profile_(\d+)_/);
+        if (!ownerMatch || parseInt(ownerMatch[1], 10) !== req.session.userId) {
+            return res.status(403).json({ error: '접근 권한이 없습니다.' });
+        }
+    }
+
+    const filePath = path.join(__dirname, '../../uploads/profiles', filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
+    res.sendFile(filePath);
+});
+
+router.post('/profile-custom', requireAuth, uploadProfile.single('profileImage'), async (req, res) => {
+    const nickValidation = validateNickname(req.body.nickname);
+    if (!nickValidation.ok) {
+        return res.status(400).json({ error: nickValidation.error });
+    }
+    const nickname = nickValidation.value;
+
+    try {
+        const existing = await pool.query(
+            'SELECT id FROM users WHERE nickname = $1 AND id != $2',
+            [nickname, req.session.userId]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
+        }
+
+        const nextProfileImageUrl = req.file ? `/uploads/profiles/${req.file.filename}` : null;
+        const result = await pool.query(
+            `UPDATE users
+             SET nickname = $1,
+                 profile_image_url = COALESCE($2, profile_image_url)
+             WHERE id = $3
+             RETURNING ${USER_FIELDS}`,
+            [nickname, nextProfileImageUrl, req.session.userId]
+        );
+
+        res.json({ ok: true, user: addPercentile(result.rows[0]) });
+    } catch (err) {
+        console.error('profile-custom error:', err);
+        res.status(500).json({ error: '프로필 저장 중 오류가 발생했습니다.' });
+    }
+});
+
 router.post('/status-emoji', requireAuth, async (req, res) => {
     const { emoji } = req.body;
     const allowed = ['📚','☕','💪','🔥','😴','😊','🎯','💤','🤔','✨','🏃','🌙','⭐','🍀','💯'];
@@ -419,8 +493,9 @@ router.get('/google/callback', async (req, res) => {
 router.post('/update-profile', requireAuth, async (req, res) => {
     const { nickname, university, is_n_su, prev_university } = req.body;
 
-    if (!nickname || nickname.length < 2 || nickname.length > 20) {
-        return res.status(400).json({ error: '닉네임은 2~20자 사이여야 합니다.' });
+    const nickValidation = validateNickname(nickname);
+    if (!nickValidation.ok) {
+        return res.status(400).json({ error: nickValidation.error });
     }
 
     if (!university) {
@@ -435,7 +510,7 @@ router.post('/update-profile', requireAuth, async (req, res) => {
         // 닉네임 중복 체크
         const existing = await pool.query(
             'SELECT id FROM users WHERE nickname = $1 AND id != $2',
-            [nickname, req.session.userId]
+            [nickValidation.value, req.session.userId]
         );
 
         if (existing.rows.length > 0) {
@@ -447,7 +522,7 @@ router.post('/update-profile', requireAuth, async (req, res) => {
             `UPDATE users 
              SET nickname = $1, university = $2, is_n_su = $3, prev_university = $4
              WHERE id = $5`,
-            [nickname, university, !!is_n_su, prev_university || null, req.session.userId]
+            [nickValidation.value, university, !!is_n_su, prev_university || null, req.session.userId]
         );
 
         res.json({ ok: true });

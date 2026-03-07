@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './balloonModel.js';
 
 // ── World constants ──────────────────────────────────────────────────────────
 // The game world is 200,000 × 200,000 world-units.  A WORLD_SCALE factor maps
@@ -10,7 +11,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 const WORLD_SIZE        = 200000;  // total world width/height (world-units)
 const WORLD_SCALE       = 0.15;    // scene-units per world-unit  (200,000 → 30,000 scene-units)
 const CHUNK_SIZE        = 4000;    // spatial-partition chunk edge (world-units)
-const DRAG_SENSITIVITY  = 0.55;    // 0..1 – lower = less sensitive mouse/touch drag
+const DRAG_SENSITIVITY  = 0.0055;  // 100x less sensitive drag (map feels 100x larger)
 const WORLD_HALF        = WORLD_SIZE / 2;   // convenience: max |world coord|
 const REMOTE_POS_LERP   = 0.12;    // lerp factor for remote player position interpolation
 
@@ -67,6 +68,7 @@ const WorldScene = {
     isLight: false,
     dayNightMix: 0,
     dayNightTarget: 0,
+    balloonLodDistance: 2300,
 
     SPRING: 0.045,
     FRICTION: 0.86,
@@ -124,6 +126,7 @@ const WorldScene = {
         this._buildMoon();
         this._buildClouds();
         this._buildSkyIslands();
+        this.balloonLodDistance = this._getAdaptiveBalloonLodDistance();
 
         this.isLight = document.body.classList.contains('light');
         this.dayNightMix = this.isLight ? 1 : 0;
@@ -927,167 +930,6 @@ const WorldScene = {
         return c;
     },
 
-    _make3DBalloon(scale, colorScheme, isMe) {
-        const group = new THREE.Group();
-
-        // Get color based on scheme
-        const colors = this._getBalloonColors(colorScheme);
-
-        // Main balloon envelope (spherical shape)
-        const balloonGeo = new THREE.SphereGeometry(scale * 40, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.75);
-        const balloonMat = new THREE.MeshStandardMaterial({
-            color: colors.primary,
-            roughness: 0.7,
-            metalness: 0.1,
-            side: THREE.DoubleSide
-        });
-        const balloonMesh = new THREE.Mesh(balloonGeo, balloonMat);
-        balloonMesh.position.y = scale * 20;
-        group.add(balloonMesh);
-
-        // Vertical stripes on balloon for visual detail
-        const numStripes = 8;
-        for (let i = 0; i < numStripes; i++) {
-            const angle = (i / numStripes) * Math.PI * 2;
-            const stripeGeo = new THREE.PlaneGeometry(scale * 8, scale * 60);
-            const stripeMat = new THREE.MeshStandardMaterial({
-                color: colors.secondary,
-                roughness: 0.7,
-                metalness: 0.1,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.6
-            });
-            const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-            stripe.position.x = Math.cos(angle) * scale * 35;
-            stripe.position.z = Math.sin(angle) * scale * 35;
-            stripe.position.y = scale * 20;
-            stripe.lookAt(0, scale * 20, 0);
-            group.add(stripe);
-        }
-
-        // Top cap of balloon
-        const capGeo = new THREE.SphereGeometry(scale * 8, 12, 8);
-        const capMat = new THREE.MeshStandardMaterial({
-            color: colors.accent,
-            roughness: 0.6,
-            metalness: 0.2
-        });
-        const cap = new THREE.Mesh(capGeo, capMat);
-        cap.position.y = scale * 50;
-        group.add(cap);
-
-        // Basket (rectangular box)
-        const basketGeo = new THREE.BoxGeometry(scale * 20, scale * 15, scale * 20);
-        const basketMat = new THREE.MeshStandardMaterial({
-            color: 0x8b6914,
-            roughness: 0.9,
-            metalness: 0.0
-        });
-        const basket = new THREE.Mesh(basketGeo, basketMat);
-        basket.position.y = scale * -25;
-        group.add(basket);
-
-        // Basket ropes connecting to balloon
-        const ropeMat = new THREE.MeshStandardMaterial({
-            color: 0x654321,
-            roughness: 0.95,
-            metalness: 0.0
-        });
-
-        const ropePositions = [
-            { x: scale * 10, z: scale * 10 },
-            { x: -scale * 10, z: scale * 10 },
-            { x: scale * 10, z: -scale * 10 },
-            { x: -scale * 10, z: -scale * 10 }
-        ];
-
-        ropePositions.forEach(pos => {
-            const ropeGeo = new THREE.CylinderGeometry(scale * 0.5, scale * 0.5, scale * 35, 4);
-            const rope = new THREE.Mesh(ropeGeo, ropeMat);
-            rope.position.set(pos.x, scale * -5, pos.z);
-            group.add(rope);
-        });
-
-        // Burner flame effect (when player is active)
-        if (isMe) {
-            const flameGeo = new THREE.ConeGeometry(scale * 4, scale * 10, 6);
-            const flameMat = new THREE.MeshBasicMaterial({
-                color: 0xff6600,
-                transparent: true,
-                opacity: 0.7
-            });
-            const flame = new THREE.Mesh(flameGeo, flameMat);
-            flame.position.y = scale * -15;
-            flame.rotation.x = Math.PI;
-            group.add(flame);
-            group.userData.flame = flame;
-        }
-
-        return group;
-    },
-
-    _getBalloonColors(colorScheme) {
-        const schemes = {
-            default: {
-                primary: 0xff4444,
-                secondary: 0xffaa44,
-                accent: 0xffdd00
-            },
-            rainbow: {
-                primary: 0xff00ff,
-                secondary: 0x00ffff,
-                accent: 0xffff00
-            },
-            pastel: {
-                primary: 0xffb6c1,
-                secondary: 0xb0e0e6,
-                accent: 0xffd700
-            },
-            redstripes: {
-                primary: 0xcc0000,
-                secondary: 0xffffff,
-                accent: 0xcc0000
-            },
-            golden: {
-                primary: 0xffd700,
-                secondary: 0xdaa520,
-                accent: 0xffdf00
-            },
-            cosmic: {
-                primary: 0x0d1b2a,
-                secondary: 0x1b263b,
-                accent: 0x415a77
-            },
-            sunset: {
-                primary: 0xff6b35,
-                secondary: 0xff9a56,
-                accent: 0xffcc00
-            },
-            emerald: {
-                primary: 0x2ecc71,
-                secondary: 0x27ae60,
-                accent: 0x1abc9c
-            },
-            phoenix: {
-                primary: 0xff4500,
-                secondary: 0xff8c00,
-                accent: 0xffd700
-            },
-            galaxy: {
-                primary: 0x6a0dad,
-                secondary: 0x9932cc,
-                accent: 0x00ced1
-            },
-            diamond: {
-                primary: 0xe8f4f8,
-                secondary: 0xb0e0e6,
-                accent: 0xffffff
-            }
-        };
-        return schemes[colorScheme] || schemes.default;
-    },
-
     addBalloon(user, src, isMe) {
         const existing = this.balloons.get(user.id);
         if (existing) { this.scene.remove(existing.group); }
@@ -1100,7 +942,7 @@ const WorldScene = {
 
         // Create 3D balloon instead of 2D plane
         const scale = isMe ? 2.0 : 1.25;
-        const balloon3D = this._make3DBalloon(scale, skinId, isMe);
+        const balloon3D = create3DBalloon(scale, skinId, isMe);
         balloon3D.position.y = isMe ? 80 : 50;
         balloon3D.renderOrder = 100;
 
@@ -1145,7 +987,8 @@ const WorldScene = {
             label,
             bubbleMesh,
             isMe,
-            baseY: 0
+            baseY: 0,
+            isLowDetail: false
         };
 
         if (isMe) {
@@ -1421,7 +1264,7 @@ const WorldScene = {
     },
 
     _updateBalloonColor(group, skinId) {
-        const colors = this._getBalloonColors(skinId);
+        const colors = getBalloonColors(skinId);
         const balloon3D = group.children.find(child => child.isGroup || (child.children && child.children.length > 0));
         if (!balloon3D) return;
 
@@ -1838,7 +1681,7 @@ const WorldScene = {
     },
 
     _setupKeyboard() {
-        const moveSpeed = 15;
+        const moveSpeed = 0.15; // 100x less sensitive keyboard movement
         document.addEventListener('keydown', (e) => {
             this.keysPressed[e.key.toLowerCase()] = true;
             
@@ -1930,8 +1773,36 @@ const WorldScene = {
         }
     },
 
+    _getAdaptiveBalloonLodDistance() {
+        const nav = window.navigator || {};
+        const cores = nav.hardwareConcurrency || 4;
+        const mem = nav.deviceMemory || 4;
+        const dpr = Math.min(window.devicePixelRatio || 1, 3);
+        const shortSide = Math.min(window.innerWidth || 0, window.innerHeight || 0);
+        const hasTouch = ('ontouchstart' in window) || ((nav.maxTouchPoints || 0) > 0);
+
+        let score = 0;
+        if (cores >= 8) score += 1;
+        else if (cores <= 4) score -= 1;
+
+        if (mem >= 8) score += 1;
+        else if (mem <= 4) score -= 1;
+
+        if (dpr >= 2.5) score -= 1;
+        else if (dpr <= 1.25) score += 1;
+
+        if (shortSide >= 1200) score += 1;
+        else if (shortSide <= 700) score -= 1;
+
+        if (hasTouch) score -= 1;
+
+        const dist = 2300 + score * 260;
+        return Math.max(1500, Math.min(3200, dist));
+    },
+
     _onResize() {
         const W = window.innerWidth, H = window.innerHeight;
+        this.balloonLodDistance = this._getAdaptiveBalloonLodDistance();
         this.camera.aspect = W / H;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(W, H);
@@ -2039,6 +1910,8 @@ const WorldScene = {
         if (this.frameCount % 10 === 0 && this.myBalloon) {
             const myPosX = this.camPos.x;
             const myPosY = this.camPos.y;
+            const lodEnterDistance = this.balloonLodDistance + 180;
+            const lodExitDistance = Math.max(900, this.balloonLodDistance - 180);
             this.balloons.forEach((b) => {
                 if (b.isMe) return;
                 const dist = Math.hypot(b.group.position.x - myPosX, b.group.position.y - myPosY);
@@ -2046,6 +1919,17 @@ const WorldScene = {
                     b.group.visible = false;
                 } else {
                     b.group.visible = true;
+                    if (b.group.userData.balloon3D) {
+                        const wasLowDetail = !!b.group.userData.isLowDetail;
+                        const useLowDetail = wasLowDetail
+                            ? dist > lodExitDistance
+                            : dist > lodEnterDistance;
+
+                        if (useLowDetail !== wasLowDetail) {
+                            b.group.userData.isLowDetail = useLowDetail;
+                        }
+                        setBalloonDetailLevel(b.group.userData.balloon3D, useLowDetail);
+                    }
                     if (b.group.userData.label) b.group.userData.label.visible = dist < 3000;
                     if (b.group.userData.bubbleMesh) b.group.userData.bubbleMesh.visible = dist < 2000;
                 }

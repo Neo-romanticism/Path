@@ -22,6 +22,7 @@ async function initSchema() {
                 university              VARCHAR(100),
                 is_n_su                 BOOLEAN DEFAULT FALSE,
                 prev_university         VARCHAR(100),
+                profile_image_url       TEXT,
                 gold                    INTEGER DEFAULT 0,
                 exp                     INTEGER DEFAULT 0,
                 tier                    VARCHAR(20) DEFAULT 'BRONZE',
@@ -161,6 +162,7 @@ async function initSchema() {
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji VARCHAR(12) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS status_message VARCHAR(60) DEFAULT NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;
         `);
 
         await client.query(`
@@ -255,6 +257,22 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cp_created_at ON community_posts(created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cp_category   ON community_posts(category);
             CREATE INDEX IF NOT EXISTS idx_cp_likes      ON community_posts(likes DESC);
+            CREATE INDEX IF NOT EXISTS idx_cp_category_created_at ON community_posts(category, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_cp_category_likes_created_at ON community_posts(category, likes DESC, created_at DESC);
+        `);
+
+        await client.query(`
+            ALTER TABLE community_posts
+                DROP CONSTRAINT IF EXISTS community_posts_category_check;
+            ALTER TABLE community_posts
+                ADD CONSTRAINT community_posts_category_check
+                CHECK (category IN ('념글', '정보', '질문', '잡담')) NOT VALID;
+
+            ALTER TABLE community_posts
+                DROP CONSTRAINT IF EXISTS community_posts_non_negative_counts_check;
+            ALTER TABLE community_posts
+                ADD CONSTRAINT community_posts_non_negative_counts_check
+                CHECK (views >= 0 AND likes >= 0 AND comments_count >= 0) NOT VALID;
         `);
 
         await client.query(`
@@ -263,6 +281,7 @@ async function initSchema() {
                 user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 PRIMARY KEY (post_id, user_id)
             );
+            CREATE INDEX IF NOT EXISTS idx_cl_user_post ON community_likes(user_id, post_id);
         `);
 
         await client.query(`
@@ -276,6 +295,7 @@ async function initSchema() {
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_cc_post_id ON community_comments(post_id);
+            CREATE INDEX IF NOT EXISTS idx_cc_post_created_at ON community_comments(post_id, created_at DESC);
         `);
 
         console.log('DB 스키마 초기화 완료');

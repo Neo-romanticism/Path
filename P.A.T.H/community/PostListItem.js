@@ -46,7 +46,7 @@ export function PostListItem(post) {
     : `<span class="post-row__num">${post.displayNum}</span>`;
 
   el.innerHTML = `
-    <a class="post-row__link" href="#post-${post.id}" aria-label="${escHtml(post.title)}">
+    <a class="post-row__link" href="/community/post/${post.id}" aria-label="${escHtml(post.title)}">
       ${numCell}
       <div class="post-row__top">
         <span class="post-row__cat ${cat.cls}">${cat.label}</span>

@@ -15,6 +15,32 @@ const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
 const projectRoot = path.join(__dirname, '..');
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeXml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+function jsonLdSafe(value) {
+    return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+function getSiteBaseUrl(req) {
+    return (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+}
+
 app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
@@ -71,6 +97,9 @@ app.use('/uploads/scores/:filename', (req, res) => {
 app.use('/uploads/gpa/:filename', (req, res) => {
     res.redirect(`/api/auth/gpa-image/${req.params.filename}`);
 });
+app.use('/uploads/profiles/:filename', (req, res) => {
+    res.redirect(`/api/auth/profile-image/${req.params.filename}`);
+});
 app.use('/uploads/study-proofs/:filename', (req, res) => {
     res.redirect(`/api/study/proof-image/${req.params.filename}`);
 });
@@ -103,6 +132,216 @@ app.use('/timer', express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'
 app.use('/community', express.static(path.join(projectRoot, 'P.A.T.H', 'community'), noCacheStaticOptions));
 app.use('/setup-profile', express.static(path.join(projectRoot, 'P.A.T.H', 'setup-profile'), noCacheStaticOptions));
 app.use('/admin', express.static(path.join(projectRoot, 'P.A.T.H', 'admin'), noCacheStaticOptions));
+
+app.get('/community/post/:id', async (req, res) => {
+    const postId = parseInt(req.params.id, 10);
+    if (!postId) {
+        return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
+    }
+
+    try {
+        const [postResult, commentsResult] = await Promise.all([
+            pool.query(
+                `SELECT id, category, title, body, nickname, views, likes, comments_count, created_at
+                 FROM community_posts
+                 WHERE id = $1`,
+                [postId]
+            ),
+            pool.query(
+                `SELECT id, nickname, body, created_at
+                 FROM community_comments
+                 WHERE post_id = $1
+                 ORDER BY created_at DESC
+                 LIMIT 5`,
+                [postId]
+            )
+        ]);
+
+        if (!postResult.rows.length) {
+            return res.status(404).type('text/html').send('<h1>게시글을 찾을 수 없습니다.</h1>');
+        }
+
+        const post = postResult.rows[0];
+        const comments = commentsResult.rows;
+        const baseUrl = getSiteBaseUrl(req);
+        const canonical = `${baseUrl}/community/post/${post.id}`;
+        const title = `${post.title} | 입시 커뮤니티 - P.A.T.H`;
+        const bodyPreview = (post.body || '').trim().replace(/\s+/g, ' ').slice(0, 150);
+        const description = bodyPreview
+            ? `${bodyPreview}...`
+            : `${post.category} 카테고리의 수험생 커뮤니티 게시글`;
+        const publishedIso = new Date(post.created_at).toISOString();
+
+        const postSchema = {
+            '@context': 'https://schema.org',
+            '@type': 'DiscussionForumPosting',
+            mainEntityOfPage: canonical,
+            headline: post.title,
+            articleBody: post.body || '',
+            inLanguage: 'ko',
+            datePublished: publishedIso,
+            dateModified: publishedIso,
+            author: {
+                '@type': 'Person',
+                name: post.nickname || '익명'
+            },
+            publisher: {
+                '@type': 'Organization',
+                name: 'P.A.T.H'
+            },
+            interactionStatistic: [
+                {
+                    '@type': 'InteractionCounter',
+                    interactionType: { '@type': 'ViewAction' },
+                    userInteractionCount: post.views || 0
+                },
+                {
+                    '@type': 'InteractionCounter',
+                    interactionType: { '@type': 'LikeAction' },
+                    userInteractionCount: post.likes || 0
+                },
+                {
+                    '@type': 'InteractionCounter',
+                    interactionType: { '@type': 'CommentAction' },
+                    userInteractionCount: post.comments_count || 0
+                }
+            ]
+        };
+
+        const commentSchema = comments.map((comment) => ({
+            '@type': 'Comment',
+            text: comment.body || '',
+            dateCreated: new Date(comment.created_at).toISOString(),
+            author: {
+                '@type': 'Person',
+                name: comment.nickname || '익명'
+            }
+        }));
+        if (commentSchema.length) {
+            postSchema.comment = commentSchema;
+        }
+
+        const commentsHtml = comments.length
+            ? comments.map((comment) => `
+      <li class="comment-item">
+        <div class="comment-meta">${escapeHtml(comment.nickname || '익명')} · ${escapeHtml(new Date(comment.created_at).toLocaleString('ko-KR'))}</div>
+        <p class="comment-body">${escapeHtml(comment.body || '')}</p>
+      </li>`).join('')
+            : '<li class="comment-empty">아직 댓글이 없습니다.</li>';
+
+        const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="${escapeHtml(post.title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="${escapeHtml(canonical)}">
+  <meta property="og:site_name" content="P.A.T.H">
+  <meta property="article:published_time" content="${escapeHtml(publishedIso)}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeHtml(post.title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <link rel="canonical" href="${escapeHtml(canonical)}">
+  <script type="application/ld+json">${jsonLdSafe(postSchema)}</script>
+  <style>
+    body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f8fc;color:#172038;max-width:780px;margin:0 auto;padding:24px 16px 60px;line-height:1.65}
+    a{color:#1d4ed8;text-decoration:none}
+    .meta{font-size:13px;color:#59657d;margin-bottom:12px}
+    .title{font-size:28px;line-height:1.35;margin:0 0 8px;font-weight:800}
+    .chip{display:inline-block;padding:2px 10px;border-radius:999px;background:#e9eef8;font-size:12px;font-weight:700;color:#2e3d5c;margin-right:8px}
+    .card{background:#fff;border:1px solid rgba(23,32,56,.1);border-radius:14px;padding:18px 20px;white-space:pre-wrap;word-break:break-word}
+    .stats{display:flex;gap:14px;font-size:13px;color:#44526e;margin:16px 0 22px}
+        .topnav{margin-bottom:18px}
+        .comments{margin-top:28px}
+        .comments h2{font-size:18px;margin:0 0 10px;font-weight:800}
+        .comment-list{list-style:none;padding:0;margin:0;border-top:1px solid rgba(23,32,56,.11)}
+        .comment-item{padding:14px 2px;border-bottom:1px solid rgba(23,32,56,.08)}
+        .comment-meta{font-size:12px;color:#5a6781;margin-bottom:6px}
+        .comment-body{margin:0;font-size:14px;line-height:1.6;color:#1a2742;white-space:pre-wrap;word-break:break-word}
+        .comment-empty{padding:14px 2px;color:#5a6781;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="topnav"><a href="/community/">← 커뮤니티 목록으로</a></div>
+  <h1 class="title">${escapeHtml(post.title)}</h1>
+  <div class="meta"><span class="chip">${escapeHtml(post.category || '전체')}</span>작성자 ${escapeHtml(post.nickname || '익명')} · ${escapeHtml(new Date(post.created_at).toLocaleString('ko-KR'))}</div>
+  <div class="card">${escapeHtml(post.body || '(내용 없음)')}</div>
+  <div class="stats"><span>조회 ${post.views || 0}</span><span>추천 ${post.likes || 0}</span><span>댓글 ${post.comments_count || 0}</span></div>
+    <section class="comments" aria-label="댓글 프리뷰">
+        <h2>댓글 프리뷰</h2>
+        <ul class="comment-list">${commentsHtml}</ul>
+    </section>
+</body>
+</html>`;
+
+        return res.type('text/html').send(html);
+    } catch (err) {
+        console.error('[seo] GET /community/post/:id', err.message);
+        return res.status(500).type('text/html').send('<h1>서버 오류</h1>');
+    }
+});
+
+app.get('/robots.txt', (req, res) => {
+    const baseUrl = getSiteBaseUrl(req);
+
+        res.type('text/plain').send([
+                'User-agent: *',
+                'Allow: /',
+                'Disallow: /api/',
+                `Sitemap: ${baseUrl}/sitemap.xml`,
+                ''
+        ].join('\n'));
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    const baseUrl = getSiteBaseUrl(req);
+        const now = new Date().toISOString();
+
+        let postRows = [];
+        try {
+            const posts = await pool.query(
+                `SELECT id, created_at
+                 FROM community_posts
+                 ORDER BY created_at DESC
+                 LIMIT 500`
+            );
+            postRows = posts.rows;
+        } catch (err) {
+            console.error('[seo] sitemap community posts', err.message);
+        }
+
+        const postUrls = postRows.map((row) => `
+    <url>
+        <loc>${escapeXml(`${baseUrl}/community/post/${row.id}`)}</loc>
+        <lastmod>${escapeXml(new Date(row.created_at).toISOString())}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>`).join('');
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>${baseUrl}/community/</loc>
+        <lastmod>${now}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.9</priority>
+    </url>
+    <url>
+        <loc>${baseUrl}/login/</loc>
+        <lastmod>${now}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    ${postUrls}
+</urlset>`;
+
+        res.type('application/xml').send(xml);
+});
 
 // Legacy URL compatibility: redirect old internal paths to clean public paths
 app.get('/P.A.T.H/login', (_req, res) => res.redirect(301, '/login/'));

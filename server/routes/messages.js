@@ -106,6 +106,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
             SELECT DISTINCT ON (other_user)
                 other_user,
                 u.nickname,
+                u.profile_image_url,
                 u.university,
                 u.is_studying,
                 last_msg,

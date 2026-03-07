@@ -50,9 +50,37 @@ const searchInput    = document.getElementById('search-input');
 const searchClear    = document.getElementById('search-clear');
 const writeFab       = document.getElementById('write-fab');
 const writeHeaderBtn = document.getElementById('write-header-btn');
+const themeToggleBtn = document.getElementById('theme-toggle');
+
+/* ─── 테마(다크/라이트) ───────────────────────────────────── */
+function applyThemeFromStorage() {
+  const savedTheme = localStorage.getItem('path_theme');
+  const isLight = savedTheme
+    ? savedTheme === 'light'
+    : window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+
+  document.body.classList.toggle('light', !!isLight);
+  syncThemeButton();
+}
+
+function toggleTheme() {
+  const nextIsLight = !document.body.classList.contains('light');
+  document.body.classList.toggle('light', nextIsLight);
+  localStorage.setItem('path_theme', nextIsLight ? 'light' : 'dark');
+  syncThemeButton();
+}
+
+function syncThemeButton() {
+  if (!themeToggleBtn) return;
+  const isLight = document.body.classList.contains('light');
+  themeToggleBtn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+  themeToggleBtn.setAttribute('aria-label', isLight ? '다크 모드 전환' : '라이트 모드 전환');
+  themeToggleBtn.title = isLight ? '다크 모드 전환' : '라이트 모드 전환';
+}
 
 /* ─── 초기화 ──────────────────────────────────────────────── */
 async function init() {
+  applyThemeFromStorage();
     buildCategoryBar();
     bindEvents();
 
@@ -509,6 +537,10 @@ function renderDetailBody(container, { post, postId, comments }) {
 
 /* ─── 이벤트 바인딩 ─────────────────────────────────────── */
 function bindEvents() {
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', toggleTheme);
+  }
+
     // 검색 토글
     searchToggle.addEventListener('click', () => {
         const open = searchWrap.classList.toggle('open');
@@ -557,12 +589,6 @@ function handleWriteClick() {
     showToast('베스트 게시판에는 글을 작성할 수 없어요');
     return;
   }
-
-    if (!currentUser) {
-        showToast('로그인 후 글을 작성할 수 있어요');
-        setTimeout(() => { window.location.href = '/login/'; }, 1200);
-        return;
-    }
     showWriteModal();
 }
 
@@ -664,11 +690,6 @@ function showWriteModal() {
                   anonymous_nickname: anonymousNickname,
                 }),
             });
-            if (r.status === 401) {
-                showToast('로그인이 필요해요');
-                closeModal();
-                return;
-            }
             if (!r.ok) {
                 const { error } = await r.json();
                 showToast(error || '오류가 발생했어요');
