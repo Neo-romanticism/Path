@@ -103,6 +103,18 @@ const StorageManager = {
         }
     },
 
+    async fetchStudyStats() {
+        try {
+            const r = await fetch('/api/study/stats', { credentials: 'include' });
+            if (!r.ok) throw new Error('통계 조회 실패');
+            const data = await r.json();
+            return data.stats || null;
+        } catch (e) {
+            console.error('StorageManager.fetchStudyStats 오류:', e);
+            return null;
+        }
+    },
+
     async addPlan(payload) {
         try {
             const r = await fetch('/api/study/calendar/plan', {

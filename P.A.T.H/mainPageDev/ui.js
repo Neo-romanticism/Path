@@ -30,6 +30,9 @@ const UI = {
         tabStudy:    document.getElementById('tab-study'),
         tabCalendar: document.getElementById('tab-calendar'),
         tabBalloon:  document.getElementById('tab-balloon'),
+        balloonMetricToday: document.getElementById('balloon-metric-today'),
+        balloonMetricTotal: document.getElementById('balloon-metric-total'),
+        balloonMetricSuccess: document.getElementById('balloon-metric-success'),
         subjectSelect: document.getElementById('subject-select'),
         subjectInput: document.getElementById('subject-input'),
         subjectAddBtn: document.getElementById('subject-add-btn'),
@@ -88,6 +91,7 @@ const UI = {
         await this.loadSubjects();
         this.renderStudyPlanDrafts();
         await this.loadWeekCalendar(0);
+        await this.loadBalloonMetrics();
 
         if (typeof CamManager !== 'undefined') CamManager.loadSettings();
         console.log('P.A.T.H: UI 초기화 완료');
@@ -269,6 +273,27 @@ const UI = {
 
         if (isCalendar) {
             this.loadWeekCalendar(this.weekOffset).catch(() => {});
+            return;
+        }
+        if (this.currentTab === 'balloon') {
+            this.loadBalloonMetrics().catch(() => {});
+        }
+    },
+
+    async loadBalloonMetrics() {
+        const stats = await StorageManager.fetchStudyStats();
+        const todaySec = parseInt(stats?.today_sec, 10) || 0;
+        const totalSec = parseInt(stats?.total_sec, 10) || 0;
+        const successSec = parseInt(stats?.success_sec, 10) || 0;
+
+        if (this.elements.balloonMetricToday) {
+            this.elements.balloonMetricToday.textContent = this.formatDuration(todaySec);
+        }
+        if (this.elements.balloonMetricTotal) {
+            this.elements.balloonMetricTotal.textContent = this.formatDuration(totalSec);
+        }
+        if (this.elements.balloonMetricSuccess) {
+            this.elements.balloonMetricSuccess.textContent = this.formatDuration(successSec);
         }
     },
 

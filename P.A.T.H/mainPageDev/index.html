@@ -187,7 +187,7 @@ function toggleTheme() {
                 <div class="balloon-hero">
                     <p class="balloon-kicker">FOCUS FLIGHT</p>
                     <h2 class="balloon-title">오늘도 열기구를 띄워 집중 고도를 올리세요</h2>
-                    <p class="balloon-copy">경쟁 앱의 마스코트 느낌을 그대로 가져오되, P.A.T.H 스타일로 부엉이 대신 열기구가 공부 리듬을 안내합니다.</p>
+                    <p class="balloon-copy">P.A.T.H만의 열기구 가이드가 학습 흐름을 부드럽게 이끌고, 집중 리듬을 시각적으로 보여줍니다.</p>
                 </div>
 
                 <div class="balloon-sky-card" aria-label="열기구 상태 카드">
@@ -200,16 +200,16 @@ function toggleTheme() {
 
                 <div class="balloon-metrics">
                     <article class="balloon-metric">
-                        <span class="balloon-metric-label">오늘 비행 시간</span>
-                        <strong class="balloon-metric-val">02h 10m</strong>
+                        <span class="balloon-metric-label">오늘 집중 시간</span>
+                        <strong id="balloon-metric-today" class="balloon-metric-val">-</strong>
                     </article>
                     <article class="balloon-metric">
-                        <span class="balloon-metric-label">집중 연속 기록</span>
-                        <strong class="balloon-metric-val">4일째</strong>
+                        <span class="balloon-metric-label">누적 집중 시간</span>
+                        <strong id="balloon-metric-total" class="balloon-metric-val">-</strong>
                     </article>
                     <article class="balloon-metric">
-                        <span class="balloon-metric-label">다음 목표</span>
-                        <strong class="balloon-metric-val">03h 00m</strong>
+                        <span class="balloon-metric-label">목표 달성 시간</span>
+                        <strong id="balloon-metric-success" class="balloon-metric-val">-</strong>
                     </article>
                 </div>
             </div>

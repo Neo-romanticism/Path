@@ -170,7 +170,6 @@ export function create3DBalloon(scale, colorScheme, isMe) {
         const seam = new THREE.Mesh(seamGeo, seamMat);
         const radius = 34 * scale;
         seam.position.set(Math.cos(angle) * radius, scale * 24, Math.sin(angle) * radius);
-        seam.lookAt(0, scale * 24, 0);
         colorParts.secondary.push(seam);
         group.add(seam);
 

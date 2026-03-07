@@ -2183,12 +2183,22 @@ function focusFriend(userId) {
 }
 
 // ── 좌표 및 텔레포트 ──────────────────────────────────────────────────
+const COORD_DISPLAY_SCALE = 100;
+
+function worldToDisplayCoord(value) {
+    return Math.round((Number(value) || 0) / COORD_DISPLAY_SCALE);
+}
+
+function displayToWorldCoord(value) {
+    return Math.round((Number(value) || 0) * COORD_DISPLAY_SCALE);
+}
+
 window.updateCoordinatesUI = function(x, y, z) {
     const elX = document.getElementById('coord-x');
     const elY = document.getElementById('coord-y');
     const elZ = document.getElementById('coord-z');
-    if (elX) elX.textContent = x;
-    if (elY) elY.textContent = y;
+    if (elX) elX.textContent = worldToDisplayCoord(x);
+    if (elY) elY.textContent = worldToDisplayCoord(y);
     if (elZ) elZ.textContent = z;
 };
 
@@ -2207,16 +2217,18 @@ function startCoordinateSyncLoop() {
 
 function openTeleportDialog() {
     const pos = window.WorldScene ? window.WorldScene.getMyPosition() : { x: 0, y: 0 };
-    document.getElementById('tp-x').value = pos.x;
-    document.getElementById('tp-y').value = pos.y;
+    document.getElementById('tp-x').value = worldToDisplayCoord(pos.x);
+    document.getElementById('tp-y').value = worldToDisplayCoord(pos.y);
     document.getElementById('modal-teleport').classList.remove('hidden');
 }
 
 function doTeleport() {
-    const x = parseInt(document.getElementById('tp-x').value) || 0;
-    const y = parseInt(document.getElementById('tp-y').value) || 0;
+    const x = parseInt(document.getElementById('tp-x').value, 10) || 0;
+    const y = parseInt(document.getElementById('tp-y').value, 10) || 0;
+    const worldX = displayToWorldCoord(x);
+    const worldY = displayToWorldCoord(y);
     if (window.WorldScene) {
-        window.WorldScene.teleportTo(x, y);
+        window.WorldScene.teleportTo(worldX, worldY);
     }
     closeModal('modal-teleport');
     alert(`좌표 (${x}, ${y})로 이동했습니다!`);

@@ -11,7 +11,7 @@ import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './ball
 const WORLD_SIZE        = 200000;  // total world width/height (world-units)
 const WORLD_SCALE       = 0.15;    // scene-units per world-unit  (200,000 → 30,000 scene-units)
 const CHUNK_SIZE        = 4000;    // spatial-partition chunk edge (world-units)
-const DRAG_SENSITIVITY  = 0.0055;  // 100x less sensitive drag (map feels 100x larger)
+const DRAG_SENSITIVITY  = 0.55;    // 0..1 – lower = less sensitive mouse/touch drag
 const WORLD_HALF        = WORLD_SIZE / 2;   // convenience: max |world coord|
 const REMOTE_POS_LERP   = 0.12;    // lerp factor for remote player position interpolation
 
@@ -1681,7 +1681,7 @@ const WorldScene = {
     },
 
     _setupKeyboard() {
-        const moveSpeed = 0.15; // 100x less sensitive keyboard movement
+        const moveSpeed = 15;
         document.addEventListener('keydown', (e) => {
             this.keysPressed[e.key.toLowerCase()] = true;
             
