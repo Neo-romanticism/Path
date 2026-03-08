@@ -185,8 +185,7 @@ const UI = {
         });
 
         this.elements.enterBtn.onclick = async () => {
-            let hr  = parseInt(this.elements.inputHr.value)  || 0;
-            let min = parseInt(this.elements.inputMin.value) || 0;
+            let { hr, min } = this.getSanitizedTimerInput();
             if (this.currentMode === 'timer' && hr === 0 && min === 0) {
                 hr = 1; min = 20;
                 this.elements.inputHr.value = '01';
@@ -200,29 +199,27 @@ const UI = {
                 return;
             }
 
-            try {
-                await this.persistStudyPlanDrafts();
-            } catch (e) {
-                alert(e.message || '플래너 저장에 실패했습니다.');
-                return;
-            }
+            // 즉시 UI 전환 (낙관적 업데이트)
+            this.elements.body.classList.add('active');
+            this.elements.enterBtn.style.display = 'none';
+            this.elements.breakBtn.classList.remove('hidden');
+            this.elements.breakBtn.style.display = 'inline-block';
+            this.elements.breakBtn.textContent = this.currentMode === 'stopwatch' ? '학습 완료하기' : '중단하기';
+
+            // 플래너 저장은 백그라운드 (타이머 시작 블로킹 안 함)
+            this.persistStudyPlanDrafts().catch(e => {
+                console.warn('플래너 저장 실패 (무시):', e);
+            });
 
             try {
                 await TimerEngine.start(hr, min, subjectId);
             } catch (e) {
+                // 서버 실패 시 UI 롤백
+                this.elements.body.classList.remove('active');
+                this.elements.enterBtn.style.display = '';
+                this.elements.breakBtn.classList.add('hidden');
+                this.elements.breakBtn.style.display = 'none';
                 alert(e.message || '공부 시작에 실패했습니다.');
-                return;
-            }
-
-            this.elements.body.classList.add('active');
-            this.elements.enterBtn.style.display = 'none';
-            this.elements.breakBtn.classList.remove('hidden'); // hidden 클래스 제거
-            this.elements.breakBtn.style.display = 'inline-block';
-
-            if (this.currentMode === 'stopwatch') {
-                this.elements.breakBtn.textContent = '학습 완료하기';
-            } else {
-                this.elements.breakBtn.textContent = '중단하기';
             }
         };
 
@@ -1034,9 +1031,20 @@ const UI = {
     },
 
     syncInputToDisplay() {
-        const hr  = parseInt(this.elements.inputHr.value)  || 0;
-        const min = parseInt(this.elements.inputMin.value) || 0;
+        const { hr, min } = this.getSanitizedTimerInput();
         this.updateTimer((hr * 3600 + min * 60) * 100);
+    },
+
+    getSanitizedTimerInput() {
+        const parsedHr = parseInt(this.elements.inputHr?.value, 10);
+        const parsedMin = parseInt(this.elements.inputMin?.value, 10);
+        const hr = Math.max(0, Number.isFinite(parsedHr) ? parsedHr : 0);
+        const min = Math.max(0, Number.isFinite(parsedMin) ? parsedMin : 0);
+
+        if (this.elements.inputHr) this.elements.inputHr.value = String(hr).padStart(2, '0');
+        if (this.elements.inputMin) this.elements.inputMin.value = String(min).padStart(2, '0');
+
+        return { hr, min };
     },
 
     updateTimer(timeLeft) {

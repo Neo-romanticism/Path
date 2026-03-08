@@ -1405,11 +1405,11 @@ function returnToHome() {
 }
 
 function goToTimer() {
-    window.location.href = '/timer/';
+    navigateTo('/timer/');
 }
 
 function goToCommunity() {
-    window.location.href = '/community/';
+    navigateTo('/community/');
 }
 
 async function doLogout() {

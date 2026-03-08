@@ -205,14 +205,6 @@ body.tab-calendar-active .focus-container {
     justify-content: flex-start;
 }
 
-body.tab-calendar-active {
-    overflow-y: auto;
-}
-
-body.tab-calendar-active .focus-container {
-    justify-content: flex-start;
-}
-
 .focus-container {
     width: min(1080px, 100%);
     flex: 1;
@@ -1635,6 +1627,21 @@ body.active .tab-panel {
         font-size: 12px;
         padding: 0 12px;
         min-height: 30px;
+    }
+}
+
+@media (max-height: 820px) and (min-width: 981px) {
+    body {
+        height: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
+        justify-content: flex-start;
+        padding: 14px 20px 20px;
+    }
+
+    .focus-container {
+        justify-content: flex-start;
+        padding: 12px 0 6px;
     }
 }
 

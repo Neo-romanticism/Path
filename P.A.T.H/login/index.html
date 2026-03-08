@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P.A.T.H - 로그인</title>
+    <script src="/shared/nav.js"></script>
     <style>
         :root {
             --bg: #000000;
@@ -267,7 +268,7 @@ function toggleTheme() {
         (async () => {
             try {
                 const r = await fetch('/api/auth/me', { credentials: 'include' });
-                if (r.ok) window.location.href = '/mainHub/';
+                if (r.ok) navigateTo('/mainHub/');
             } catch (e) {}
         })();
 
@@ -340,7 +341,7 @@ function toggleTheme() {
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
                 localStorage.setItem('path_onboarding_pending', 'true');
-                window.location.href = '/mainHub/';
+                navigateTo('/mainHub/');
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 
@@ -368,7 +369,7 @@ function toggleTheme() {
                 });
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
-                window.location.href = '/mainHub/';
+                navigateTo('/mainHub/');
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
     </script>

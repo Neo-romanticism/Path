@@ -276,8 +276,18 @@ router.put('/calendar/plan/:id', async (req, res) => {
 router.post('/start', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     const { target_sec } = req.body;
+    const studyMode = req.body.mode === 'stopwatch' ? 'stopwatch' : 'timer';
     const subjectId = parseInt(req.body.subject_id, 10);
-    const target = Math.max(0, Math.min(parseInt(target_sec) || 0, 86400));
+    const rawTargetSec = parseInt(target_sec, 10);
+    if (!Number.isFinite(rawTargetSec)) {
+        return res.status(400).json({ error: '공부 시간이 올바르지 않습니다.' });
+    }
+    if (studyMode === 'timer' && rawTargetSec <= 0) {
+        return res.status(400).json({ error: '타이머 시간은 1초 이상이어야 합니다.' });
+    }
+    const target = studyMode === 'timer'
+        ? Math.min(rawTargetSec, 86400)
+        : 0;
     if (!subjectId) return res.status(400).json({ error: '공부 시작 전 과목을 선택하세요.' });
     try {
         const subjectRes = await pool.query(
