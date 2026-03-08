@@ -226,9 +226,14 @@
             probe.setAttribute('onclick', 'window.__pathInlineProbe = (window.__pathInlineProbe || 0) + 1');
             probe.style.display = 'none';
             document.body.appendChild(probe);
+            // Some WebViews do not execute inline handlers for programmatic `.click()`,
+            // so test both pathways to reduce false positives.
             probe.click();
+            try {
+                probe.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            } catch (_) {}
             probe.remove();
-            return window.__pathInlineProbe !== 1;
+            return Number(window.__pathInlineProbe || 0) < 1;
         } catch (_) {
             return true;
         } finally {
@@ -251,11 +256,12 @@
             const now = Date.now();
             const last = Number(target.dataset.pathInlineTs || '0');
             if (now - last < 250) return;
-            target.dataset.pathInlineTs = String(now);
+            const handled = runInlineOnclick(expr, e, target);
+            if (!handled) return;
 
+            target.dataset.pathInlineTs = String(now);
             e.preventDefault();
             e.stopPropagation();
-            runInlineOnclick(expr, e, target);
         }, { capture: true, passive: false });
 
         document.addEventListener('click', function (e) {
@@ -269,9 +275,11 @@
             const expr = target.getAttribute('onclick');
             if (!expr) return;
 
+            const handled = runInlineOnclick(expr, e, target);
+            if (!handled) return;
+
             e.preventDefault();
             e.stopPropagation();
-            runInlineOnclick(expr, e, target);
         }, { capture: true });
     }
 
