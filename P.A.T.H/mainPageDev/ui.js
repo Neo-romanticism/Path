@@ -201,6 +201,7 @@ const UI = {
 
             // 즉시 UI 전환 (낙관적 업데이트)
             this.elements.body.classList.add('active');
+            if (typeof applyStudyPowerSaveMode === 'function') applyStudyPowerSaveMode(true);
             this.elements.enterBtn.style.display = 'none';
             this.elements.breakBtn.classList.remove('hidden');
             this.elements.breakBtn.style.display = 'inline-block';
@@ -216,6 +217,7 @@ const UI = {
             } catch (e) {
                 // 서버 실패 시 UI 롤백
                 this.elements.body.classList.remove('active');
+                this.elements.body.classList.remove('low-power-active');
                 this.elements.enterBtn.style.display = '';
                 this.elements.breakBtn.classList.add('hidden');
                 this.elements.breakBtn.style.display = 'none';
@@ -1070,6 +1072,7 @@ const UI = {
 
     showResult(type, gold = 0, mode = 'timer', studyRecordId = null) {
         this.elements.body.classList.remove('active');
+        this.elements.body.classList.remove('low-power-active');
         this.elements.overlay.classList.remove('hidden');
         this.lastStudyRecordId = studyRecordId;
 

@@ -80,6 +80,70 @@ body.active::before {
     opacity: 0.5;
 }
 
+body.low-power-active {
+    background: #000000;
+}
+
+body.low-power-active::before {
+    opacity: 0;
+}
+
+body.low-power-active .status-bar,
+body.low-power-active .page-tabs,
+body.low-power-active .subject-control,
+body.low-power-active .mode-group,
+body.low-power-active #setup-area,
+body.low-power-active .control-group,
+body.low-power-active .footer-info,
+body.low-power-active .cam-preview-container,
+body.low-power-active #timer-settings-panel {
+    display: none !important;
+}
+
+body.low-power-active .focus-container {
+    width: 100%;
+    max-width: none;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+}
+
+body.low-power-active .tab-panel,
+body.low-power-active #tab-study {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    background: #000000;
+    box-shadow: none;
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+}
+
+body.low-power-active #main-timer {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    min-height: 0;
+}
+
+body.low-power-active #display-time {
+    color: #ffffff;
+    font-size: clamp(44px, 14vw, 110px);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-shadow: 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+body.low-power-active #ms {
+    display: none;
+}
+
 body:not(.light) {
     --bg-color: #121212;
     --bg-gradient-start: #1a1a1a;

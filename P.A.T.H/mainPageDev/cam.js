@@ -158,6 +158,20 @@ const CamManager = {
     }
 };
 
+const STUDY_POWER_SAVE_KEY = 'path_study_power_save';
+
+function isStudyPowerSaveEnabled() {
+    return localStorage.getItem(STUDY_POWER_SAVE_KEY) === '1';
+}
+
+function applyStudyPowerSaveMode(forceActive = null) {
+    const shouldUse = isStudyPowerSaveEnabled();
+    const activeStudy = typeof forceActive === 'boolean'
+        ? forceActive
+        : (typeof isRunning !== 'undefined' && !!isRunning);
+    document.body.classList.toggle('low-power-active', shouldUse && activeStudy);
+}
+
 function openTimerSettings() {
     const panel = document.getElementById('timer-settings-panel');
     if (panel) {
@@ -193,13 +207,18 @@ async function saveTimerCamSettings() {
 
 function loadTimerUiSettings() {
     const themeToggle = document.getElementById('ts-theme-toggle');
+    const powerSaveToggle = document.getElementById('ts-study-power-save');
     if (themeToggle) {
         themeToggle.checked = document.body.classList.contains('light');
+    }
+    if (powerSaveToggle) {
+        powerSaveToggle.checked = isStudyPowerSaveEnabled();
     }
 }
 
 function saveTimerUiSettings() {
     const themeToggle = document.getElementById('ts-theme-toggle');
+    const powerSaveToggle = document.getElementById('ts-study-power-save');
     const note = document.getElementById('ts-ui-note');
     if (!themeToggle) return;
 
@@ -214,8 +233,12 @@ function saveTimerUiSettings() {
         }
     }
 
+    const shouldPowerSave = !!powerSaveToggle?.checked;
+    localStorage.setItem(STUDY_POWER_SAVE_KEY, shouldPowerSave ? '1' : '0');
+    applyStudyPowerSaveMode();
+
     if (note) {
-        note.textContent = `저장됨 — 테마: ${shouldLight ? '라이트' : '다크'}`;
+        note.textContent = `저장됨 — 테마: ${shouldLight ? '라이트' : '다크'} · 학습 절전: ${shouldPowerSave ? 'ON' : 'OFF'}`;
         note.style.color = '#D4AF37';
         setTimeout(() => {
             note.textContent = '메인허브와 동일한 테마 설정을 공유합니다.';
