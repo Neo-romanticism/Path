@@ -134,6 +134,12 @@ body, html {
     font-weight: 450;
 }
 
+/* Improve tap reliability in mobile WebView/Safari. */
+button, a, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
 /* ────────── UI Overlay Shell ────────── */
 #ui-overlay {
     position: absolute; inset: 0; pointer-events: none; z-index: 100;
@@ -563,6 +569,7 @@ body, html {
 .onboarding-layer {
     position: fixed; inset: 0; z-index: 2500;
     background: rgba(8,10,18,0.55); backdrop-filter: blur(3px);
+    pointer-events: none;
 }
 body.light .onboarding-layer { background: rgba(245,246,252,0.60); }
 
@@ -585,6 +592,7 @@ body.light .onboarding-highlight {
     border-radius: var(--radius-md); padding: 18px;
     box-shadow: var(--shadow-lg); color: var(--text-primary);
     animation: onboardingFadeIn 0.22s ease;
+    pointer-events: auto;
 }
 body.light .onboarding-bubble { background: #FFFFFF; }
 
