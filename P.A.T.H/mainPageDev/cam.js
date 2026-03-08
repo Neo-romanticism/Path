@@ -392,3 +392,41 @@ async function submitAdminInquiry() {
         }
     }
 }
+
+function bindTapAction(el, handler) {
+    if (!el || typeof handler !== 'function' || el.dataset.tapBound === '1') return;
+    let lastTapTs = 0;
+
+    el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handler(e);
+    });
+
+    el.addEventListener('pointerup', (e) => {
+        if (e.pointerType !== 'touch') return;
+        const now = Date.now();
+        if (now - lastTapTs < 250) return;
+        lastTapTs = now;
+        e.preventDefault();
+        e.stopPropagation();
+        handler(e);
+    }, { passive: false });
+
+    el.dataset.tapBound = '1';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const backBtn = document.getElementById('btn-back-mainhub');
+    const settingsBtn = document.getElementById('btn-open-timer-settings');
+
+    bindTapAction(backBtn, () => {
+        if (typeof window.navigateTo === 'function') {
+            window.navigateTo('/mainHub/');
+            return;
+        }
+        window.location.href = '/mainHub/';
+    });
+
+    bindTapAction(settingsBtn, () => openTimerSettings());
+});

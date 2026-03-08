@@ -30,7 +30,7 @@ function toggleTheme() {
     <!-- Top Status Line -->
     <header class="status-bar">
         <div class="status-left">
-            <button class="exit-timer-btn" onclick="navigateTo('/mainHub/')">←</button>
+            <button id="btn-back-mainhub" class="exit-timer-btn" onclick="navigateTo('/mainHub/')">←</button>
             <span class="status-label">학습자</span>
             <span class="status-val tier-text">CHALLENGER</span>
             <span class="status-val sub" id="rank-pct">0.08%</span>
@@ -38,7 +38,7 @@ function toggleTheme() {
         <div class="status-right">
             <span class="resource">🪙 <span id="gold-val">14,500</span></span>
             <span class="resource">📄 <span id="ticket-val">01</span>장</span>
-            <button class="exit-timer-btn" onclick="openTimerSettings()" title="설정">⚙</button>
+            <button id="btn-open-timer-settings" class="exit-timer-btn" onclick="openTimerSettings()" title="설정">⚙</button>
         </div>
     </header>
 

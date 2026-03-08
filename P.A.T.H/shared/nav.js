@@ -102,4 +102,182 @@
             if (url.origin === location.origin) prefetch(url.pathname);
         } catch (_) {}
     }, { passive: true });
+
+    // ── Fallback: inline onclick 차단(WebView/CSP) 환경 대응 ──────────────
+    function splitArgs(raw) {
+        const out = [];
+        let cur = '';
+        let quote = null;
+        let depth = 0;
+
+        for (let i = 0; i < raw.length; i++) {
+            const ch = raw[i];
+            const prev = i > 0 ? raw[i - 1] : '';
+
+            if (quote) {
+                cur += ch;
+                if (ch === quote && prev !== '\\') quote = null;
+                continue;
+            }
+
+            if (ch === '"' || ch === "'") {
+                quote = ch;
+                cur += ch;
+                continue;
+            }
+
+            if (ch === '(') { depth++; cur += ch; continue; }
+            if (ch === ')') { depth = Math.max(0, depth - 1); cur += ch; continue; }
+
+            if (ch === ',' && depth === 0) {
+                out.push(cur.trim());
+                cur = '';
+                continue;
+            }
+
+            cur += ch;
+        }
+
+        if (cur.trim()) out.push(cur.trim());
+        return out;
+    }
+
+    function parseArg(token, event, element) {
+        if (token === 'event') return event;
+        if (token === 'this') return element;
+        if (token === 'true') return true;
+        if (token === 'false') return false;
+        if (token === 'null') return null;
+        if (token === 'undefined') return undefined;
+        if (/^-?\d+(\.\d+)?$/.test(token)) return Number(token);
+
+        const quoted = token.match(/^(["'])([\s\S]*)\1$/);
+        if (quoted) {
+            return quoted[2]
+                .replace(/\\'/g, "'")
+                .replace(/\\"/g, '"')
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\\\/g, '\\');
+        }
+
+        return token;
+    }
+
+    function resolvePath(root, path) {
+        const parts = path.split('.').filter(Boolean);
+        let ctx = root;
+        for (let i = 0; i < parts.length - 1; i++) {
+            ctx = ctx ? ctx[parts[i]] : undefined;
+        }
+        const fnName = parts[parts.length - 1];
+        return { ctx: ctx || root, fnName: fnName };
+    }
+
+    function runInlineStatement(stmt, event, element) {
+        const s = stmt.trim();
+        if (!s) return;
+
+        if (s === 'event.preventDefault()') { event.preventDefault(); return; }
+        if (s === 'event.stopPropagation()') { event.stopPropagation(); return; }
+
+        const clickExpr = s.match(/^document\.getElementById\((['"])(.+?)\1\)\.click\(\)$/);
+        if (clickExpr) {
+            const el = document.getElementById(clickExpr[2]);
+            if (el) el.click();
+            return;
+        }
+
+        const navExpr = s.match(/^window\.location\.href\s*=\s*(['"])(.+?)\1$/);
+        if (navExpr) {
+            window.location.href = navExpr[2];
+            return;
+        }
+
+        const fnCall = s.match(/^([A-Za-z_$][\w$.]*)\((.*)\)$/);
+        if (!fnCall) return;
+
+        const fnPath = fnCall[1];
+        const rawArgs = fnCall[2].trim();
+        const argTokens = rawArgs ? splitArgs(rawArgs) : [];
+        const args = argTokens.map(function (t) { return parseArg(t, event, element); });
+
+        const resolved = resolvePath(window, fnPath);
+        const fn = resolved.ctx ? resolved.ctx[resolved.fnName] : undefined;
+        if (typeof fn === 'function') {
+            fn.apply(resolved.ctx, args);
+        }
+    }
+
+    function runInlineOnclick(expr, event, element) {
+        if (!expr) return false;
+        const statements = expr.split(';').map(function (x) { return x.trim(); }).filter(Boolean);
+        if (!statements.length) return false;
+        statements.forEach(function (stmt) { runInlineStatement(stmt, event, element); });
+        return true;
+    }
+
+    function detectInlineOnclickBlocked() {
+        try {
+            window.__pathInlineProbe = 0;
+            const probe = document.createElement('button');
+            probe.type = 'button';
+            probe.setAttribute('onclick', 'window.__pathInlineProbe = (window.__pathInlineProbe || 0) + 1');
+            probe.style.display = 'none';
+            document.body.appendChild(probe);
+            probe.click();
+            probe.remove();
+            return window.__pathInlineProbe !== 1;
+        } catch (_) {
+            return true;
+        } finally {
+            try { delete window.__pathInlineProbe; } catch (_) {}
+        }
+    }
+
+    function setupInlineOnclickFallback() {
+        if (!document.body) return;
+        if (!detectInlineOnclickBlocked()) return;
+
+        document.addEventListener('pointerup', function (e) {
+            if (e.pointerType !== 'touch') return;
+            const target = e.target && e.target.closest ? e.target.closest('[onclick]') : null;
+            if (!target) return;
+
+            const expr = target.getAttribute('onclick');
+            if (!expr) return;
+
+            const now = Date.now();
+            const last = Number(target.dataset.pathInlineTs || '0');
+            if (now - last < 250) return;
+            target.dataset.pathInlineTs = String(now);
+
+            e.preventDefault();
+            e.stopPropagation();
+            runInlineOnclick(expr, e, target);
+        }, { capture: true, passive: false });
+
+        document.addEventListener('click', function (e) {
+            const target = e.target && e.target.closest ? e.target.closest('[onclick]') : null;
+            if (!target) return;
+
+            const now = Date.now();
+            const last = Number(target.dataset.pathInlineTs || '0');
+            if (now - last < 350) return;
+
+            const expr = target.getAttribute('onclick');
+            if (!expr) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+            runInlineOnclick(expr, e, target);
+        }, { capture: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupInlineOnclickFallback, { once: true });
+    } else {
+        setupInlineOnclickFallback();
+    }
 })();
