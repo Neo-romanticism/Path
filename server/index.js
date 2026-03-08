@@ -13,6 +13,22 @@ const worldManager = require('./world');
 const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction && !process.env.SESSION_SECRET) {
+    console.error('[FATAL] SESSION_SECRET 환경변수가 설정되지 않았습니다. 프로덕션 환경에서는 필수입니다.');
+    process.exit(1);
+}
+
+if (isProduction && !process.env.USE_CLOUD_STORAGE) {
+    console.warn('[WARNING] 파일 업로드가 로컬 디스크에 저장됩니다.');
+    console.warn('[WARNING] Render 등 에페머럴 환경에서는 재배포 시 uploads/ 디렉토리의 모든 파일이 삭제됩니다.');
+    console.warn('[WARNING] 프로덕션에서는 S3, Cloudinary 등 외부 오브젝트 스토리지 사용을 강력히 권장합니다.');
+}
+
+if (isProduction && !process.env.ALIGO_API_KEY) {
+    console.warn('[WARNING] ALIGO_API_KEY가 설정되지 않았습니다. 전화번호 인증을 사용할 수 없습니다.');
+}
+
 const projectRoot = path.join(__dirname, '..');
 
 function escapeHtml(value) {
@@ -48,21 +64,30 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+if (isProduction && allowedOrigins.length === 0) {
+    console.warn('[WARNING] CORS_ORIGIN 환경변수가 설정되지 않았습니다. 프로덕션에서 모든 cross-origin 요청이 차단됩니다.');
+    console.warn('[WARNING] 예시: CORS_ORIGIN=https://path.sdij.cloud,https://www.path.sdij.cloud');
+}
+
+function corsOriginHandler(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0) {
+        return callback(null, !isProduction);
+    }
+    return callback(null, allowedOrigins.includes(origin));
+}
+
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-    origin(origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.length === 0) return callback(null, true);
-        return callback(null, allowedOrigins.includes(origin));
-    },
+    origin: corsOriginHandler,
     credentials: true
 }));
 
 app.use(session({
     store: new pgSession({ pool, tableName: 'sessions' }),
-    secret: process.env.SESSION_SECRET || 'path-secret-key-2026',
+    secret: process.env.SESSION_SECRET || (isProduction ? undefined : 'path-secret-key-dev'),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -378,11 +403,7 @@ initSchema()
 
         const io = new SocketServer(httpServer, {
             cors: {
-                origin(origin, callback) {
-                    if (!origin) return callback(null, true);
-                    if (allowedOrigins.length === 0) return callback(null, true);
-                    return callback(null, allowedOrigins.includes(origin));
-                },
+                origin: corsOriginHandler,
                 credentials: true,
             },
             transports: ['websocket', 'polling'],

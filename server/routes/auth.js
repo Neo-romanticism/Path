@@ -30,7 +30,11 @@ function requireAuth(req, res, next) {
 }
 
 const scoreStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads/scores')),
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../../uploads/scores');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname) || '.jpg';
         cb(null, `score_${req.session.userId}_${Date.now()}${ext}`);
@@ -38,7 +42,11 @@ const scoreStorage = multer.diskStorage({
 });
 
 const gpaStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads/gpa')),
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, '../../uploads/gpa');
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname) || '.jpg';
         cb(null, `gpa_${req.session.userId}_${Date.now()}${ext}`);
@@ -624,11 +632,11 @@ router.post('/send-verification', async (req, res) => {
         } catch (sendError) {
             console.error('알림톡 발송 실패:', sendError.message);
             
-            // 테스트 모드이거나 설정되지 않은 경우 콘솔에만 출력
-            if (process.env.NODE_ENV === 'development' || !process.env.ALIGO_API_KEY) {
+            // 개발 환경에서만 콘솔에 인증번호 출력 (프로덕션에서는 절대 노출 금지)
+            if (process.env.NODE_ENV === 'development') {
                 console.log(`[개발 모드] 인증번호: ${code}`);
-                return res.json({ 
-                    ok: true, 
+                return res.json({
+                    ok: true,
                     message: '개발 모드: 콘솔에서 인증번호를 확인하세요.',
                     type: 'dev',
                     expiresIn: 300

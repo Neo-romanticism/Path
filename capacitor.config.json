@@ -1,0 +1,14 @@
+{
+  "appId": "cloud.sdij.path",
+  "appName": "P.A.T.H",
+  "webDir": "P.A.T.H",
+  "server": {
+    "url": "https://path.sdij.cloud/login/",
+    "cleartext": false,
+    "allowNavigation": [
+      "path.sdij.cloud",
+      "www.path.sdij.cloud",
+      "api.sdij.cloud"
+    ]
+  }
+}

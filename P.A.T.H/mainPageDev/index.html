@@ -115,23 +115,27 @@ function toggleTheme() {
             <div class="subject-control" id="subject-control">
                 <div class="subject-row">
                     <select id="subject-select" class="subject-select"></select>
-                    <button id="subject-add-btn" class="subject-add-btn" type="button">과목 추가</button>
+                    <button id="subject-add-btn" class="subject-add-btn" type="button">+ 과목</button>
                 </div>
-                <div class="subject-row">
-                    <input id="subject-input" class="subject-input" type="text" maxlength="60" placeholder="과목명을 입력하세요 (예: 영어, 수학)">
-                    <span class="subject-hint">아래 버튼으로 빠르게 선택할 수도 있어요</span>
+                <div id="subject-add-row" class="subject-row hidden">
+                    <input id="subject-input" class="subject-input" type="text" maxlength="60" placeholder="과목명 입력 (예: 영어, 수학)">
                 </div>
                 <div id="quick-subjects" class="quick-subjects" aria-label="빠른 과목 선택"></div>
 
-                <form id="study-plan-form" class="study-plan-form">
-                    <input id="study-plan-subject" class="plan-input" type="text" maxlength="60" placeholder="과목 (선택)">
-                    <input id="study-plan-topic" class="plan-input" type="text" maxlength="120" placeholder="세부 계획 (예: 영단어 50개 외우기)" required>
-                    <input id="study-plan-duration" class="plan-input" type="number" min="5" max="300" step="5" placeholder="시간 (분)">
-                    <input id="study-plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모 (선택)">
-                    <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플랜 추가하기</button>
-                </form>
-                <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
-                <span class="subject-hint">학습을 시작하면 플랜이 자동으로 캘린더에 저장돼요</span>
+                <button id="plan-toggle-btn" class="plan-toggle-btn" type="button">
+                    학습 플랜 <span id="plan-toggle-arrow">▾</span>
+                </button>
+                <div id="plan-section" class="plan-section hidden">
+                    <form id="study-plan-form" class="study-plan-form">
+                        <input id="study-plan-subject" class="plan-input" type="text" maxlength="60" placeholder="과목 (선택)">
+                        <input id="study-plan-topic" class="plan-input" type="text" maxlength="120" placeholder="세부 계획 (예: 영단어 50개 외우기)" required>
+                        <input id="study-plan-duration" class="plan-input" type="number" min="5" max="300" step="5" placeholder="시간 (분)">
+                        <input id="study-plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모 (선택)">
+                        <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플랜 추가하기</button>
+                    </form>
+                    <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
+                    <span class="subject-hint">학습을 시작하면 플랜이 자동으로 캘린더에 저장돼요</span>
+                </div>
             </div>
 
             <div class="mode-group" id="mode-group">

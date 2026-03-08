@@ -6,12 +6,24 @@
   "scripts": {
     "start": "node server/index.js",
     "set-admin": "node set-admin.js",
-    "list-admins": "node -e \"const pool=require('./server/db'); pool.query('SELECT id,nickname,real_name,is_admin FROM users WHERE is_admin=TRUE ORDER BY id').then(r=>{console.log(JSON.stringify(r.rows,null,2));}).catch(e=>{console.error(e.message); process.exitCode=1;}).finally(()=>pool.end());\""
+    "list-admins": "node -e \"const pool=require('./server/db'); pool.query('SELECT id,nickname,real_name,is_admin FROM users WHERE is_admin=TRUE ORDER BY id').then(r=>{console.log(JSON.stringify(r.rows,null,2));}).catch(e=>{console.error(e.message); process.exitCode=1;}).finally(()=>pool.end());\"",
+    "cap:sync": "cap sync",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios",
+    "cap:doctor": "cap doctor",
+    "apk:debug": "bash scripts/build-android.sh debug",
+    "apk:release": "bash scripts/build-android.sh release-apk",
+    "aab:release": "bash scripts/build-android.sh release-aab"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/android": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.2.0",
     "axios": "^1.6.0",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
@@ -22,5 +34,8 @@
     "multer": "^2.1.0",
     "pg": "^8.19.0",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.2.0"
   }
 }

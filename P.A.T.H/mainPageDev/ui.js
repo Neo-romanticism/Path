@@ -131,12 +131,22 @@ const UI = {
         this.elements.modeTimer.onclick = () => this.setMode('timer');
         this.elements.modeStopwatch.onclick = () => this.setMode('stopwatch');
 
-        this.elements.subjectAddBtn.onclick = () => this.handleAddSubject();
+        this.elements.subjectAddBtn.onclick = () => this.toggleSubjectAddRow();
         this.elements.subjectInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 this.handleAddSubject();
             }
+        });
+
+        document.getElementById('plan-toggle-btn')?.addEventListener('click', () => {
+            const section = document.getElementById('plan-section');
+            const btn = document.getElementById('plan-toggle-btn');
+            const arrow = document.getElementById('plan-toggle-arrow');
+            const isOpen = !section.classList.contains('hidden');
+            section.classList.toggle('hidden', isOpen);
+            btn.classList.toggle('open', !isOpen);
+            if (arrow) arrow.textContent = isOpen ? '▾' : '▴';
         });
         this.elements.subjectSelect?.addEventListener('change', () => this.renderQuickSubjects());
         this.elements.quickSubjects?.addEventListener('click', (e) => this.handleQuickSubjectClick(e));
@@ -297,6 +307,16 @@ const UI = {
         }
     },
 
+    toggleSubjectAddRow() {
+        const row = document.getElementById('subject-add-row');
+        if (!row) return;
+        const isHidden = row.classList.contains('hidden');
+        row.classList.toggle('hidden', !isHidden);
+        if (!isHidden) return;
+        this.elements.subjectInput?.focus();
+        this.elements.subjectAddBtn.textContent = '확인';
+    },
+
     async handleAddSubject() {
         const name = (this.elements.subjectInput.value || '').trim();
         if (!name) {
@@ -308,6 +328,9 @@ const UI = {
             this.subjects = await StorageManager.fetchSubjects();
             this.renderSubjectOptions(added?.id);
             this.elements.subjectInput.value = '';
+            const row = document.getElementById('subject-add-row');
+            if (row) row.classList.add('hidden');
+            this.elements.subjectAddBtn.textContent = '+ 과목';
             if (this.currentTab === 'calendar') await this.loadWeekCalendar(this.weekOffset);
         } catch (e) {
             alert(e.message || '과목 추가 실패');
