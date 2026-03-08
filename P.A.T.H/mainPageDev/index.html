@@ -116,6 +116,7 @@ function toggleTheme() {
         <div class="page-tabs" id="page-tabs">
             <button id="tab-study-btn" class="page-tab-btn active" type="button">학습하기</button>
             <button id="tab-calendar-btn" class="page-tab-btn" type="button">캘린더</button>
+            <button id="tab-scorecalc-btn" class="page-tab-btn" type="button">환산점수</button>
             <button id="tab-balloon-btn" class="page-tab-btn" type="button">열기구</button>
         </div>
 
@@ -199,6 +200,73 @@ function toggleTheme() {
                 <input id="plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모(선택)">
                 <button id="plan-add-btn" class="plan-submit-btn" type="submit">타임라인 추가</button>
             </form>
+        </section>
+
+        <section id="tab-scorecalc" class="tab-panel">
+            <div class="scorecalc-head">
+                <p class="scorecalc-kicker">UNIVERSITY SCORE CALCULATOR</p>
+                <h2 class="scorecalc-title">대학별 환산점수 계산기</h2>
+                <p class="scorecalc-copy">현재 서버에 저장된 대학별 반영비율/등급표를 기준으로 환산점수를 계산합니다.</p>
+            </div>
+
+            <div class="scorecalc-grid">
+                <label class="scorecalc-field">
+                    <span>대학 선택</span>
+                    <select id="scorecalc-university" class="plan-input"></select>
+                </label>
+                <label class="scorecalc-field">
+                    <span>계열(전형)</span>
+                    <select id="scorecalc-track" class="plan-input"></select>
+                </label>
+                <label class="scorecalc-field">
+                    <span>국어 표준점수</span>
+                    <input id="scorecalc-korean" class="plan-input" type="number" min="0" max="200" step="1" placeholder="예: 132">
+                </label>
+                <label class="scorecalc-field">
+                    <span>수학 표준점수</span>
+                    <input id="scorecalc-math" class="plan-input" type="number" min="0" max="200" step="1" placeholder="예: 137">
+                </label>
+                <label class="scorecalc-field">
+                    <span>탐구1 표준점수</span>
+                    <input id="scorecalc-inquiry1" class="plan-input" type="number" min="0" max="100" step="1" placeholder="예: 67">
+                </label>
+                <label class="scorecalc-field">
+                    <span>탐구2 표준점수</span>
+                    <input id="scorecalc-inquiry2" class="plan-input" type="number" min="0" max="100" step="1" placeholder="예: 66">
+                </label>
+                <label class="scorecalc-field">
+                    <span>영어 등급</span>
+                    <input id="scorecalc-english-grade" class="plan-input" type="number" min="1" max="9" step="1" placeholder="1~9">
+                </label>
+                <label class="scorecalc-field">
+                    <span>한국사 등급</span>
+                    <input id="scorecalc-history-grade" class="plan-input" type="number" min="1" max="9" step="1" placeholder="1~9">
+                </label>
+                <label class="scorecalc-field">
+                    <span>수학 선택</span>
+                    <select id="scorecalc-math-choice" class="plan-input">
+                        <option value="">선택 안 함</option>
+                        <option value="미적분/기하">미적분/기하</option>
+                        <option value="확률과통계">확률과통계</option>
+                    </select>
+                </label>
+                <label class="scorecalc-field">
+                    <span>탐구 유형</span>
+                    <select id="scorecalc-inquiry-type" class="plan-input">
+                        <option value="">선택 안 함</option>
+                        <option value="과탐">과탐</option>
+                        <option value="사탐">사탐</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="scorecalc-actions">
+                <button id="scorecalc-calc-btn" type="button" class="btn-primary">환산점수 계산하기</button>
+            </div>
+
+            <div id="scorecalc-result" class="scorecalc-result" aria-live="polite">
+                대학과 계열을 선택하고 점수를 입력한 뒤 계산을 눌러주세요.
+            </div>
         </section>
 
         <section id="tab-balloon" class="tab-panel">

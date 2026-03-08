@@ -4,7 +4,8 @@
  *
  * GET  /api/community/posts          - 목록 조회
  * GET  /api/community/posts/hot      - 베스트 (추천 Top 8)
- * POST /api/community/posts          - 글 작성 (비로그인 허용)
+ * POST /api/community/uploads/image  - 이미지 업로드 (auth)
+ * POST /api/community/posts          - 글 작성 (auth)
  * POST /api/community/posts/:id/view - 조회수 +1
  * POST /api/community/posts/:id/like - 추천 토글 (auth)
  * GET  /api/community/posts/:id/comments  - 댓글 목록
@@ -13,8 +14,40 @@
 
 const router = require('express').Router();
 const pool   = require('../db');
+const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const BEST_MIN_LIKES = 15;
+
+const communityUploadDir = path.join(__dirname, '../../uploads/community');
+if (!fs.existsSync(communityUploadDir)) {
+    fs.mkdirSync(communityUploadDir, { recursive: true });
+}
+
+const imageUpload = multer({
+    storage: multer.diskStorage({
+        destination: (_req, _file, cb) => cb(null, communityUploadDir),
+        filename: (req, file, cb) => {
+            const userId = req.session?.userId || 'guest';
+            const ext = (path.extname(file.originalname || '') || '.jpg').toLowerCase();
+            const safeExt = /^\.[a-z0-9]{1,8}$/i.test(ext) ? ext : '.jpg';
+            const suffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+            cb(null, `community_${userId}_${suffix}${safeExt}`);
+        }
+    }),
+    limits: {
+        fileSize: 8 * 1024 * 1024,
+    },
+    fileFilter: (_req, file, cb) => {
+        if (typeof file.mimetype === 'string' && file.mimetype.startsWith('image/')) {
+            cb(null, true);
+            return;
+        }
+        cb(new Error('이미지 파일만 업로드할 수 있습니다.'));
+    }
+});
 
 /* ── auth guard ─────────────────────────────────────────────── */
 function requireAuth(req, res, next) {
@@ -57,6 +90,9 @@ function normalizeCommunityNickname(raw) {
     return trimmed;
 }
 
+// SSRF 방어: 내부 IP/호스트네임 블랙리스트
+const SSRF_BLOCKED_PATTERN = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|::1|fc00:|fd)/i;
+
 function normalizeOptionalHttpUrl(raw, maxLength = 1000) {
     if (raw === undefined || raw === null) return '';
     if (typeof raw !== 'string') return null;
@@ -73,7 +109,27 @@ function normalizeOptionalHttpUrl(raw, maxLength = 1000) {
     }
 
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+
+    // SSRF 방어: 내부 주소 차단
+    const hostname = parsed.hostname;
+    if (SSRF_BLOCKED_PATTERN.test(hostname)) return null;
+
     return parsed.toString();
+}
+
+function normalizeOptionalImageUrl(raw) {
+    if (raw === undefined || raw === null) return '';
+    if (typeof raw !== 'string') return null;
+
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+
+    // 내부 업로드 경로 허용
+    if (/^\/uploads\/community\/[a-zA-Z0-9._-]+$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    return normalizeOptionalHttpUrl(trimmed);
 }
 
 /* ── IP prefix helper ───────────────────────────────────────── */
@@ -195,9 +251,31 @@ router.get('/posts/:id', async (req, res) => {
 });
 
 /* ════════════════════════════════════════════════════════════ */
-/* POST /posts — 글 작성 (비로그인 허용)                         */
+/* POST /uploads/image — 커뮤니티 이미지 업로드                */
 /* ════════════════════════════════════════════════════════════ */
-router.post('/posts', async (req, res) => {
+router.post('/uploads/image', requireAuth, (req, res) => {
+    imageUpload.single('image')(req, res, (err) => {
+        if (err) {
+            const msg = err.message || '이미지 업로드에 실패했습니다.';
+            return res.status(400).json({ error: msg });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: '이미지 파일을 선택해 주세요.' });
+        }
+
+        return res.status(201).json({
+            image_url: `/uploads/community/${req.file.filename}`,
+            file_name: req.file.originalname,
+            size: req.file.size,
+        });
+    });
+});
+
+/* ════════════════════════════════════════════════════════════ */
+/* POST /posts — 글 작성 (로그인 필수)                           */
+/* ════════════════════════════════════════════════════════════ */
+router.post('/posts', requireAuth, async (req, res) => {
     const { category, title, body = '', anonymous_nickname, image_url, link_url } = req.body;
     const bodyText = typeof body === 'string' ? body : '';
 
@@ -214,9 +292,9 @@ router.post('/posts', async (req, res) => {
         return res.status(400).json({ error: '내용은 5,000자 이내로 입력해 주세요.' });
     }
 
-    const normalizedImageUrl = normalizeOptionalHttpUrl(image_url);
+    const normalizedImageUrl = normalizeOptionalImageUrl(image_url);
     if (normalizedImageUrl === null) {
-        return res.status(400).json({ error: '이미지 주소는 http/https 형식으로 입력해 주세요.' });
+        return res.status(400).json({ error: '이미지 첨부가 올바르지 않습니다.' });
     }
 
     const normalizedLinkUrl = normalizeOptionalHttpUrl(link_url);
@@ -265,7 +343,15 @@ router.post('/posts', async (req, res) => {
 /* ════════════════════════════════════════════════════════════ */
 /* POST /posts/:id/view — 조회수 +1                             */
 /* ════════════════════════════════════════════════════════════ */
-router.post('/posts/:id/view', async (req, res) => {
+const viewLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1분
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '너무 많은 요청입니다. 잠시 후 다시 시도해주세요.' }
+});
+
+router.post('/posts/:id/view', viewLimiter, async (req, res) => {
     const id = parseInt(req.params.id);
     if (!id) return res.status(400).json({ error: '잘못된 요청입니다.' });
 

@@ -1,6 +1,8 @@
 const UI = {
     currentMode: 'timer',
     currentTab: 'study',
+    universityList: [],
+    scoreCalcUniversityInfo: null,
     subjects: [],
     weekOffset: 0,
     weekData: null,
@@ -26,10 +28,24 @@ const UI = {
         rankPct:     document.getElementById('rank-pct'),
         tabStudyBtn: document.getElementById('tab-study-btn'),
         tabCalendarBtn: document.getElementById('tab-calendar-btn'),
+        tabScoreCalcBtn: document.getElementById('tab-scorecalc-btn'),
         tabBalloonBtn: document.getElementById('tab-balloon-btn'),
         tabStudy:    document.getElementById('tab-study'),
         tabCalendar: document.getElementById('tab-calendar'),
+        tabScoreCalc: document.getElementById('tab-scorecalc'),
         tabBalloon:  document.getElementById('tab-balloon'),
+        scoreCalcUniversity: document.getElementById('scorecalc-university'),
+        scoreCalcTrack: document.getElementById('scorecalc-track'),
+        scoreCalcKorean: document.getElementById('scorecalc-korean'),
+        scoreCalcMath: document.getElementById('scorecalc-math'),
+        scoreCalcInquiry1: document.getElementById('scorecalc-inquiry1'),
+        scoreCalcInquiry2: document.getElementById('scorecalc-inquiry2'),
+        scoreCalcEnglishGrade: document.getElementById('scorecalc-english-grade'),
+        scoreCalcHistoryGrade: document.getElementById('scorecalc-history-grade'),
+        scoreCalcMathChoice: document.getElementById('scorecalc-math-choice'),
+        scoreCalcInquiryType: document.getElementById('scorecalc-inquiry-type'),
+        scoreCalcCalcBtn: document.getElementById('scorecalc-calc-btn'),
+        scoreCalcResult: document.getElementById('scorecalc-result'),
         balloonMetricToday: document.getElementById('balloon-metric-today'),
         balloonMetricTotal: document.getElementById('balloon-metric-total'),
         balloonMetricSuccess: document.getElementById('balloon-metric-success'),
@@ -91,6 +107,7 @@ const UI = {
         await this.loadSubjects();
         this.renderStudyPlanDrafts();
         await this.loadWeekCalendar(0);
+        await this.loadUniversityCalculator(userData?.university);
         await this.loadBalloonMetrics();
 
         if (typeof CamManager !== 'undefined') CamManager.loadSettings();
@@ -127,7 +144,14 @@ const UI = {
 
         this.elements.tabStudyBtn.onclick = () => this.switchTab('study');
         this.elements.tabCalendarBtn.onclick = () => this.switchTab('calendar');
+        this.elements.tabScoreCalcBtn.onclick = () => this.switchTab('scorecalc');
         this.elements.tabBalloonBtn.onclick = () => this.switchTab('balloon');
+
+        this.elements.scoreCalcUniversity?.addEventListener('change', () => {
+            this.handleScoreCalcUniversityChange().catch(() => {});
+        });
+        this.elements.scoreCalcTrack?.addEventListener('change', () => this.renderScoreCalcFormulaHint());
+        this.elements.scoreCalcCalcBtn?.addEventListener('click', () => this.calculateUniversityScore());
 
         this.elements.modeTimer.onclick = () => this.setMode('timer');
         this.elements.modeStopwatch.onclick = () => this.setMode('stopwatch');
@@ -290,16 +314,18 @@ const UI = {
     },
 
     switchTab(tab) {
-        const nextTab = tab === 'calendar' || tab === 'balloon' ? tab : 'study';
+        const nextTab = tab === 'calendar' || tab === 'balloon' || tab === 'scorecalc' ? tab : 'study';
         this.currentTab = nextTab;
         const isCalendar = this.currentTab === 'calendar';
 
         this.elements.tabStudyBtn.classList.toggle('active', this.currentTab === 'study');
         this.elements.tabCalendarBtn.classList.toggle('active', this.currentTab === 'calendar');
+        this.elements.tabScoreCalcBtn.classList.toggle('active', this.currentTab === 'scorecalc');
         this.elements.tabBalloonBtn.classList.toggle('active', this.currentTab === 'balloon');
 
         this.elements.tabStudy.classList.toggle('active', this.currentTab === 'study');
         this.elements.tabCalendar.classList.toggle('active', this.currentTab === 'calendar');
+        this.elements.tabScoreCalc.classList.toggle('active', this.currentTab === 'scorecalc');
         this.elements.tabBalloon.classList.toggle('active', this.currentTab === 'balloon');
 
         this.elements.body.classList.remove('active');
@@ -309,9 +335,191 @@ const UI = {
             this.loadWeekCalendar(this.weekOffset).catch(() => {});
             return;
         }
+        if (this.currentTab === 'scorecalc') {
+            if (!this.scoreCalcUniversityInfo && this.elements.scoreCalcUniversity?.value) {
+                this.handleScoreCalcUniversityChange().catch(() => {});
+            }
+            return;
+        }
         if (this.currentTab === 'balloon') {
             this.loadBalloonMetrics().catch(() => {});
         }
+    },
+
+    async loadUniversityCalculator(preferredUniversity) {
+        if (!this.elements.scoreCalcUniversity || !this.elements.scoreCalcTrack) return;
+
+        try {
+            this.universityList = await StorageManager.fetchUniversityList();
+        } catch (e) {
+            this.elements.scoreCalcResult.textContent = e.message || '대학 목록을 불러오지 못했습니다.';
+            return;
+        }
+
+        if (!this.universityList.length) {
+            this.elements.scoreCalcResult.textContent = '등록된 대학 데이터가 없습니다.';
+            return;
+        }
+
+        this.elements.scoreCalcUniversity.innerHTML = [
+            '<option value="">대학을 선택하세요</option>',
+            ...this.universityList.map((u) => `<option value="${this.escapeHtml(u.name)}">${this.escapeHtml(u.name)}</option>`)
+        ].join('');
+
+        const preferred = String(preferredUniversity || '').trim();
+        const found = this.universityList.find((u) => u.name === preferred);
+        const firstName = this.universityList[0]?.name || '';
+        this.elements.scoreCalcUniversity.value = found ? found.name : firstName;
+        await this.handleScoreCalcUniversityChange();
+    },
+
+    async handleScoreCalcUniversityChange() {
+        const name = String(this.elements.scoreCalcUniversity?.value || '').trim();
+        if (!name) return;
+
+        this.elements.scoreCalcResult.textContent = '대학 반영비율을 불러오는 중...';
+        this.scoreCalcUniversityInfo = await StorageManager.fetchUniversityInfo(name);
+
+        const formula = this.scoreCalcUniversityInfo?.scoreFormula;
+        if (!formula || Object.keys(formula).length === 0) {
+            this.elements.scoreCalcTrack.innerHTML = '<option value="">지원되지 않음</option>';
+            this.elements.scoreCalcResult.textContent = '이 대학은 환산식 데이터가 아직 없습니다.';
+            return;
+        }
+
+        const tracks = Object.keys(formula);
+        this.elements.scoreCalcTrack.innerHTML = tracks
+            .map((track, idx) => `<option value="${this.escapeHtml(track)}"${idx === 0 ? ' selected' : ''}>${this.escapeHtml(track)}</option>`)
+            .join('');
+
+        this.renderScoreCalcFormulaHint();
+    },
+
+    renderScoreCalcFormulaHint() {
+        const track = String(this.elements.scoreCalcTrack?.value || '').trim();
+        const formula = this.scoreCalcUniversityInfo?.scoreFormula?.[track];
+        if (!formula || !this.elements.scoreCalcResult) return;
+        const note = formula.비고 ? ` (${formula.비고})` : '';
+        this.elements.scoreCalcResult.textContent = `${this.scoreCalcUniversityInfo.name} ${track} 환산식 기준으로 계산할 준비가 되었습니다${note}`;
+    },
+
+    parseNumericInput(element, min, max) {
+        const raw = element?.value;
+        if (raw == null || String(raw).trim() === '') return null;
+        const value = Number(raw);
+        if (!Number.isFinite(value)) return null;
+        if (value < min || value > max) return null;
+        return value;
+    },
+
+    calculateUniversityScore() {
+        const uni = this.scoreCalcUniversityInfo;
+        const track = String(this.elements.scoreCalcTrack?.value || '').trim();
+        const formula = uni?.scoreFormula?.[track];
+        if (!uni || !formula) {
+            this.elements.scoreCalcResult.textContent = '대학/계열 정보를 먼저 선택해주세요.';
+            return;
+        }
+
+        const scores = {
+            국어: this.parseNumericInput(this.elements.scoreCalcKorean, 0, 200),
+            수학: this.parseNumericInput(this.elements.scoreCalcMath, 0, 200),
+            탐구1: this.parseNumericInput(this.elements.scoreCalcInquiry1, 0, 100),
+            탐구2: this.parseNumericInput(this.elements.scoreCalcInquiry2, 0, 100),
+            영어: this.parseNumericInput(this.elements.scoreCalcEnglishGrade, 1, 9),
+            한국사: this.parseNumericInput(this.elements.scoreCalcHistoryGrade, 1, 9),
+            수학선택: this.elements.scoreCalcMathChoice?.value || '',
+            탐구유형: this.elements.scoreCalcInquiryType?.value || ''
+        };
+
+        const total = this.computeConvertedScore(formula, scores);
+        if (total == null) {
+            this.elements.scoreCalcResult.textContent = '입력값을 다시 확인해주세요. (필수 영역 점수 누락 또는 범위 오류)';
+            return;
+        }
+
+        const resultDetails = this.buildScoreComparisonHtml(uni, total);
+        this.elements.scoreCalcResult.innerHTML = `
+            <div class="scorecalc-summary">
+                <strong>${this.escapeHtml(uni.name)} ${this.escapeHtml(track)} 환산점수: ${total.toFixed(2)}</strong>
+                <span>총점 기준: ${this.escapeHtml(String(formula.총점 || '-'))}</span>
+            </div>
+            ${resultDetails}
+        `;
+    },
+
+    computeConvertedScore(formula, scores) {
+        if (!formula) return null;
+
+        let total = 0;
+        if (formula.국어 && scores.국어 != null) total += (scores.국어 / 200) * formula.국어;
+        if (formula.수학 && scores.수학 != null) total += (scores.수학 / 200) * formula.수학;
+
+        if (formula.탐구) {
+            if (scores.탐구1 == null) return null;
+            const t1 = scores.탐구1 || 0;
+            const t2 = scores.탐구2 || 0;
+            total += ((t1 + t2) / 200) * formula.탐구;
+        }
+
+        if (Array.isArray(formula.영어) && formula.영어.length > 0) {
+            if (scores.영어 == null) return null;
+            const g = Math.max(1, Math.min(9, Math.floor(scores.영어)));
+            total += formula.영어[g - 1] || 0;
+        }
+
+        if (Array.isArray(formula.한국사) && formula.한국사.length > 0) {
+            if (scores.한국사 == null) return null;
+            const g = Math.max(1, Math.min(9, Math.floor(scores.한국사)));
+            total += formula.한국사[g - 1] || 0;
+        }
+
+        if (formula.수학가산 && scores.수학선택 === '미적분/기하') {
+            total += formula.수학가산;
+        }
+        if (formula.과탐가산 && scores.탐구유형 === '과탐') {
+            total += formula.과탐가산;
+        }
+
+        return Math.round(total * 100) / 100;
+    },
+
+    buildScoreComparisonHtml(universityInfo, total) {
+        const rows = (universityInfo?.departments || [])
+            .map((dept) => {
+                const cut = Number(dept?.admissions?.정시?.환산컷);
+                if (!Number.isFinite(cut)) return null;
+                const gap = Math.round((total - cut) * 100) / 100;
+                return {
+                    name: dept.name,
+                    category: dept.category,
+                    cut,
+                    gap,
+                    absGap: Math.abs(gap)
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.absGap - b.absGap)
+            .slice(0, 5);
+
+        if (rows.length === 0) {
+            return '<div class="scorecalc-meta">학과별 환산컷 데이터가 없어 비교 결과를 표시할 수 없습니다.</div>';
+        }
+
+        const listHtml = rows.map((row) => {
+            const state = row.gap >= 0 ? '여유' : '부족';
+            const cls = row.gap >= 0 ? 'pos' : 'neg';
+            const gapText = `${row.gap >= 0 ? '+' : ''}${row.gap.toFixed(2)}`;
+            return `<li>
+                <span>${this.escapeHtml(row.name)} (${this.escapeHtml(row.category || '기타')})</span>
+                <span>컷 ${row.cut.toFixed(2)} / <b class="${cls}">${gapText} ${state}</b></span>
+            </li>`;
+        }).join('');
+
+        return `
+            <div class="scorecalc-meta">가장 근접한 학과 5개 기준 비교</div>
+            <ul class="scorecalc-compare-list">${listHtml}</ul>
+        `;
     },
 
     async loadBalloonMetrics() {

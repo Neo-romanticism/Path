@@ -84,6 +84,7 @@ a { color: inherit; text-decoration: none; }
 button { border: none; background: none; cursor: pointer; font-family: var(--font); color: inherit; }
 ul, ol { list-style: none; }
 input, textarea { font-family: var(--font); }
+.hidden { display: none !important; }
 
 /* ─── Header ────────────────────────────────────────────────────────────── */
 .c-header {
@@ -824,6 +825,124 @@ body.light .theme-icon--moon { display: block; }
   margin-top: -10px;
 }
 .write-char-count.warn { color: var(--accent-red); }
+
+.write-attach-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.write-attach-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-mid);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.write-attach-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-1);
+}
+
+.write-link-editor {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.write-link-apply {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-mid);
+  background: var(--surface-elev);
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.write-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.write-attachments.is-empty {
+  display: none;
+}
+
+.write-attachment-card {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-mid);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 8px;
+}
+
+.write-attachment-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.write-link-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent-blue);
+}
+
+.write-attachment-meta {
+  min-width: 0;
+}
+
+.write-attachment-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.write-attachment-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.write-attachment-remove {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(255,69,58,0.35);
+  color: var(--accent-red);
+  background: rgba(255,69,58,0.1);
+  font-size: 11.5px;
+  font-weight: 700;
+}
 
 .write-modal-footer {
   display: flex;

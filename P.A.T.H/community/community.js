@@ -4,6 +4,7 @@
  * API:
  *   GET  /api/community/posts?page=&limit=&category=&q=
  *   GET  /api/community/posts/hot?category=
+ *   POST /api/community/uploads/image
  *   POST /api/community/posts
  *   POST /api/community/posts/:id/view
  *   POST /api/community/posts/:id/like
@@ -636,12 +637,30 @@ function showWriteModal() {
             <span class="write-char-count" id="wt-char">0 / 5,000</span>
           </div>
           <div class="write-field">
-            <label class="write-label" for="wt-image-url">이미지 주소 (선택)</label>
-            <input id="wt-image-url" class="write-input" type="url" placeholder="https://example.com/image.jpg" maxlength="1000" autocomplete="off" inputmode="url">
-          </div>
-          <div class="write-field">
-            <label class="write-label" for="wt-link-url">링크 주소 (선택)</label>
-            <input id="wt-link-url" class="write-input" type="url" placeholder="https://example.com" maxlength="1000" autocomplete="off" inputmode="url">
+            <label class="write-label">첨부</label>
+            <div class="write-attach-actions">
+              <button class="write-attach-btn" type="button" id="wt-attach-image-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                  <circle cx="8.5" cy="10" r="1.5"></circle>
+                  <path d="M21 15l-4-4L7 21"></path>
+                </svg>
+                이미지 첨부
+              </button>
+              <button class="write-attach-btn" type="button" id="wt-attach-link-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 4"></path>
+                  <path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 20"></path>
+                </svg>
+                링크 첨부
+              </button>
+            </div>
+            <input id="wt-image-file" type="file" accept="image/*" hidden>
+            <div class="write-link-editor hidden" id="wt-link-editor">
+              <input id="wt-link-input" class="write-input" type="url" placeholder="https://example.com" maxlength="1000" autocomplete="off" inputmode="url">
+              <button class="write-link-apply" type="button" id="wt-link-apply">적용</button>
+            </div>
+            <div class="write-attachments" id="wt-attachments"></div>
           </div>
         </div>
         <div class="write-modal-footer">
@@ -654,6 +673,10 @@ function showWriteModal() {
     requestAnimationFrame(() => backdrop.classList.add('visible'));
 
     const closeModal = () => {
+      if (selectedImagePreviewUrl) {
+        URL.revokeObjectURL(selectedImagePreviewUrl);
+        selectedImagePreviewUrl = '';
+      }
         backdrop.classList.remove('visible');
         backdrop.addEventListener('transitionend', () => backdrop.remove(), { once: true });
     };
@@ -674,10 +697,119 @@ function showWriteModal() {
     // 글자수
     const textarea  = backdrop.querySelector('#wt-body');
     const charCount = backdrop.querySelector('#wt-char');
+    const imageInput = backdrop.querySelector('#wt-image-file');
+    const attachImageBtn = backdrop.querySelector('#wt-attach-image-btn');
+    const attachLinkBtn = backdrop.querySelector('#wt-attach-link-btn');
+    const linkEditor = backdrop.querySelector('#wt-link-editor');
+    const linkInput = backdrop.querySelector('#wt-link-input');
+    const linkApplyBtn = backdrop.querySelector('#wt-link-apply');
+    const attachmentsWrap = backdrop.querySelector('#wt-attachments');
+
+    let selectedImageFile = null;
+    let selectedImagePreviewUrl = '';
+    let selectedLinkUrl = '';
+
     textarea.addEventListener('input', () => {
         const len = textarea.value.length;
         charCount.textContent = `${len.toLocaleString('ko-KR')} / 5,000`;
         charCount.classList.toggle('warn', len > 4500);
+    });
+
+    const renderAttachments = () => {
+      const attachmentItems = [];
+
+      if (selectedImageFile) {
+            if (selectedImagePreviewUrl) URL.revokeObjectURL(selectedImagePreviewUrl);
+            selectedImagePreviewUrl = URL.createObjectURL(selectedImageFile);
+        attachmentItems.push(`
+          <div class="write-attachment-card" data-type="image">
+                <img class="write-attachment-thumb" src="${escHtml(selectedImagePreviewUrl)}" alt="첨부 이미지 미리보기">
+          <div class="write-attachment-meta">
+            <p class="write-attachment-title">${escHtml(selectedImageFile.name)}</p>
+            <p class="write-attachment-sub">${formatBytes(selectedImageFile.size)}</p>
+          </div>
+          <button class="write-attachment-remove" type="button" data-remove="image" aria-label="이미지 첨부 제거">삭제</button>
+          </div>
+        `);
+      }
+
+      if (selectedLinkUrl) {
+        attachmentItems.push(`
+          <div class="write-attachment-card" data-type="link">
+          <div class="write-link-badge">LINK</div>
+          <div class="write-attachment-meta">
+            <p class="write-attachment-title">${escHtml(readableHost(selectedLinkUrl))}</p>
+            <p class="write-attachment-sub">${escHtml(selectedLinkUrl)}</p>
+          </div>
+          <button class="write-attachment-remove" type="button" data-remove="link" aria-label="링크 첨부 제거">삭제</button>
+          </div>
+        `);
+      }
+
+      attachmentsWrap.innerHTML = attachmentItems.join('');
+      attachmentsWrap.classList.toggle('is-empty', attachmentItems.length === 0);
+
+      attachmentsWrap.querySelectorAll('.write-attachment-remove').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const type = btn.dataset.remove;
+          if (type === 'image') {
+            if (selectedImagePreviewUrl) {
+              URL.revokeObjectURL(selectedImagePreviewUrl);
+              selectedImagePreviewUrl = '';
+            }
+            selectedImageFile = null;
+            imageInput.value = '';
+          }
+          if (type === 'link') {
+            selectedLinkUrl = '';
+            linkInput.value = '';
+          }
+          renderAttachments();
+        });
+      });
+    };
+
+    attachImageBtn.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', () => {
+      const file = imageInput.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('이미지 파일만 첨부할 수 있어요');
+        imageInput.value = '';
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        showToast('이미지는 8MB 이하로 첨부해 주세요');
+        imageInput.value = '';
+        return;
+      }
+      selectedImageFile = file;
+      renderAttachments();
+    });
+
+    attachLinkBtn.addEventListener('click', () => {
+      linkEditor.classList.toggle('hidden');
+      if (!linkEditor.classList.contains('hidden')) linkInput.focus();
+    });
+
+    const applyLinkAttachment = () => {
+      const normalized = normalizeUserHttpUrl(linkInput.value);
+      if (linkInput.value.trim() && !normalized) {
+        showToast('링크는 http:// 또는 https:// 형식만 가능해요');
+        linkInput.focus();
+        return;
+      }
+      selectedLinkUrl = normalized;
+      if (normalized) linkEditor.classList.add('hidden');
+      renderAttachments();
+    };
+
+    linkApplyBtn.addEventListener('click', applyLinkAttachment);
+    linkInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyLinkAttachment();
+      }
     });
 
     // 제출
@@ -686,14 +818,43 @@ function showWriteModal() {
       const anonymousNickname = backdrop.querySelector('#wt-anon-nick').value.trim();
         const title = backdrop.querySelector('#wt-title').value.trim();
         const body  = textarea.value.trim();
-        const imageUrl = backdrop.querySelector('#wt-image-url').value.trim();
-        const linkUrl = backdrop.querySelector('#wt-link-url').value.trim();
         if (!title) { backdrop.querySelector('#wt-title').focus(); return; }
+
+        const pendingLinkUrl = normalizeUserHttpUrl(linkInput.value);
+        if (linkInput.value.trim() && !pendingLinkUrl) {
+            showToast('링크는 http:// 또는 https:// 형식만 가능해요');
+            linkInput.focus();
+            return;
+        }
+        if (pendingLinkUrl) selectedLinkUrl = pendingLinkUrl;
 
         submitBtn.disabled = true;
         submitBtn.textContent = '등록 중...';
 
         try {
+          let uploadedImageUrl = '';
+
+          if (selectedImageFile) {
+            const fd = new FormData();
+            fd.append('image', selectedImageFile);
+            const uploadRes = await fetch('/api/community/uploads/image', {
+              method: 'POST',
+              body: fd,
+              credentials: 'include',
+            });
+
+            if (!uploadRes.ok) {
+              const data = await uploadRes.json().catch(() => ({}));
+              showToast(data.error || '이미지 업로드에 실패했어요');
+              submitBtn.disabled = false;
+              submitBtn.textContent = '등록하기';
+              return;
+            }
+
+            const uploadData = await uploadRes.json();
+            uploadedImageUrl = uploadData.image_url || '';
+          }
+
             const r = await fetch('/api/community/posts', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -702,8 +863,8 @@ function showWriteModal() {
                   category: selectedCat,
                   title,
                   body,
-                  image_url: imageUrl,
-                  link_url: linkUrl,
+              image_url: uploadedImageUrl,
+              link_url: selectedLinkUrl,
                   anonymous_nickname: anonymousNickname,
                 }),
             });
@@ -730,6 +891,7 @@ function showWriteModal() {
     });
 
     setTimeout(() => backdrop.querySelector('#wt-title')?.focus(), 260);
+
 }
 
 /* ─── UI 헬퍼 ────────────────────────────────────────────── */
@@ -795,6 +957,7 @@ function escHtml(s) {
 
 function safeHttpUrl(url) {
   if (!url || typeof url !== 'string') return '';
+  if (/^\/uploads\/community\/[a-zA-Z0-9._-]+$/.test(url)) return url;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
@@ -802,6 +965,35 @@ function safeHttpUrl(url) {
   } catch (_) {
     return '';
   }
+}
+
+function normalizeUserHttpUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString();
+  } catch (_) {
+    return '';
+  }
+}
+
+function readableHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (_) {
+    return '첨부 링크';
+  }
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const idx = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / Math.pow(1024, idx);
+  return `${value >= 10 || idx === 0 ? Math.round(value) : value.toFixed(1)} ${units[idx]}`;
 }
 
 function currentUserIsAdmin() {

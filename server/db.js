@@ -9,9 +9,12 @@ if (!process.env.DATABASE_URL) {
 const needsSsl = process.env.NODE_ENV === 'production' ||
     (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require'));
 
+// DB_SSL_REJECT_UNAUTHORIZED=false 로 관리형 DB(Render, Heroku 등) 사용 시 비활성화 가능
+const rejectUnauthorized = process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: needsSsl ? { rejectUnauthorized: false } : false
+    ssl: needsSsl ? { rejectUnauthorized } : false
 });
 
 module.exports = pool;

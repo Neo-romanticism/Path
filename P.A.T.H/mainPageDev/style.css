@@ -351,6 +351,119 @@ body.tab-calendar-active .focus-container {
     align-items: stretch;
 }
 
+#tab-scorecalc {
+    align-items: stretch;
+}
+
+.scorecalc-head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid var(--line-color);
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(49, 130, 246, 0.1), rgba(0, 196, 113, 0.08));
+    padding: 16px;
+}
+
+.scorecalc-kicker {
+    color: var(--accent-blue);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.scorecalc-title {
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    color: var(--text-primary);
+}
+
+.scorecalc-copy {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.scorecalc-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.scorecalc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.scorecalc-field span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.scorecalc-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.scorecalc-result {
+    border: 1px solid var(--line-color);
+    border-radius: 14px;
+    background: var(--surface-soft);
+    padding: 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.scorecalc-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.scorecalc-summary strong {
+    color: var(--accent-blue);
+    font-size: 15px;
+}
+
+.scorecalc-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.scorecalc-compare-list {
+    list-style: none;
+    display: grid;
+    gap: 6px;
+}
+
+.scorecalc-compare-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--line-color);
+    border-radius: 10px;
+    background: var(--surface-strong);
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.scorecalc-compare-list b.pos {
+    color: #00a567;
+}
+
+.scorecalc-compare-list b.neg {
+    color: #e5484d;
+}
+
 .balloon-journey {
     width: 100%;
     display: grid;
@@ -1660,6 +1773,18 @@ body.active .tab-panel {
         grid-template-columns: 1fr;
     }
 
+    .scorecalc-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .scorecalc-actions {
+        justify-content: stretch;
+    }
+
+    #scorecalc-calc-btn {
+        width: 100%;
+    }
+
     .balloon-sky-card {
         min-height: 200px;
     }
@@ -1769,6 +1894,11 @@ body.active .tab-panel {
 
     .balloon-copy {
         font-size: 12px;
+    }
+
+    .scorecalc-compare-list li {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .balloon-badge {

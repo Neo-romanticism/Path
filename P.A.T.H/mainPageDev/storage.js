@@ -161,5 +161,30 @@ const StorageManager = {
             console.error('StorageManager.updatePlan 오류:', e);
             throw e;
         }
+    },
+
+    async fetchUniversityList() {
+        try {
+            const r = await fetch('/api/university/list', { credentials: 'include' });
+            if (!r.ok) throw new Error('대학 목록 조회 실패');
+            const data = await r.json();
+            return Array.isArray(data.universities) ? data.universities : [];
+        } catch (e) {
+            console.error('StorageManager.fetchUniversityList 오류:', e);
+            throw e;
+        }
+    },
+
+    async fetchUniversityInfo(name) {
+        try {
+            const q = encodeURIComponent(String(name || '').trim());
+            const r = await fetch(`/api/university/info?name=${q}`, { credentials: 'include' });
+            if (!r.ok) throw new Error('대학 정보 조회 실패');
+            const data = await r.json();
+            return data?.found ? data.university : null;
+        } catch (e) {
+            console.error('StorageManager.fetchUniversityInfo 오류:', e);
+            throw e;
+        }
     }
 };

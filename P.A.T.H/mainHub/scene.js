@@ -8,6 +8,11 @@ import { create3DBalloon, getBalloonColors, setBalloonDetailLevel, make3DBalloon
 window.THREE = THREE;
 window.make3DBalloonPreview = make3DBalloonPreview;
 
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 // ── World constants ──────────────────────────────────────────────────────────
 // The game world is 200,000 × 200,000 world-units.  A WORLD_SCALE factor maps
 // world-units to Three.js scene-units so the renderer stays in a comfortable
@@ -1106,7 +1111,7 @@ const WorldScene = {
             const prefix = isFriend ? '<span style="margin-right:3px;font-size:8px;opacity:0.8">●</span>' : '';
             return `<div style="position:absolute;left:${ex}px;top:${ey}px;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;">
                 <div style="font-size:14px;color:${clr};transform:rotate(${angle + 90}deg);filter:drop-shadow(0 0 3px rgba(0,0,0,0.8));line-height:1">▲</div>
-                <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${prefix}${user.nickname}</div>
+                <div style="background:${bg};border:${border};color:${clr};font-family:'Pretendard Variable',sans-serif;font-size:10px;padding:3px 8px;border-radius:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">${prefix}${escHtml(user.nickname)}</div>
             </div>`;
         }).join('');
     },

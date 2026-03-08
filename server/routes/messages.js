@@ -23,22 +23,23 @@ const storage = multer.diskStorage({
     }
 });
 
+const ALLOWED_EXTENSIONS = new Set(['.jpeg', '.jpg', '.png', '.gif', '.webp', '.pdf', '.txt']);
+const ALLOWED_MIMETYPES = new Set([
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf', 'text/plain'
+]);
+
 const upload = multer({
     storage,
     limits: {
         fileSize: 10 * 1024 * 1024 // 10MB 제한
     },
     fileFilter: (req, file, cb) => {
-        // 허용할 파일 타입
-        const allowedTypes = /jpeg|jpg|png|gif|webp|pdf|doc|docx|txt|zip|mp4|mov/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (extname && mimetype) {
-            cb(null, true);
-        } else {
-            cb(new Error('지원하지 않는 파일 형식입니다'));
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIMETYPES.has(file.mimetype)) {
+            return cb(new Error('지원하지 않는 파일 형식입니다. (허용: 이미지, PDF, TXT)'));
         }
+        cb(null, true);
     }
 });
 

@@ -5,6 +5,8 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const cors = require('cors');
 const compression = require('compression');
+const helmet = require('helmet');
+const crypto = require('crypto');
 const path = require('path');
 const pool = require('./db');
 const { initSchema } = require('./schema');
@@ -88,6 +90,22 @@ function corsOriginHandler(origin, callback) {
     return callback(null, allowedOrigins.includes(origin));
 }
 
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "wss:", "ws:"],
+            frameSrc: ["'none'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: isProduction ? [] : null,
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -98,7 +116,7 @@ app.use(cors({
 
 app.use(session({
     store: new pgSession({ pool, tableName: 'sessions' }),
-    secret: process.env.SESSION_SECRET || (isProduction ? undefined : 'path-secret-key-dev'),
+    secret: process.env.SESSION_SECRET || (isProduction ? undefined : crypto.randomBytes(32).toString('hex')),
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -109,6 +127,45 @@ app.use(session({
         domain: process.env.SESSION_COOKIE_DOMAIN || undefined
     }
 }));
+
+// CSRF 보호: 상태 변경 요청(POST/PUT/DELETE)에 대해 Origin/Referer 헤더 검사
+app.use((req, res, next) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    // API가 아닌 경로는 건너뜀
+    if (!req.path.startsWith('/api/')) return next();
+
+    const origin = req.headers['origin'];
+    const referer = req.headers['referer'];
+    const host = req.get('host');
+
+    // 같은 호스트 또는 허가된 Origin이면 통과
+    if (origin) {
+        try {
+            const originHost = new URL(origin).host;
+            if (originHost === host || allowedOrigins.some(o => new URL(o).host === originHost)) {
+                return next();
+            }
+        } catch (_) {}
+        // 개발 환경에서는 localhost 허용
+        if (!isProduction) return next();
+        return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
+    }
+
+    if (referer) {
+        try {
+            const refHost = new URL(referer).host;
+            if (refHost === host || allowedOrigins.some(o => new URL(o).host === refHost)) {
+                return next();
+            }
+        } catch (_) {}
+        if (!isProduction) return next();
+        return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
+    }
+
+    // Origin/Referer 없는 요청: 개발에서는 허용, 프로덕션에서는 차단
+    if (!isProduction) return next();
+    return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
+});
 
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, service: 'path-api' });
@@ -139,6 +196,10 @@ app.use('/uploads/profiles/:filename', (req, res) => {
 app.use('/uploads/study-proofs/:filename', (req, res) => {
     res.redirect(`/api/study/proof-image/${req.params.filename}`);
 });
+app.use('/uploads/community', express.static(path.join(projectRoot, 'uploads', 'community'), {
+    maxAge: '30d',
+    etag: true,
+}));
 
 const staticOptions = {
     maxAge: '1d',

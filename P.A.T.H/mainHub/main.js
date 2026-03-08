@@ -1612,11 +1612,11 @@ async function renderShopContent(tab) {
                     btnDiv.style.cssText = 'font-size:10px;color:var(--accent-gold);letter-spacing:1px;';
                     btnDiv.innerHTML = '✓ 장착 중';
                 } else if (isOwned) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="equipSkin('${skin.id}')">장착</button>`;
+                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="equipSkin('${esc(skin.id)}')">장착</button>`;
                 } else if (skin.price === 0) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', 0)">획득</button>`;
+                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${esc(skin.id)}', 0)">획득</button>`;
                 } else {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', ${skin.price})">${skin.price.toLocaleString()}G 구매</button>`;
+                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${esc(skin.id)}', ${parseInt(skin.price, 10) || 0})">${skin.price.toLocaleString()}G 구매</button>`;
                 }
                 card.appendChild(btnDiv);
 
