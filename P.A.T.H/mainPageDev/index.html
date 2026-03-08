@@ -145,14 +145,21 @@ function toggleTheme() {
 
             <!-- Timer Setup (Visible initially) -->
             <div id="setup-area" class="setup-group">
-                <div class="input-unit">
-                    <input type="number" id="input-hr" class="time-input" value="01" placeholder="00">
-                    <span class="unit-label">시간</span>
+                <div class="time-presets" id="time-presets">
+                    <button class="time-preset-btn" type="button" data-hr="0" data-min="30">30분</button>
+                    <button class="time-preset-btn active" type="button" data-hr="1" data-min="20">80분</button>
+                    <button class="time-preset-btn" type="button" data-hr="1" data-min="40">100분</button>
                 </div>
-                <div class="input-sep">:</div>
-                <div class="input-unit">
-                    <input type="number" id="input-min" class="time-input" value="40" placeholder="40">
-                    <span class="unit-label">분</span>
+                <div class="time-inputs-row">
+                    <div class="input-unit">
+                        <input type="number" id="input-hr" class="time-input" value="01" placeholder="00">
+                        <span class="unit-label">시간</span>
+                    </div>
+                    <div class="input-sep">:</div>
+                    <div class="input-unit">
+                        <input type="number" id="input-min" class="time-input" value="20" placeholder="20">
+                        <span class="unit-label">분</span>
+                    </div>
                 </div>
             </div>
 

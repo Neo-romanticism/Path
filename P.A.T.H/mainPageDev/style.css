@@ -708,12 +708,51 @@ body:not(.light) .plan-toggle-btn.open {
 
 .setup-group {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
+    gap: 12px;
     margin-top: 4px;
     width: 100%;
     transition: opacity 0.28s ease, transform 0.28s ease;
+}
+
+.time-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.time-preset-btn {
+    border: 1px solid var(--line-color);
+    border-radius: 999px;
+    min-height: 34px;
+    padding: 0 16px;
+    background: var(--surface-soft);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.time-preset-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.time-preset-btn.active {
+    background: var(--accent-blue);
+    color: #fff;
+    border-color: var(--accent-blue);
+    box-shadow: 0 2px 8px rgba(49, 130, 246, 0.3);
+}
+
+.time-inputs-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
 
 .input-unit {
@@ -1590,6 +1629,12 @@ body.active .tab-panel {
 
     .cam-video {
         height: 104px;
+    }
+
+    .time-preset-btn {
+        font-size: 12px;
+        padding: 0 12px;
+        min-height: 30px;
     }
 }
 

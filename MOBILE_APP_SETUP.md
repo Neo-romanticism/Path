@@ -131,3 +131,19 @@ npm run cap:ios
 - 푸시 알림 연동(`@capacitor/push-notifications`)
 - 앱 딥링크/유니버설 링크 연결
 - 버전 강제 업데이트 체크 API 추가
+
+## 6) GitHub Actions로 자동 빌드
+로컬 환경이 불안정할 때는 CI로 APK/AAB를 생성할 수 있습니다.
+
+1. GitHub 저장소의 Actions 탭으로 이동
+2. `Android Build` 워크플로 실행 (`Run workflow`)
+3. 완료 후 Artifacts에서 아래 파일 다운로드
+  - `app-debug-apk` -> `app-debug.apk`
+  - `app-release-aab` -> `app-release.aab`
+
+워크플로 파일:
+- `.github/workflows/android-build.yml`
+
+참고:
+- 현재 AAB는 기본 release 빌드 산출물입니다.
+- Play 스토어 정식 배포 전에는 서명/버전코드 정책을 최종 점검하세요.

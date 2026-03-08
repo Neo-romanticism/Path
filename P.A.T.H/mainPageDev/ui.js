@@ -139,6 +139,24 @@ const UI = {
             }
         });
 
+        document.getElementById('time-presets')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.time-preset-btn');
+            if (!btn) return;
+            const hr = parseInt(btn.dataset.hr, 10) || 0;
+            const min = parseInt(btn.dataset.min, 10) || 0;
+            this.elements.inputHr.value = String(hr).padStart(2, '0');
+            this.elements.inputMin.value = String(min).padStart(2, '0');
+            this.syncInputToDisplay();
+            document.querySelectorAll('.time-preset-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+
+        [this.elements.inputHr, this.elements.inputMin].forEach(el => {
+            el?.addEventListener('input', () => {
+                document.querySelectorAll('.time-preset-btn').forEach(b => b.classList.remove('active'));
+            });
+        });
+
         document.getElementById('plan-toggle-btn')?.addEventListener('click', () => {
             const section = document.getElementById('plan-section');
             const btn = document.getElementById('plan-toggle-btn');
@@ -167,16 +185,18 @@ const UI = {
         });
 
         this.elements.enterBtn.onclick = async () => {
-            const hr  = parseInt(this.elements.inputHr.value)  || 0;
-            const min = parseInt(this.elements.inputMin.value) || 0;
+            let hr  = parseInt(this.elements.inputHr.value)  || 0;
+            let min = parseInt(this.elements.inputMin.value) || 0;
+            if (this.currentMode === 'timer' && hr === 0 && min === 0) {
+                hr = 1; min = 20;
+                this.elements.inputHr.value = '01';
+                this.elements.inputMin.value = '20';
+                this.syncInputToDisplay();
+            }
             const subjectId = parseInt(this.elements.subjectSelect.value, 10) || 0;
 
             if (!subjectId) {
                 alert('공부 시작 전 과목을 선택하거나 추가하세요.');
-                return;
-            }
-            if (this.currentMode === 'timer' && hr === 0 && min === 0) {
-                alert('목표 시간을 설정하십시오.');
                 return;
             }
 
