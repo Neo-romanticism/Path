@@ -16,6 +16,8 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    env:
+      ICON_SOURCE: IMG_0188.png
 
     steps:
       - name: Checkout
@@ -45,6 +47,40 @@ jobs:
             npx cap add android
           fi
           npx cap sync android
+
+      - name: Generate Android app icons
+        run: |
+          python -m pip install --upgrade pip pillow
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps
+
+          src = Path("${{ env.ICON_SOURCE }}")
+          if not src.exists():
+              raise SystemExit(f"ICON_SOURCE not found: {src}")
+
+          base = Image.open(src).convert("RGBA")
+          # Keep center-crop behavior so non-square images still produce full launcher icons.
+          base = ImageOps.fit(base, (1024, 1024), method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+
+          targets = {
+              "mdpi": 48,
+              "hdpi": 72,
+              "xhdpi": 96,
+              "xxhdpi": 144,
+              "xxxhdpi": 192,
+          }
+
+          for density, size in targets.items():
+              out_dir = Path(f"android/app/src/main/res/mipmap-{density}")
+              out_dir.mkdir(parents=True, exist_ok=True)
+              icon = base.resize((size, size), Image.Resampling.LANCZOS)
+              icon.save(out_dir / "ic_launcher.png")
+              icon.save(out_dir / "ic_launcher_round.png")
+              icon.save(out_dir / "ic_launcher_foreground.png")
+
+          print("Generated launcher icons from", src)
+          PY
 
       - name: Build debug APK
         run: |

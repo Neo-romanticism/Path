@@ -2790,4 +2790,15 @@ window.openChat = openChat;
 window.handleFileSelect = handleFileSelect;
 window.cancelFileUpload = cancelFileUpload;
 window.sendMessage = sendMessage;
+window.focusUser = focusUser;
+window.openEstate = openEstate;
+window.startScoreRetry = startScoreRetry;
+window.uploadScore = uploadScore;
+window.compareGpa = compareGpa;
+window.uploadGpa = uploadGpa;
+window.saveStatusMsg = saveStatusMsg;
+window.buySkin = buySkin;
+window.equipSkin = equipSkin;
+window.buyApplicationFee = buyApplicationFee;
+window.viewUniversityEstate = viewUniversityEstate;
 
