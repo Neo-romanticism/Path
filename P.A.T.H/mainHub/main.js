@@ -2673,6 +2673,12 @@ function bindTapAction(el, handler) {
     let lastTapTs = 0;
 
     el.addEventListener('click', (e) => {
+        // Ignore synthetic click that follows touch pointerup handling.
+        if (Date.now() - lastTapTs < 350) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
         e.preventDefault();
         e.stopPropagation();
         handler(e);
@@ -2689,6 +2695,74 @@ function bindTapAction(el, handler) {
     }, { passive: false });
 
     el.dataset.tapBound = '1';
+}
+
+function bindMainHubSettingsPanelControls() {
+    const settingsBtn = document.getElementById('tutorial-btn-settings');
+    const settingsPanel = document.getElementById('panel-settings');
+    if (!settingsBtn || !settingsPanel) return;
+
+    if (settingsBtn.dataset.settingsTapBound !== '1') {
+        settingsBtn.removeAttribute('onclick');
+        bindTapAction(settingsBtn, () => togglePanel('panel-settings'));
+        settingsBtn.dataset.settingsTapBound = '1';
+    }
+
+    const closeBtn = settingsPanel.querySelector('.close-btn');
+    if (closeBtn && closeBtn.dataset.settingsTapBound !== '1') {
+        closeBtn.removeAttribute('onclick');
+        bindTapAction(closeBtn, () => togglePanel('panel-settings'));
+        closeBtn.dataset.settingsTapBound = '1';
+    }
+
+    const logoutBtn = settingsPanel.querySelector('.settings-action-btn');
+    if (logoutBtn && logoutBtn.dataset.settingsTapBound !== '1') {
+        logoutBtn.removeAttribute('onclick');
+        bindTapAction(logoutBtn, () => doLogout());
+        logoutBtn.dataset.settingsTapBound = '1';
+    }
+
+    const themeToggle = document.getElementById('theme-toggle');
+    if (themeToggle && themeToggle.dataset.changeBound !== '1') {
+        themeToggle.removeAttribute('onchange');
+        themeToggle.addEventListener('change', saveUiSettings);
+        themeToggle.dataset.changeBound = '1';
+    }
+
+    const minimapToggle = document.getElementById('minimap-toggle');
+    if (minimapToggle && minimapToggle.dataset.changeBound !== '1') {
+        minimapToggle.removeAttribute('onchange');
+        minimapToggle.addEventListener('change', saveUiSettings);
+        minimapToggle.dataset.changeBound = '1';
+    }
+
+    const keyboardToggle = document.getElementById('keyboard-guide-toggle');
+    if (keyboardToggle && keyboardToggle.dataset.changeBound !== '1') {
+        keyboardToggle.removeAttribute('onchange');
+        keyboardToggle.addEventListener('change', saveUiSettings);
+        keyboardToggle.dataset.changeBound = '1';
+    }
+
+    const coordinatesToggle = document.getElementById('coordinates-toggle');
+    if (coordinatesToggle && coordinatesToggle.dataset.changeBound !== '1') {
+        coordinatesToggle.removeAttribute('onchange');
+        coordinatesToggle.addEventListener('change', saveUiSettings);
+        coordinatesToggle.dataset.changeBound = '1';
+    }
+
+    const camEnabledToggle = document.getElementById('cam-enabled-toggle');
+    if (camEnabledToggle && camEnabledToggle.dataset.changeBound !== '1') {
+        camEnabledToggle.removeAttribute('onchange');
+        camEnabledToggle.addEventListener('change', saveCamSettings);
+        camEnabledToggle.dataset.changeBound = '1';
+    }
+
+    const camVisibilitySelect = document.getElementById('cam-visibility-select');
+    if (camVisibilitySelect && camVisibilitySelect.dataset.changeBound !== '1') {
+        camVisibilitySelect.removeAttribute('onchange');
+        camVisibilitySelect.addEventListener('change', saveCamSettings);
+        camVisibilitySelect.dataset.changeBound = '1';
+    }
 }
 
 function bindMainHubPrimaryButtons() {
@@ -2727,9 +2801,11 @@ function bindMainHubPrimaryButtons() {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         bindMainHubPrimaryButtons();
+        bindMainHubSettingsPanelControls();
     }, { once: true });
 } else {
     bindMainHubPrimaryButtons();
+    bindMainHubSettingsPanelControls();
 }
 
 document.addEventListener('click', (e) => {
