@@ -115,6 +115,53 @@ function makeOAuthState() {
     return crypto.randomBytes(24).toString('hex');
 }
 
+function appendQueryParam(url, key, value) {
+    if (!url) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
+function resolveOauthPlatform(req) {
+    const raw = String(req.query.platform || '').toLowerCase();
+    return raw === 'app' ? 'app' : 'web';
+}
+
+function getRequestOrigin(req) {
+    const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+    const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+    const proto = forwardedProto || req.protocol;
+    const host = forwardedHost || req.get('host');
+    if (!proto || !host) return null;
+    return `${proto}://${host}`;
+}
+
+function resolveGoogleRedirectUri(req, platform) {
+    if (platform === 'app' && process.env.GOOGLE_REDIRECT_URI_APP) {
+        return process.env.GOOGLE_REDIRECT_URI_APP;
+    }
+
+    if (platform === 'app') {
+        const origin = getRequestOrigin(req);
+        if (origin) return `${origin}/api/auth/google/callback`;
+    }
+
+    return process.env.GOOGLE_REDIRECT_URI;
+}
+
+function resolveGoogleSuccessRedirect(platform) {
+    if (platform === 'app') {
+        return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT_APP || '/mainHub/';
+    }
+    return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT || '/mainHub/';
+}
+
+function resolveGoogleErrorRedirect(platform) {
+    if (platform === 'app') {
+        return process.env.GOOGLE_AUTH_ERROR_REDIRECT_APP || '/login/?error=google_auth';
+    }
+    return process.env.GOOGLE_AUTH_ERROR_REDIRECT || '/login/?error=google_auth';
+}
+
 function slugifyNickname(source) {
     const safe = (source || 'user').toLowerCase().replace(/[^a-z0-9가-힣_]/g, '');
     return safe.slice(0, 18) || 'user';
@@ -402,13 +449,19 @@ router.post('/status-message', requireAuth, async (req, res) => {
 
 router.get('/google', (req, res) => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const platform = resolveOauthPlatform(req);
+    const redirectUri = resolveGoogleRedirectUri(req, platform);
 
     if (!clientId || !redirectUri) {
         return res.status(500).json({ error: 'Google OAuth 설정이 누락되었습니다.' });
     }
 
     const state = makeOAuthState();
+    req.session.googleOAuth = {
+        state,
+        platform
+    };
+    // Backward compatibility for any legacy reads.
     req.session.googleOAuthState = state;
 
     const params = new URLSearchParams({
@@ -425,21 +478,28 @@ router.get('/google', (req, res) => {
 
 router.get('/google/callback', async (req, res) => {
     const { code, state } = req.query;
-    const expectedState = req.session.googleOAuthState;
+    const oauthContext = req.session.googleOAuth || {};
+    const platform = oauthContext.platform === 'app' ? 'app' : 'web';
+    const expectedState = oauthContext.state || req.session.googleOAuthState;
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-    const successRedirect = process.env.GOOGLE_AUTH_SUCCESS_REDIRECT || '/mainHub/';
-    const errorRedirect = process.env.GOOGLE_AUTH_ERROR_REDIRECT || '/login/?error=google_auth';
+    const redirectUri = resolveGoogleRedirectUri(req, platform);
+    const successRedirect = resolveGoogleSuccessRedirect(platform);
+    const errorRedirect = resolveGoogleErrorRedirect(platform);
+
+    function clearOauthState() {
+        req.session.googleOAuth = null;
+        req.session.googleOAuthState = null;
+    }
 
     if (!code || !state || !expectedState || state !== expectedState) {
-        req.session.googleOAuthState = null;
+        clearOauthState();
         return res.redirect(errorRedirect);
     }
 
     if (!clientId || !clientSecret || !redirectUri) {
-        req.session.googleOAuthState = null;
-        return res.redirect(`${errorRedirect}&reason=missing_config`);
+        clearOauthState();
+        return res.redirect(appendQueryParam(errorRedirect, 'reason', 'missing_config'));
     }
 
     try {
@@ -492,7 +552,7 @@ router.get('/google/callback', async (req, res) => {
                 [googleId, email, user.id]
             );
             
-            req.session.googleOAuthState = null;
+            clearOauthState();
             req.session.userId = user.id;
             return res.redirect(successRedirect);
         } else {
@@ -510,15 +570,18 @@ router.get('/google/callback', async (req, res) => {
             );
             user = created.rows[0];
             
-            req.session.googleOAuthState = null;
+            clearOauthState();
             req.session.userId = user.id;
-            // 프로필 설정 페이지로 리다이렉트
+            // 신규 사용자는 앱/웹 환경에 맞는 프로필 설정 화면으로 이동
+            if (platform === 'app' && process.env.GOOGLE_AUTH_SETUP_REDIRECT_APP) {
+                return res.redirect(process.env.GOOGLE_AUTH_SETUP_REDIRECT_APP);
+            }
             return res.redirect('/setup-profile/');
         }
     } catch (err) {
         console.error('google callback error:', err);
-        req.session.googleOAuthState = null;
-        return res.redirect(`${errorRedirect}&reason=oauth_failed`);
+        clearOauthState();
+        return res.redirect(appendQueryParam(errorRedirect, 'reason', 'oauth_failed'));
     }
 });
 

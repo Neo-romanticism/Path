@@ -350,6 +350,13 @@ function toggleTheme() {
             bindTap(document.getElementById('tab-login'), function () { switchTab('login'); });
             bindTap(document.getElementById('tab-register'), function () { switchTab('register'); });
 
+            // In native app (Capacitor), mark OAuth requests so server uses app-safe redirects.
+            if (isNativeApp()) {
+                document.querySelectorAll('a.btn-oauth').forEach(function (link) {
+                    link.href = '/api/auth/google?platform=app';
+                });
+            }
+
             const loginForm = document.getElementById('form-login');
             const registerForm = document.getElementById('form-register');
             if (loginForm) loginForm.addEventListener('submit', doLogin);
@@ -371,6 +378,21 @@ function toggleTheme() {
                     window.location.href = link.href;
                 }, { passive: false });
             });
+        }
+
+        function isNativeApp() {
+            const cap = window.Capacitor;
+            if (!cap) return false;
+
+            try {
+                if (typeof cap.isNativePlatform === 'function') return !!cap.isNativePlatform();
+                if (typeof cap.getPlatform === 'function') {
+                    const platform = cap.getPlatform();
+                    return platform === 'ios' || platform === 'android';
+                }
+            } catch (_) {}
+
+            return false;
         }
 
         if (document.readyState === 'loading') {
@@ -426,6 +448,15 @@ function toggleTheme() {
                 navigateTo('/mainHub/');
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
+
+        // Keep handlers reachable from global scope across WebView/browser differences.
+        window.toggleTheme = toggleTheme;
+        window.switchTab = switchTab;
+        window.toggleNsu = toggleNsu;
+        window.togglePrivacy = togglePrivacy;
+        window.checkSubmit = checkSubmit;
+        window.doLogin = doLogin;
+        window.doRegister = doRegister;
     </script>
 </body>
 </html>
