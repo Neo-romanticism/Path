@@ -170,17 +170,17 @@ function toggleTheme() {
     if (btn) btn.textContent = isLight ? '🌙' : '☀️';
 }
 </script>
-<button id="theme-btn" class="theme-toggle-btn" onclick="toggleTheme()">☀️</button>
+<button id="theme-btn" class="theme-toggle-btn">☀️</button>
     <div class="logo">P.A.T.H</div>
     <div class="tagline">수험생을 위한 극한의 공부 경쟁</div>
 
     <div class="card">
         <div class="tabs">
-            <div class="tab active" id="tab-login" onclick="switchTab('login')">LOGIN</div>
-            <div class="tab" id="tab-register" onclick="switchTab('register')">REGISTER</div>
+            <div class="tab active" id="tab-login">LOGIN</div>
+            <div class="tab" id="tab-register">REGISTER</div>
         </div>
 
-        <form class="form active" id="form-login" onsubmit="doLogin(event)">
+        <form class="form active" id="form-login">
             <div class="field">
                 <label>닉네임</label>
                 <input type="text" id="login-nick" placeholder="닉네임 입력" autocomplete="username">
@@ -204,7 +204,7 @@ function toggleTheme() {
             </a>
         </form>
 
-        <form class="form" id="form-register" onsubmit="doRegister(event)">
+        <form class="form" id="form-register">
             <div class="field">
                 <label>실명</label>
                 <input type="text" id="reg-name" placeholder="실명 입력" autocomplete="name">
@@ -225,7 +225,7 @@ function toggleTheme() {
             </div>
 
             <div class="check-row">
-                <input type="checkbox" id="reg-nsu" onchange="toggleNsu()">
+                <input type="checkbox" id="reg-nsu">
                 <label for="reg-nsu">N수생입니다</label>
             </div>
 
@@ -239,9 +239,9 @@ function toggleTheme() {
             </div>
 
             <div class="check-row">
-                <input type="checkbox" id="reg-privacy" onchange="checkSubmit()">
+                <input type="checkbox" id="reg-privacy">
                 <label for="reg-privacy">개인정보 수집·이용 동의</label>
-                <a href="#" onclick="togglePrivacy(event)">보기</a>
+                <a href="#" id="privacy-toggle">보기</a>
             </div>
 
             <div class="privacy-box" id="privacy-box">
@@ -330,6 +330,54 @@ function toggleTheme() {
         }
 
         loadUniversityOptions();
+
+        function bindTap(el, handler) {
+            if (!el) return;
+            let lastTapTs = 0;
+            el.addEventListener('click', handler);
+            el.addEventListener('pointerup', function (e) {
+                if (e.pointerType !== 'touch') return;
+                const now = Date.now();
+                if (now - lastTapTs < 250) return;
+                lastTapTs = now;
+                e.preventDefault();
+                handler(e);
+            }, { passive: false });
+        }
+
+        function initBindings() {
+            bindTap(document.getElementById('theme-btn'), toggleTheme);
+            bindTap(document.getElementById('tab-login'), function () { switchTab('login'); });
+            bindTap(document.getElementById('tab-register'), function () { switchTab('register'); });
+
+            const loginForm = document.getElementById('form-login');
+            const registerForm = document.getElementById('form-register');
+            if (loginForm) loginForm.addEventListener('submit', doLogin);
+            if (registerForm) registerForm.addEventListener('submit', doRegister);
+
+            const nsuCheckbox = document.getElementById('reg-nsu');
+            const privacyCheckbox = document.getElementById('reg-privacy');
+            if (nsuCheckbox) nsuCheckbox.addEventListener('change', toggleNsu);
+            if (privacyCheckbox) privacyCheckbox.addEventListener('change', checkSubmit);
+
+            const privacyToggle = document.getElementById('privacy-toggle');
+            if (privacyToggle) privacyToggle.addEventListener('click', togglePrivacy);
+
+            // Fallback for WebViews where touch does not dispatch click on anchors.
+            document.querySelectorAll('a.btn-oauth').forEach(function (link) {
+                link.addEventListener('pointerup', function (e) {
+                    if (e.pointerType !== 'touch') return;
+                    e.preventDefault();
+                    window.location.href = link.href;
+                }, { passive: false });
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initBindings, { once: true });
+        } else {
+            initBindings();
+        }
 
         async function doLogin(e) {
             e.preventDefault();
