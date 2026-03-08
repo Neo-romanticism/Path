@@ -962,9 +962,15 @@ const WorldScene = {
         const labelCanvas = this._makeLabel(user, isMe);
         const labelTex = new THREE.CanvasTexture(labelCanvas);
         const labelGeo = new THREE.PlaneGeometry(120, 38);
-        const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false });
+        const labelMat = new THREE.MeshBasicMaterial({
+            map: labelTex,
+            transparent: true,
+            depthWrite: false,
+            depthTest: false
+        });
         const label = new THREE.Mesh(labelGeo, labelMat);
         label.position.y = isMe ? -58 : -36;
+        label.renderOrder = 220;
         group.add(label);
 
         let bubbleMesh = null;
@@ -972,9 +978,15 @@ const WorldScene = {
             const bubbleCanvas = this._makeBubble(user.status_message, isMe);
             const bubbleTex = new THREE.CanvasTexture(bubbleCanvas);
             const bubbleGeo = new THREE.PlaneGeometry(isMe ? 145 : 110, isMe ? 52 : 42);
-            const bubbleMat = new THREE.MeshBasicMaterial({ map: bubbleTex, transparent: true, depthWrite: false });
+            const bubbleMat = new THREE.MeshBasicMaterial({
+                map: bubbleTex,
+                transparent: true,
+                depthWrite: false,
+                depthTest: false
+            });
             bubbleMesh = new THREE.Mesh(bubbleGeo, bubbleMat);
             bubbleMesh.position.y = isMe ? 205 : 135;
+            bubbleMesh.renderOrder = 230;
             group.add(bubbleMesh);
         }
 
@@ -1034,9 +1046,15 @@ const WorldScene = {
             const bubbleCanvas = this._makeBubble(msg, b.isMe);
             const bubbleTex = new THREE.CanvasTexture(bubbleCanvas);
             const bubbleGeo = new THREE.PlaneGeometry(b.isMe ? 145 : 110, b.isMe ? 52 : 42);
-            const bubbleMat = new THREE.MeshBasicMaterial({ map: bubbleTex, transparent: true, depthWrite: false });
+            const bubbleMat = new THREE.MeshBasicMaterial({
+                map: bubbleTex,
+                transparent: true,
+                depthWrite: false,
+                depthTest: false
+            });
             const bubbleMesh = new THREE.Mesh(bubbleGeo, bubbleMat);
             bubbleMesh.position.y = b.isMe ? 205 : 135;
+            bubbleMesh.renderOrder = 230;
             grp.add(bubbleMesh);
             grp.userData.bubbleMesh = bubbleMesh;
         }

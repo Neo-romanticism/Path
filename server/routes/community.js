@@ -57,6 +57,25 @@ function normalizeCommunityNickname(raw) {
     return trimmed;
 }
 
+function normalizeOptionalHttpUrl(raw, maxLength = 1000) {
+    if (raw === undefined || raw === null) return '';
+    if (typeof raw !== 'string') return null;
+
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (trimmed.length > maxLength) return null;
+
+    let parsed;
+    try {
+        parsed = new URL(trimmed);
+    } catch (_) {
+        return null;
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+}
+
 /* ── IP prefix helper ───────────────────────────────────────── */
 function getIpPrefix(req) {
     const raw = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
@@ -104,7 +123,9 @@ router.get('/posts', async (req, res) => {
             pool.query(`SELECT COUNT(*) FROM community_posts ${where}`, params),
             pool.query(
                 `SELECT id, category, title, nickname, ip_prefix,
-                        views, likes, comments_count, created_at
+                        views, likes, comments_count, created_at,
+                        image_url,
+                        (image_url IS NOT NULL AND image_url <> '') AS has_image
                  FROM community_posts ${where}
                  ORDER BY created_at DESC
                  LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -136,7 +157,9 @@ router.get('/posts/hot', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, category, title, nickname, ip_prefix,
-                    views, likes, comments_count, created_at
+                    views, likes, comments_count, created_at,
+                    image_url,
+                    (image_url IS NOT NULL AND image_url <> '') AS has_image
              FROM community_posts ${where}
              ORDER BY likes DESC, created_at DESC
              LIMIT 8`,
@@ -158,7 +181,7 @@ router.get('/posts/:id', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, category, title, body, nickname, ip_prefix,
+            `SELECT id, category, title, body, image_url, link_url, nickname, ip_prefix,
                     views, likes, comments_count, created_at
              FROM community_posts WHERE id = $1`,
             [id]
@@ -175,7 +198,8 @@ router.get('/posts/:id', async (req, res) => {
 /* POST /posts — 글 작성 (비로그인 허용)                         */
 /* ════════════════════════════════════════════════════════════ */
 router.post('/posts', async (req, res) => {
-    const { category, title, body = '', anonymous_nickname } = req.body;
+    const { category, title, body = '', anonymous_nickname, image_url, link_url } = req.body;
+    const bodyText = typeof body === 'string' ? body : '';
 
     if (!title || !title.trim()) {
         return res.status(400).json({ error: '제목을 입력해 주세요.' });
@@ -186,8 +210,18 @@ router.post('/posts', async (req, res) => {
     if (!WRITABLE_CATS.has(category)) {
         return res.status(400).json({ error: '카테고리가 올바르지 않습니다.' });
     }
-    if (body.length > 5000) {
+    if (bodyText.length > 5000) {
         return res.status(400).json({ error: '내용은 5,000자 이내로 입력해 주세요.' });
+    }
+
+    const normalizedImageUrl = normalizeOptionalHttpUrl(image_url);
+    if (normalizedImageUrl === null) {
+        return res.status(400).json({ error: '이미지 주소는 http/https 형식으로 입력해 주세요.' });
+    }
+
+    const normalizedLinkUrl = normalizeOptionalHttpUrl(link_url);
+    if (normalizedLinkUrl === null) {
+        return res.status(400).json({ error: '링크 주소는 http/https 형식으로 입력해 주세요.' });
     }
 
     const nickname = normalizeCommunityNickname(anonymous_nickname);
@@ -205,10 +239,21 @@ router.post('/posts', async (req, res) => {
         }
 
         const result = await pool.query(
-            `INSERT INTO community_posts (user_id, category, title, body, ip_prefix, nickname)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, category, title, nickname, ip_prefix, views, likes, comments_count, created_at`,
-            [userId, category, title.trim(), body.trim(), ipPrefix, nickname]
+            `INSERT INTO community_posts (user_id, category, title, body, image_url, link_url, ip_prefix, nickname)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id, category, title, nickname, ip_prefix, image_url, link_url,
+                       views, likes, comments_count, created_at,
+                       (image_url IS NOT NULL AND image_url <> '') AS has_image`,
+            [
+                userId,
+                category,
+                title.trim(),
+                bodyText.trim(),
+                normalizedImageUrl || null,
+                normalizedLinkUrl || null,
+                ipPrefix,
+                nickname,
+            ]
         );
         res.status(201).json({ post: result.rows[0] });
     } catch (err) {

@@ -27,6 +27,7 @@ export const CATEGORY_META = {
  * @param {number}  post.views
  * @param {string}  post.createdAt    - ISO timestamp
  * @param {boolean} post.isHot        - true if likes ≥ HOT_THRESHOLD
+ * @param {boolean} post.hasImage     - true if image_url exists
  * @returns {HTMLElement}
  */
 export function PostListItem(post) {
@@ -50,6 +51,13 @@ export function PostListItem(post) {
       ${numCell}
       <div class="post-row__top">
         <span class="post-row__cat ${cat.cls}">${cat.label}</span>
+        ${post.hasImage ? `<span class="post-row__media-icon" aria-label="이미지 포함" title="이미지 포함">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
+            <circle cx="9" cy="10" r="1.5"></circle>
+            <path d="M21 15l-4.5-4.5a1 1 0 0 0-1.4 0L8 17"></path>
+          </svg>
+        </span>` : ''}
         <span class="post-row__title">${escHtml(post.title)}</span>
         ${post.comments > 0 ? `<span class="post-row__cmts" aria-label="댓글 ${post.comments}개">${post.comments}</span>` : ''}
       </div>

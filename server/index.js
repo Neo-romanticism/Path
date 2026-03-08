@@ -57,6 +57,17 @@ function getSiteBaseUrl(req) {
     return (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 }
 
+function safeExternalUrl(value) {
+    if (!value || typeof value !== 'string') return '';
+    try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+        return parsed.toString();
+    } catch (_) {
+        return '';
+    }
+}
+
 app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
@@ -168,7 +179,7 @@ app.get('/community/post/:id', async (req, res) => {
     try {
         const [postResult, commentsResult] = await Promise.all([
             pool.query(
-                `SELECT id, category, title, body, nickname, views, likes, comments_count, created_at
+                `SELECT id, category, title, body, image_url, link_url, nickname, views, likes, comments_count, created_at
                  FROM community_posts
                  WHERE id = $1`,
                 [postId]
@@ -191,6 +202,8 @@ app.get('/community/post/:id', async (req, res) => {
         const comments = commentsResult.rows;
         const baseUrl = getSiteBaseUrl(req);
         const canonical = `${baseUrl}/community/post/${post.id}`;
+        const safeImageUrl = safeExternalUrl(post.image_url);
+        const safeLinkUrl = safeExternalUrl(post.link_url);
         const title = `${post.title} | 입시 커뮤니티 - P.A.T.H`;
         const bodyPreview = (post.body || '').trim().replace(/\s+/g, ' ').slice(0, 150);
         const description = bodyPreview
@@ -268,6 +281,7 @@ app.get('/community/post/:id', async (req, res) => {
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta property="og:url" content="${escapeHtml(canonical)}">
   <meta property="og:site_name" content="P.A.T.H">
+    ${safeImageUrl ? `<meta property="og:image" content="${escapeHtml(safeImageUrl)}">` : ''}
   <meta property="article:published_time" content="${escapeHtml(publishedIso)}">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${escapeHtml(post.title)}">
@@ -281,6 +295,9 @@ app.get('/community/post/:id', async (req, res) => {
     .title{font-size:28px;line-height:1.35;margin:0 0 8px;font-weight:800}
     .chip{display:inline-block;padding:2px 10px;border-radius:999px;background:#e9eef8;font-size:12px;font-weight:700;color:#2e3d5c;margin-right:8px}
     .card{background:#fff;border:1px solid rgba(23,32,56,.1);border-radius:14px;padding:18px 20px;white-space:pre-wrap;word-break:break-word}
+    .thumb{margin:0 0 12px;border:1px solid rgba(23,32,56,.12);border-radius:12px;overflow:hidden;background:#edf2fa}
+    .thumb img{display:block;width:100%;max-height:420px;object-fit:cover}
+    .outlink{display:inline-flex;margin:14px 0 0;font-size:14px;font-weight:600}
     .stats{display:flex;gap:14px;font-size:13px;color:#44526e;margin:16px 0 22px}
         .topnav{margin-bottom:18px}
         .comments{margin-top:28px}
@@ -296,7 +313,9 @@ app.get('/community/post/:id', async (req, res) => {
   <div class="topnav"><a href="/community/">← 커뮤니티 목록으로</a></div>
   <h1 class="title">${escapeHtml(post.title)}</h1>
   <div class="meta"><span class="chip">${escapeHtml(post.category || '전체')}</span>작성자 ${escapeHtml(post.nickname || '익명')} · ${escapeHtml(new Date(post.created_at).toLocaleString('ko-KR'))}</div>
+    ${safeImageUrl ? `<div class="thumb"><img src="${escapeHtml(safeImageUrl)}" alt="첨부 이미지" loading="lazy"></div>` : ''}
   <div class="card">${escapeHtml(post.body || '(내용 없음)')}</div>
+    ${safeLinkUrl ? `<a class="outlink" href="${escapeHtml(safeLinkUrl)}" target="_blank" rel="noopener noreferrer nofollow">🔗 첨부 링크 열기</a>` : ''}
   <div class="stats"><span>조회 ${post.views || 0}</span><span>추천 ${post.likes || 0}</span><span>댓글 ${post.comments_count || 0}</span></div>
     <section class="comments" aria-label="댓글 프리뷰">
         <h2>댓글 프리뷰</h2>

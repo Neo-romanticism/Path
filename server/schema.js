@@ -247,6 +247,8 @@ async function initSchema() {
                 category       VARCHAR(20)  NOT NULL DEFAULT '정보',
                 title          VARCHAR(200) NOT NULL,
                 body           TEXT         NOT NULL DEFAULT '',
+                image_url      TEXT,
+                link_url       TEXT,
                 ip_prefix      VARCHAR(20),
                 nickname       VARCHAR(50),
                 views          INTEGER NOT NULL DEFAULT 0,
@@ -262,6 +264,11 @@ async function initSchema() {
         `);
 
         await client.query(`
+            ALTER TABLE community_posts
+                ADD COLUMN IF NOT EXISTS image_url TEXT;
+            ALTER TABLE community_posts
+                ADD COLUMN IF NOT EXISTS link_url TEXT;
+
             ALTER TABLE community_posts
                 DROP CONSTRAINT IF EXISTS community_posts_category_check;
             ALTER TABLE community_posts

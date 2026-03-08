@@ -476,6 +476,18 @@ body.light .theme-icon--moon { display: block; }
   font-weight: 700;
 }
 
+.post-row__media-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
 .post-row__title {
   font-size: 13.5px;
   font-weight: 600;

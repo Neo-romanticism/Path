@@ -256,6 +256,7 @@ async function loadNextPage() {
                 id:           post.id,
                 displayNum,
                 isHot,
+              hasImage:     Boolean(post.has_image || post.image_url),
                 category:     post.category,
                 title:        post.title,
                 nickname:     post.nickname ?? '익명',
@@ -353,6 +354,8 @@ async function openPostDetail(postId) {
 function renderDetailBody(container, { post, postId, comments }) {
     const cat     = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
     const canModerate = currentUserIsAdmin();
+    const safeImageUrl = safeHttpUrl(post.image_url);
+    const safeLinkUrl = safeHttpUrl(post.link_url);
     const cmtHtml = comments.map(c => `
       <li class="cmt-item" data-comment-id="${c.id}">
         <div class="cmt-meta">
@@ -376,7 +379,9 @@ function renderDetailBody(container, { post, postId, comments }) {
         <span class="detail-stat">조회 ${post.views}</span>
         <span class="detail-stat" style="color:var(--accent-red)">추천 ${post.likes}</span>
       </div>
+      ${safeImageUrl ? `<div class="detail-image-wrap"><img class="detail-image" src="${escHtml(safeImageUrl)}" alt="첨부 이미지" loading="lazy"></div>` : ''}
       ${post.body ? `<div class="detail-body-text">${escHtml(post.body)}</div>` : ''}
+      ${safeLinkUrl ? `<a class="detail-link" href="${escHtml(safeLinkUrl)}" target="_blank" rel="noopener noreferrer nofollow">🔗 첨부 링크 열기</a>` : ''}
       <div class="detail-actions">
         <button class="detail-like-btn" id="detail-like-btn">
           <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
@@ -630,6 +635,14 @@ function showWriteModal() {
             <textarea id="wt-body" class="write-textarea" placeholder="자유롭게 작성해 보세요 (최대 5,000자)" maxlength="5000"></textarea>
             <span class="write-char-count" id="wt-char">0 / 5,000</span>
           </div>
+          <div class="write-field">
+            <label class="write-label" for="wt-image-url">이미지 주소 (선택)</label>
+            <input id="wt-image-url" class="write-input" type="url" placeholder="https://example.com/image.jpg" maxlength="1000" autocomplete="off" inputmode="url">
+          </div>
+          <div class="write-field">
+            <label class="write-label" for="wt-link-url">링크 주소 (선택)</label>
+            <input id="wt-link-url" class="write-input" type="url" placeholder="https://example.com" maxlength="1000" autocomplete="off" inputmode="url">
+          </div>
         </div>
         <div class="write-modal-footer">
           <button class="write-cancel-btn">취소</button>
@@ -673,6 +686,8 @@ function showWriteModal() {
       const anonymousNickname = backdrop.querySelector('#wt-anon-nick').value.trim();
         const title = backdrop.querySelector('#wt-title').value.trim();
         const body  = textarea.value.trim();
+        const imageUrl = backdrop.querySelector('#wt-image-url').value.trim();
+        const linkUrl = backdrop.querySelector('#wt-link-url').value.trim();
         if (!title) { backdrop.querySelector('#wt-title').focus(); return; }
 
         submitBtn.disabled = true;
@@ -687,6 +702,8 @@ function showWriteModal() {
                   category: selectedCat,
                   title,
                   body,
+                  image_url: imageUrl,
+                  link_url: linkUrl,
                   anonymous_nickname: anonymousNickname,
                 }),
             });
@@ -776,6 +793,17 @@ function escHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+function safeHttpUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString();
+  } catch (_) {
+    return '';
+  }
+}
+
 function currentUserIsAdmin() {
   if (!currentUser) return false;
   return currentUser.admin_role === 'main'
@@ -793,6 +821,9 @@ detailStyle.textContent = `
 .detail-author-row { display:flex; align-items:center; gap:6px; margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
 .detail-stat { font-size:11.5px; color:var(--text-3); margin-left:4px; }
 .detail-body-text { font-size:14px; color:var(--text-1); line-height:1.7; white-space:pre-wrap; word-break:break-word; margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.detail-image-wrap { margin-bottom:14px; border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface-2); }
+.detail-image { display:block; width:100%; max-height:320px; object-fit:cover; }
+.detail-link { display:inline-flex; margin:0 0 16px; font-size:13px; font-weight:600; color:var(--accent-blue); }
 .detail-actions { display:flex; gap:8px; margin-bottom:18px; }
 .detail-like-btn {
   display:inline-flex; align-items:center; gap:5px; height:32px; padding:0 14px;
