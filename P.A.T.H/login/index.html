@@ -145,6 +145,12 @@
         .or-separator::before, .or-separator::after { content: ''; flex: 1; height: 1px; background: #222; }
         body.light .or-separator::before, body.light .or-separator::after { background: #d0d8e4; }
         body.light .or-separator { color: #8090a8; }
+
+        /* Improve tap-to-click reliability on mobile WebView/Safari. */
+        button, .tab, a.btn-oauth, .check-row a, input[type="checkbox"], select {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
     </style>
 </head>
 <body>

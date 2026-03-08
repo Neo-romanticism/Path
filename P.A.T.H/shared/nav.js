@@ -16,6 +16,8 @@
             position: fixed;
             inset: 0;
             background: #000;
+            display: none;
+            visibility: hidden;
             opacity: 0;
             pointer-events: none;
             z-index: 2147483647;
@@ -23,6 +25,8 @@
             will-change: opacity;
         }
         #_nav-overlay.active {
+            display: block;
+            visibility: visible;
             opacity: 1;
             pointer-events: all;
         }
@@ -53,6 +57,11 @@
             window.location.href = url;
         }, 160);
     };
+
+    // Safety: if a navigation gets canceled, immediately release interaction lock.
+    window.addEventListener('pageshow', function () {
+        overlay.classList.remove('active');
+    });
 
     // ── hover 시 prefetch ──────────────────────────────────────
     const prefetched = new Set();
