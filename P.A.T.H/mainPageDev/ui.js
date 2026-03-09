@@ -25,6 +25,7 @@ const UI = {
     elements: {
         body:        document.body,
         goldVal:     document.getElementById('gold-val'),
+        diamondVal:  document.getElementById('diamond-val'),
         ticketVal:   document.getElementById('ticket-val'),
         tierTag:     document.querySelector('.tier-tag'),
         rankPct:     document.getElementById('rank-pct'),
@@ -1404,6 +1405,7 @@ const UI = {
 
     updateAssets(data) {
         if (this.elements.goldVal)   this.elements.goldVal.innerText   = (data.gold || 0).toLocaleString();
+        if (this.elements.diamondVal) this.elements.diamondVal.innerText = (data.diamond || 0).toLocaleString();
         if (this.elements.ticketVal) this.elements.ticketVal.innerText = String(data.tickets || 0).padStart(2, '0');
         if (this.elements.tierTag)   this.elements.tierTag.innerText   = data.university || data.tier || '-';
     },

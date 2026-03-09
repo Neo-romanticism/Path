@@ -38,6 +38,7 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.2.0"
+    "@capacitor/cli": "^8.2.0",
+    "three": "^0.183.2"
   }
 }

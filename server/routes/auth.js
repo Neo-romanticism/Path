@@ -37,7 +37,7 @@ const verificationLimiter = rateLimit({
     message: { error: '인증번호 요청이 너무 많습니다. 1시간 후 다시 시도해주세요.' }
 });
 
-const USER_FIELDS = 'id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, profile_image_url, balloon_skin, owned_skins, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role, active_title, streak_count, streak_last_date';
+const USER_FIELDS = 'id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, profile_image_url, balloon_skin, owned_skins, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role, active_title, streak_count, streak_last_date';
 
 function escapeHtml(str) {
     if (!str) return str;

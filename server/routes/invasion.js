@@ -169,7 +169,7 @@ router.post('/attack', async (req, res) => {
         const grantedTitles = await evaluateMilestoneTitles(client, req.session.userId);
 
         const finalRes = await client.query(
-            'SELECT id, nickname, university, gold, exp, tier, tickets, mock_exam_score, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
+            'SELECT id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
             [req.session.userId]
         );
 

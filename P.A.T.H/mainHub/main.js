@@ -483,6 +483,8 @@ function updateHUD(user) {
     const titlePrefix = user.active_title ? `[${user.active_title}] ` : '';
     document.getElementById('hud-univ').textContent = `${titlePrefix}${user.university || '-'}`;
     document.getElementById('hud-gold').textContent = (user.gold || 0).toLocaleString();
+    const diaEl = document.getElementById('hud-diamond');
+    if (diaEl) diaEl.textContent = (user.diamond || 0).toLocaleString();
     document.getElementById('hud-hours').textContent = secToHour(myTotalSec);
     document.getElementById('hud-tickets').textContent = (user.tickets || 0) + '장';
 }
@@ -630,20 +632,8 @@ async function loadNotifPanel() {
 // ── 성 내부 화면 ─────────────────────────────────────────────────────
 async function openEstate() {
     try {
-        const [taxRes, titleRes] = await Promise.all([
-            fetch('/api/estate/tax', { credentials: 'include' }),
-            fetch('/api/auth/titles', { credentials: 'include' })
-        ]);
-        const data = await taxRes.json();
-        const titleData = titleRes.ok ? await titleRes.json() : { titles: [], active_title: currentUser?.active_title || null };
-        const titleRows = Array.isArray(titleData.titles) ? titleData.titles : [];
-        const activeTitle = titleData.active_title || currentUser?.active_title || null;
-        const titleOptions = [`<option value="">칭호 없음</option>`]
-            .concat(titleRows.map((t) => {
-                const selected = activeTitle && t.title === activeTitle ? ' selected' : '';
-                return `<option value="${esc(t.code)}"${selected}>[${esc(t.title)}]</option>`;
-            }))
-            .join('');
+        const r = await fetch('/api/estate/tax', { credentials: 'include' });
+        const data = await r.json();
         const score = currentUser?.mock_exam_score || 0;
         const scoreStatus = currentUser?.score_status || 'none';
 
@@ -701,13 +691,6 @@ async function openEstate() {
                             <button class="inline-btn" style="color:#888;background:rgba(255,255,255,0.05);" onclick="document.getElementById('status-msg-input').value='';saveStatusMsg(event)">지우기</button>
                         </div>
                         <div style="margin-top:5px;font-size:10px;color:#555;">최대 30자 · 내 열기구 위에 말풍선으로 표시됩니다</div>
-                        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
-                            <select id="active-title-select" class="interior-input" style="max-width:260px;">
-                                ${titleOptions}
-                            </select>
-                            <button id="active-title-save-btn" class="inline-btn" onclick="saveActiveTitle(event)">칭호 적용</button>
-                            <span style="font-size:10px;color:#777;">획득한 칭호만 선택 가능</span>
-                        </div>
                     </div>
                 </div>
                 <div class="interior-card">
@@ -1127,9 +1110,9 @@ async function doInvade() {
             ? `\n🏷️ 신규 칭호 획득: ${data.grantedTitles.map((t) => `[${t}]`).join(', ')}`
             : '';
         alert(msg + bountyLine + titleLine);
-        currentUser = data.user;
-        updateHUD(data.user);
-        updateMyBuilding(data.user);
+        currentUser = { ...(currentUser || {}), ...(data.user || {}) };
+        updateHUD(currentUser);
+        updateMyBuilding(currentUser);
         closeModal('modal-user');
         loadRankingAndMap();
     } catch (e) { alert('서버 오류 발생'); }
@@ -1563,13 +1546,15 @@ async function renderShopContent(tab) {
                 const rawUniversities = univData.universities || [];
                 const universities = [...medicalUnivs, ...rawUniversities];
                 const myTickets = currentUser?.tickets || 0;
-            const myGold = currentUser?.gold || 0;
+                const myGold = currentUser?.gold || 0;
+                const myDiamond = currentUser?.diamond || 0;
 
             container.innerHTML = `
                 <div style="padding:10px 0 6px;">
                     <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:10px;">
                         보유 원서비: <strong style="color:var(--gold)">${myTickets}장</strong>
                         &nbsp;|&nbsp; 보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
+                        &nbsp;|&nbsp; 보유 다이아: <strong style="color:#78d7ff">${myDiamond.toLocaleString()}D</strong>
                     </div>
                     <div style="font-size:10px;color:#666;margin-bottom:8px;">목표 대학을 선택하면 해당 대학 기준 원서비를 구매할 수 있습니다.</div>
                     <input type="text" id="shop-univ-search" placeholder="대학 검색..."
@@ -1590,12 +1575,14 @@ async function renderShopContent(tab) {
             const skinData = skinRes.ok ? await skinRes.json() : { skins: [], owned: ['default'], equipped: 'default' };
             const { skins, owned, equipped } = skinData;
             const myGold = currentUser?.gold || 0;
+            const myDiamond = currentUser?.diamond || 0;
             const isLight = document.body.classList.contains('light');
 
             container.innerHTML = `
                 <div style="padding:10px 0 6px;">
                     <div style="font-size:10px;color:#555;letter-spacing:1px;margin-bottom:12px;">
                         보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
+                        &nbsp;|&nbsp; 보유 다이아: <strong style="color:#78d7ff">${myDiamond.toLocaleString()}D</strong>
                     </div>
                     <div id="skin-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
                 </div>
@@ -1653,6 +1640,52 @@ async function renderShopContent(tab) {
             });
         } catch (e) {
             container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">로드 실패</div>';
+        }
+    } else if (tab === 'diamond') {
+        try {
+            const [pkgRes, meRes] = await Promise.all([
+                fetch('/api/estate/diamond/packages', { credentials: 'include' }),
+                fetch('/api/auth/me', { credentials: 'include' })
+            ]);
+            const pkgData = pkgRes.ok ? await pkgRes.json() : { packages: [] };
+            const meData = meRes.ok ? await meRes.json() : { user: currentUser };
+            currentUser = { ...(currentUser || {}), ...(meData.user || {}) };
+
+            const packages = pkgData.packages || [];
+            const myDiamond = currentUser?.diamond || 0;
+
+            container.innerHTML = `
+                <div style="padding:10px 0 6px;">
+                    <div style="font-size:11px;color:#9fdfff;letter-spacing:1px;margin-bottom:8px;">
+                        현재 다이아: <strong style="color:#78d7ff">${myDiamond.toLocaleString()}D</strong>
+                    </div>
+                    <div style="font-size:10px;color:#666;margin-bottom:10px;line-height:1.45;">
+                        다이아는 유료 결제로만 충전됩니다.<br>
+                        결제 서버에서 발급한 서명(signature)으로만 지급됩니다.
+                    </div>
+                    <div id="diamond-package-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                </div>
+            `;
+
+            const listEl = document.getElementById('diamond-package-list');
+            if (!listEl) return;
+
+            if (!packages.length) {
+                listEl.innerHTML = '<div style="color:#666;font-size:12px;text-align:center;padding:18px;">다이아 상품이 아직 등록되지 않았습니다.</div>';
+                return;
+            }
+
+            listEl.innerHTML = packages.map((pkg) => `
+                <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--border);border-radius:8px;padding:10px;background:rgba(120,215,255,0.04)">
+                    <div>
+                        <div style="font-size:13px;color:#bfeaff;font-weight:700;">${Number(pkg.diamonds || 0).toLocaleString()}D</div>
+                        <div style="font-size:11px;color:#aaa;">${Number(pkg.priceKrw || 0).toLocaleString()}원</div>
+                    </div>
+                    <button class="shop-btn" style="padding:6px 12px;font-size:11px;" onclick="purchaseDiamondPackage('${pkg.id}', ${Number(pkg.priceKrw || 0)})">결제 반영</button>
+                </div>
+            `).join('');
+        } catch (e) {
+            container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">다이아 정보를 불러오지 못했습니다.</div>';
         }
     } else {
         container.innerHTML = `
@@ -1721,8 +1754,8 @@ async function buyApplicationFee(targetUniversity, unitPrice) {
         const data = await r.json();
         if (!r.ok) { alert(data.error || '구매 실패'); return; }
         alert(`[${targetUniversity}] 원서비 1장 구매 완료! (-${data.spent.toLocaleString()}G)`);
-        currentUser = data.user;
-        updateHUD(data.user);
+        currentUser = { ...(currentUser || {}), ...(data.user || {}) };
+        updateHUD(currentUser);
         renderShopContent('item');
     } catch (e) { alert('오류 발생'); }
 }
@@ -1742,12 +1775,50 @@ async function buySkin(skinId, price) {
         if (!r.ok) { alert(data.error || '구매 실패'); return; }
         if (currentUser) {
             currentUser.gold = data.user.gold;
+            currentUser.diamond = data.user.diamond ?? currentUser.diamond;
             currentUser.owned_skins = data.user.owned_skins;
             updateHUD(currentUser);
         }
         alert(`[${skin.name}] 획득 완료!`);
         renderShopContent('skin');
     } catch (e) { alert('오류 발생'); }
+}
+
+async function purchaseDiamondPackage(packageId, priceKrw) {
+    const provider = prompt('결제 수단(provider)을 입력하세요. 예: toss, appstore, googleplay');
+    if (!provider) return;
+
+    const providerTxId = prompt('결제 거래번호(provider_tx_id)를 입력하세요.');
+    if (!providerTxId) return;
+
+    const paymentSignature = prompt('결제 서버에서 발급한 payment_signature를 입력하세요.');
+    if (!paymentSignature) return;
+
+    try {
+        const r = await fetch('/api/estate/diamond/purchase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                package_id: packageId,
+                provider,
+                provider_tx_id: providerTxId,
+                paid_amount_krw: priceKrw,
+                payment_signature: paymentSignature
+            })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            alert(data.error || '다이아 결제 반영 실패');
+            return;
+        }
+        currentUser = { ...(currentUser || {}), ...(data.user || {}) };
+        updateHUD(currentUser);
+        alert(`다이아 충전 완료! +${Number(data.addedDiamond || 0).toLocaleString()}D`);
+        renderShopContent('diamond');
+    } catch (e) {
+        alert('다이아 결제 처리 중 오류가 발생했습니다.');
+    }
 }
 
 async function equipSkin(skinId) {
@@ -2684,44 +2755,9 @@ async function saveStatusMsg(e) {
     } catch (err) {}
 }
 
-async function saveActiveTitle(e) {
-    const select = document.getElementById('active-title-select');
-    if (!select) return;
-    const code = (select.value || '').trim();
-    try {
-        const r = await fetch('/api/auth/active-title', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ code })
-        });
-        const data = await r.json();
-        if (!r.ok || !data?.ok) {
-            alert(data?.error || '칭호 적용에 실패했습니다.');
-            return;
-        }
-
-        currentUser = data.user;
-        updateHUD(currentUser);
-        if (window.WorldScene && currentUser?.id) {
-            window.WorldScene.updateUserIdentity(currentUser.id, currentUser);
-        }
-
-        const btn = e?.target || document.getElementById('active-title-save-btn');
-        if (btn) {
-            const orig = btn.textContent;
-            btn.textContent = '✓ 적용됨';
-            setTimeout(() => { btn.textContent = orig; }, 1600);
-        }
-
-        loadRankingAndMap();
-    } catch (_) {}
-}
-
 // Keep inline handlers stable for all browsers/build modes.
 window.togglePanel = togglePanel;
 window.doLogout = doLogout;
 window.goToCommunity = goToCommunity;
 window.goToTimer = goToTimer;
-window.saveActiveTitle = saveActiveTitle;
 

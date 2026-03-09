@@ -24,6 +24,7 @@ async function initSchema() {
                 prev_university         VARCHAR(100),
                 profile_image_url       TEXT,
                 gold                    INTEGER DEFAULT 0,
+                diamond                 INTEGER DEFAULT 0,
                 exp                     INTEGER DEFAULT 0,
                 tier                    VARCHAR(20) DEFAULT 'BRONZE',
                 tickets                 INTEGER DEFAULT 0,
@@ -168,6 +169,24 @@ async function initSchema() {
             ALTER TABLE study_records ADD COLUMN IF NOT EXISTS proof_bonus_gold INTEGER DEFAULT 0;
             ALTER TABLE study_records ADD COLUMN IF NOT EXISTS proof_bonus_claimed BOOLEAN DEFAULT FALSE;
             CREATE INDEX IF NOT EXISTS idx_study_records_user_subject_created ON study_records(user_id, subject_id, created_at);
+        `);
+
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS diamond INTEGER DEFAULT 0;
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS diamond_purchases (
+                id              SERIAL PRIMARY KEY,
+                user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                package_id      VARCHAR(40) NOT NULL,
+                diamonds        INTEGER NOT NULL,
+                paid_amount_krw INTEGER NOT NULL,
+                provider        VARCHAR(30) NOT NULL,
+                provider_tx_id  VARCHAR(120) UNIQUE NOT NULL,
+                created_at      TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_diamond_purchases_user_created ON diamond_purchases(user_id, created_at DESC);
         `);
 
         await client.query(`

@@ -2,7 +2,7 @@
  * World state manager for the P.A.T.H large-scale world.
  *
  * Architecture:
- *  - WORLD_SIZE  : 200,000 × 200,000 world-unit plane
+ *  - WORLD_SIZE  : 1,000,000 × 1,000,000 world-unit plane
  *  - CHUNK_SIZE  : each chunk covers 4,000 × 4,000 world units
  *  - VIEW_CHUNKS : player sees ±2 chunks in each direction (5×5 = 25 chunks)
  *  - WORLD_SEED  : fixed deterministic seed so all clients render the same props
@@ -21,7 +21,7 @@
 
 'use strict';
 
-const WORLD_SIZE       = 200000;  // total world width/height in world-units
+const WORLD_SIZE       = 1000000; // total world width/height in world-units
 const CHUNK_SIZE       = 4000;    // world-units per chunk edge
 const VIEW_CHUNKS      = 2;       // ±chunks visible in each axis (5×5 grid)
 const WORLD_SEED       = 777;     // fixed seed distributed to every client
