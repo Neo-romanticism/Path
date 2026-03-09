@@ -1411,6 +1411,16 @@ detailStyle.textContent = `
   background:rgba(255,69,58,0.14); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
   color:var(--accent-red); border:1px solid rgba(255,69,58,0.35);
 }
+.detail-report-btn {
+  display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
+  background:rgba(59,130,246,0.12); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
+  color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3);
+}
+.detail-block-btn {
+  display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
+  background:rgba(255,69,58,0.1); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
+  color:var(--accent-red); border:1px solid rgba(255,69,58,0.25);
+}
 .cmt-admin-del {
   margin-left:8px; font-size:11px; color:var(--accent-red); font-weight:700;
   border:1px solid rgba(255,69,58,0.3); border-radius:999px; padding:2px 8px;
