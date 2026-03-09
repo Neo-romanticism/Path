@@ -196,6 +196,30 @@ function setup(io) {
             });
         });
 
+        // ── player:appearance ───────────────────────────────────────────
+        socket.on('player:appearance', (data) => {
+            const player = players.get(socket.id);
+            if (!player || !data) return;
+
+            if (typeof data.balloon_skin === 'string' && data.balloon_skin.trim()) {
+                player.balloon_skin = data.balloon_skin.trim();
+            }
+            if (typeof data.balloon_aura === 'string' && data.balloon_aura.trim()) {
+                player.balloon_aura = data.balloon_aura.trim();
+            }
+            if (Object.prototype.hasOwnProperty.call(data, 'status_message')) {
+                const raw = data.status_message;
+                player.status_message = raw ? String(raw).slice(0, 60) : null;
+            }
+
+            emitToNearbyRooms(socket, player.cx, player.cy, 'player:appearance', {
+                id: player.userId,
+                balloon_skin: player.balloon_skin,
+                balloon_aura: player.balloon_aura || 'none',
+                status_message: player.status_message || null,
+            });
+        });
+
         // ── interaction:trigger ──────────────────────────────────────────
         socket.on('interaction:trigger', (data) => {
             const player = players.get(socket.id);

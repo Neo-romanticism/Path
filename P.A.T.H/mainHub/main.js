@@ -1416,6 +1416,33 @@ function createBalloonPreviewCanvas(skinId, size = 80) {
     return canvas;
 }
 
+// Build a resilient skin preview element.
+// Prefer 3D canvas, but gracefully fall back to image preview when WebGL is unavailable.
+function createSkinPreviewElement(skin, isLight, size = 80) {
+    const fallbackImg = document.createElement('img');
+    fallbackImg.alt = `${skin?.name || 'balloon'} preview`;
+    fallbackImg.width = size;
+    fallbackImg.height = size;
+    fallbackImg.style.cssText = `width:${size}px;height:${size}px;display:block;margin:0 auto 6px;object-fit:contain;`;
+
+    const fallbackSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
+    const skinSrc = skin
+        ? `assets/${isLight ? (skin.lightImg || skin.darkImg) : (skin.darkImg || skin.lightImg)}`
+        : fallbackSrc;
+    fallbackImg.src = skinSrc;
+    fallbackImg.onerror = () => {
+        // Some premium image assets may not exist yet in this build.
+        fallbackImg.src = fallbackSrc;
+    };
+
+    try {
+        if (typeof THREE === 'undefined' || !THREE || !THREE.WebGLRenderer) return fallbackImg;
+        return createBalloonPreviewCanvas(skin?.id || 'default', size);
+    } catch (_) {
+        return fallbackImg;
+    }
+}
+
 async function renderShopContent(tab) {
     const container = document.getElementById('shop-content');
     if (!container) return;
@@ -1518,11 +1545,8 @@ async function renderShopContent(tab) {
 
                 grid.appendChild(card);
 
-                // Create 3D balloon canvas after the card is in the DOM
-                setTimeout(() => {
-                    const canvas = createBalloonPreviewCanvas(skin.id, 80);
-                    canvasContainer.appendChild(canvas);
-                }, 0);
+                const previewEl = createSkinPreviewElement(skin, isLight, 80);
+                canvasContainer.appendChild(previewEl);
             });
         } catch (e) {
             container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">로드 실패</div>';
@@ -1711,6 +1735,9 @@ async function equipSkin(skinId) {
             updateMyBuilding(currentUser);
             if (window.WorldScene) window.WorldScene.updateMyBalloon(skinId);
         }
+        if (worldSocket?.connected) {
+            worldSocket.emit('player:appearance', { balloon_skin: skinId });
+        }
         renderShopContent('skin');
     } catch (e) { alert('오류 발생'); }
 }
@@ -1751,6 +1778,9 @@ async function equipAura(auraId) {
         if (currentUser) {
             currentUser.balloon_aura = auraId;
             if (window.WorldScene) window.WorldScene.updateMyAura(auraId);
+        }
+        if (worldSocket?.connected) {
+            worldSocket.emit('player:appearance', { balloon_aura: auraId });
         }
         renderShopContent('aura');
     } catch (e) { alert('오류 발생'); }

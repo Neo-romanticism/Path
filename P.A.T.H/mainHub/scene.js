@@ -1156,8 +1156,10 @@ const WorldScene = {
 
         if (me) {
             const skinId = me.balloon_skin || 'default';
+            const auraId = me.balloon_aura || 'none';
             if (this.myBalloon) {
                 this._updateBalloonColor(this.myBalloon.group, skinId);
+                this._updateBalloonAura(this.myBalloon.group, auraId, true);
             } else {
                 const grp = this.addBalloon(me, null, true);
                 grp.position.set(0, 0, 0);
@@ -1190,6 +1192,7 @@ const WorldScene = {
             }
 
             const skinId = user.balloon_skin || 'default';
+            const auraId = user.balloon_aura || 'none';
 
             // Chunk-based culling: distance from camera (= scene origin).
             const distFromCam = Math.hypot(sx - this.camPos.x, sy - this.camPos.y);
@@ -1200,6 +1203,7 @@ const WorldScene = {
                 b.group.position.set(sx, sy, sz);
                 b.group.userData.baseY = sy;
                 this._updateBalloonColor(b.group, skinId);
+                this._updateBalloonAura(b.group, auraId, false);
 
                 b.group.visible = visible;
                 if (visible) {
@@ -1240,12 +1244,14 @@ const WorldScene = {
             const sz = Math.sin(user.id * 3.7) * 40;
 
             const skinId = user.balloon_skin || 'default';
+            const auraId = user.balloon_aura || 'none';
 
             if (this.balloons.has(user.id)) {
                 const b = this.balloons.get(user.id);
                 b.group.position.set(sx, sy, sz);
                 b.group.userData.baseY = sy;
                 this._updateBalloonColor(b.group, skinId);
+                this._updateBalloonAura(b.group, auraId, false);
                 b.group.visible = true;
                 if (b.user.status_message !== user.status_message) {
                     this.updateStatusMsg(user.id, user.status_message);
@@ -1297,6 +1303,11 @@ const WorldScene = {
         this._updateBalloonColor(this.myBalloon.group, skinId);
     },
 
+    updateMyAura(auraId) {
+        if (!this.myBalloon) return;
+        this._updateBalloonAura(this.myBalloon.group, auraId || 'none', true);
+    },
+
     _updateBalloonColor(group, skinId) {
         const colors = getBalloonColors(skinId);
         const balloon3D = group.children.find(child => child.isGroup || (child.children && child.children.length > 0));
@@ -1314,6 +1325,77 @@ const WorldScene = {
         if (balloon3D.children[0] && balloon3D.children[0].material) {
             balloon3D.children[0].material.color.setHex(colors.primary);
         }
+    },
+
+    _updateBalloonAura(group, auraId, isMe) {
+        const nextAuraId = AURA_COLORS[auraId] ? auraId : 'none';
+        const ud = group.userData || {};
+
+        const sameAura = (ud.auraId || 'none') === nextAuraId;
+        if (sameAura && ((nextAuraId === 'none' && !ud.auraGroup) || (nextAuraId !== 'none' && ud.auraGroup))) {
+            return;
+        }
+
+        if (ud.auraGroup) {
+            group.remove(ud.auraGroup);
+            ud.auraGroup.traverse((obj) => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+                    else obj.material.dispose();
+                }
+            });
+            ud.auraGroup = null;
+            ud.auraMats = [];
+        }
+
+        ud.auraId = nextAuraId;
+        if (nextAuraId === 'none') {
+            group.userData = ud;
+            return;
+        }
+
+        const auraColor = AURA_COLORS[nextAuraId];
+        const colorR = ((auraColor >> 16) & 255) / 255;
+        const colorG = ((auraColor >> 8) & 255) / 255;
+        const colorB = (auraColor & 255) / 255;
+
+        const auraGroup = new THREE.Group();
+        const auraMats = [];
+
+        const ringGeo = new THREE.TorusGeometry(isMe ? 58 : 42, isMe ? 2.6 : 2.0, 16, 48);
+        const ringMat = new THREE.ShaderMaterial({
+            uniforms: { uTime: { value: 0 } },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `uniform float uTime; varying vec2 vUv; void main() { float pulse = 0.55 + 0.45 * sin(uTime * 2.4); gl_FragColor = vec4(${colorR}, ${colorG}, ${colorB}, 0.35 * pulse); }`,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.y = isMe ? 98 : 64;
+        auraGroup.add(ring);
+        auraMats.push(ringMat);
+
+        const haloGeo = new THREE.CircleGeometry(isMe ? 80 : 56, 40);
+        const haloMat = new THREE.ShaderMaterial({
+            uniforms: { uTime: { value: 0 } },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `uniform float uTime; varying vec2 vUv; void main() { float d = length(vUv - vec2(0.5)); float wave = 0.65 + 0.35 * sin(uTime * 1.8); float alpha = (1.0 - smoothstep(0.24, 0.52, d)) * 0.22 * wave; gl_FragColor = vec4(${colorR}, ${colorG}, ${colorB}, alpha); }`,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const halo = new THREE.Mesh(haloGeo, haloMat);
+        halo.position.y = isMe ? 98 : 64;
+        halo.position.z = -4;
+        auraGroup.add(halo);
+        auraMats.push(haloMat);
+
+        ud.auraGroup = auraGroup;
+        ud.auraMats = auraMats;
+        group.add(auraGroup);
+        group.userData = ud;
     },
 
     focusUserById(userId) {
@@ -1976,6 +2058,11 @@ const WorldScene = {
 
             if (b.isMe && grp.userData.glowMat) {
                 grp.userData.glowMat.uniforms.uTime.value = t;
+            }
+            if (grp.userData.auraMats && grp.userData.auraMats.length) {
+                grp.userData.auraMats.forEach((mat) => {
+                    if (mat?.uniforms?.uTime) mat.uniforms.uTime.value = t;
+                });
             }
         });
 
