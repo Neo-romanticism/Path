@@ -183,6 +183,7 @@ router.get('/posts', async (req, res) => {
             pool.query(
                 `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
                         u.nickname AS user_nickname, u.active_title,
+                    (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                         p.views, p.likes, p.comments_count, p.created_at,
                         p.image_url,
                         (p.image_url IS NOT NULL AND p.image_url <> '') AS has_image
@@ -229,6 +230,7 @@ router.get('/posts/hot', async (req, res) => {
         const result = await pool.query(
             `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
                     u.nickname AS user_nickname, u.active_title,
+                    (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                     p.views, p.likes, p.comments_count, p.created_at,
                     p.image_url,
                     (p.image_url IS NOT NULL AND p.image_url <> '') AS has_image
@@ -263,6 +265,7 @@ router.get('/posts/:id', async (req, res) => {
         const result = await pool.query(
             `SELECT p.id, p.category, p.title, p.body, p.image_url, p.link_url, p.nickname, p.ip_prefix,
                     u.nickname AS user_nickname, u.active_title,
+                    (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                     p.views, p.likes, p.comments_count, p.created_at
              FROM community_posts p
              LEFT JOIN users u ON u.id = p.user_id
@@ -534,7 +537,8 @@ router.get('/posts/:id/comments', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
-                    u.nickname AS user_nickname, u.active_title
+                    u.nickname AS user_nickname, u.active_title,
+                    (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
              FROM community_comments c
              LEFT JOIN users u ON u.id = c.user_id
              WHERE c.post_id = $1
@@ -594,7 +598,8 @@ router.post('/posts/:id/comments', requireAuth, async (req, res) => {
         await client.query('COMMIT');
         res.status(201).json({ comment: {
             ...result.rows[0],
-            display_nickname: formatDisplayName(nickname, activeTitle)
+            display_nickname: formatDisplayName(nickname, activeTitle),
+            is_verified_nickname: true
         } });
     } catch (err) {
         await client.query('ROLLBACK');

@@ -190,6 +190,21 @@ async function initSchema() {
         `);
 
         await client.query(`
+            CREATE TABLE IF NOT EXISTS diamond_payment_orders (
+                id              SERIAL PRIMARY KEY,
+                order_id        VARCHAR(80) UNIQUE NOT NULL,
+                user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                package_id      VARCHAR(40) NOT NULL,
+                provider        VARCHAR(30) NOT NULL,
+                amount_krw      INTEGER NOT NULL,
+                status          VARCHAR(20) NOT NULL DEFAULT 'pending',
+                created_at      TIMESTAMP DEFAULT NOW(),
+                paid_at         TIMESTAMP NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_diamond_payment_orders_user_created ON diamond_payment_orders(user_id, created_at DESC);
+        `);
+
+        await client.query(`
             CREATE TABLE IF NOT EXISTS study_proof_images (
                 id               SERIAL PRIMARY KEY,
                 study_record_id  INTEGER NOT NULL REFERENCES study_records(id) ON DELETE CASCADE,

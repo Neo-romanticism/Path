@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const axios = require('axios');
 const pool = require('../db');
 const { getTaxRate, getTicketPrice, getPercentile } = require('../data/universities');
 const { getActiveStreakFromUser, getStreakMultiplier, STREAK_BONUS_RATE } = require('../utils/progression');
@@ -49,6 +50,11 @@ function createExpectedPaymentSignature(userId, platform, provider, packageId, p
 function resolveClientPlatform(req) {
     const raw = String(req.headers['x-path-client-platform'] || req.body?.client_platform || '').toLowerCase().trim();
     return raw === 'app' ? 'app' : 'web';
+}
+
+function makeDiamondOrderId(userId) {
+    const rand = crypto.randomBytes(6).toString('hex');
+    return `dia_${userId}_${Date.now()}_${rand}`;
 }
 
 function timingSafeHexEqual(a, b) {
@@ -307,6 +313,228 @@ router.get('/diamond/packages', (req, res) => {
         packages: DIAMOND_PACKAGES,
         note: '다이아는 유료 결제로만 충전할 수 있습니다.'
     });
+});
+
+router.post('/diamond/web/prepare', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+
+    const packageId = String(req.body?.package_id || '');
+    const pkg = findDiamondPackage(packageId);
+    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+
+    const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
+    if (!tossClientKey) {
+        return res.status(503).json({ error: '토스 결제 키 설정이 누락되었습니다.' });
+    }
+
+    const orderId = makeDiamondOrderId(req.session.userId);
+    try {
+        await pool.query(
+            `INSERT INTO diamond_payment_orders (order_id, user_id, package_id, provider, amount_krw, status)
+             VALUES ($1, $2, $3, 'toss', $4, 'pending')`,
+            [orderId, req.session.userId, pkg.id, pkg.priceKrw]
+        );
+        return res.json({
+            ok: true,
+            provider: 'toss',
+            clientKey: tossClientKey,
+            orderId,
+            amount: pkg.priceKrw,
+            orderName: `${pkg.diamonds} 다이아`
+        });
+    } catch (err) {
+        console.error('diamond/web/prepare error:', err);
+        return res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+router.post('/diamond/web/confirm', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+
+    const paymentKey = String(req.body?.paymentKey || '').trim();
+    const orderId = String(req.body?.orderId || '').trim();
+    const amount = parseInt(req.body?.amount, 10);
+
+    if (!paymentKey || !orderId || !Number.isInteger(amount)) {
+        return res.status(400).json({ error: '결제 확인 정보가 올바르지 않습니다.' });
+    }
+
+    const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
+    if (!tossSecret) {
+        return res.status(503).json({ error: '토스 시크릿 키 설정이 누락되었습니다.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const orderRes = await client.query(
+            `SELECT order_id, user_id, package_id, amount_krw, status
+             FROM diamond_payment_orders
+             WHERE order_id = $1
+             FOR UPDATE`,
+            [orderId]
+        );
+        const order = orderRes.rows[0];
+        if (!order) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '결제 주문을 찾을 수 없습니다.' });
+        }
+        if (Number(order.user_id) !== Number(req.session.userId)) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: '결제 주문 접근 권한이 없습니다.' });
+        }
+        if (order.status === 'paid') {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
+        }
+        if (Number(order.amount_krw) !== amount) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '결제 금액이 주문 금액과 일치하지 않습니다.' });
+        }
+
+        let tossResult;
+        try {
+            tossResult = await axios.post(
+                'https://api.tosspayments.com/v1/payments/confirm',
+                { paymentKey, orderId, amount },
+                {
+                    headers: {
+                        Authorization: `Basic ${Buffer.from(`${tossSecret}:`).toString('base64')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 12000
+                }
+            );
+        } catch (apiErr) {
+            await client.query('ROLLBACK');
+            const status = apiErr?.response?.status || 400;
+            const msg = apiErr?.response?.data?.message || '토스 결제 검증에 실패했습니다.';
+            return res.status(status).json({ error: msg });
+        }
+
+        const confirmData = tossResult.data || {};
+        if (confirmData.status !== 'DONE') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '완료되지 않은 결제입니다.' });
+        }
+
+        const pkg = findDiamondPackage(order.package_id);
+        if (!pkg) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '상품 정보가 올바르지 않습니다.' });
+        }
+
+        await client.query(
+            `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
+             VALUES ($1, $2, $3, $4, 'toss', $5)`,
+            [req.session.userId, pkg.id, pkg.diamonds, order.amount_krw, paymentKey]
+        );
+
+        await client.query(
+            `UPDATE diamond_payment_orders
+             SET status = 'paid', paid_at = NOW()
+             WHERE order_id = $1`,
+            [orderId]
+        );
+
+        const userRes = await client.query(
+            `UPDATE users
+             SET diamond = COALESCE(diamond, 0) + $1
+             WHERE id = $2
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+            [pkg.diamonds, req.session.userId]
+        );
+
+        await client.query('COMMIT');
+        return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        if (err?.code === '23505') {
+            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
+        }
+        console.error('diamond/web/confirm error:', err);
+        return res.status(500).json({ error: '서버 오류' });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/diamond/app/complete', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+
+    const {
+        package_id,
+        provider,
+        provider_tx_id,
+        paid_amount_krw,
+        payment_signature
+    } = req.body || {};
+
+    const providerName = String(provider || '').trim().toLowerCase();
+    if (!['googleplay', 'appstore'].includes(providerName)) {
+        return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
+    }
+
+    const pkg = findDiamondPackage(String(package_id || ''));
+    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+
+    const paidAmount = parseInt(paid_amount_krw, 10);
+    if (!Number.isInteger(paidAmount) || paidAmount !== pkg.priceKrw) {
+        return res.status(400).json({ error: '결제 금액 검증에 실패했습니다.' });
+    }
+
+    const txId = String(provider_tx_id || '').trim();
+    if (!txId || txId.length < 6 || txId.length > 120) {
+        return res.status(400).json({ error: '유효하지 않은 결제 거래번호입니다.' });
+    }
+
+    // 앱 결제도 서버 서명 검증을 통해 자동 반영.
+    const expectedSig = createExpectedPaymentSignature(
+        req.session.userId,
+        'app',
+        providerName,
+        pkg.id,
+        paidAmount,
+        txId
+    );
+    if (!expectedSig) {
+        return res.status(503).json({ error: '앱 결제 검증 시크릿이 누락되어 결제를 처리할 수 없습니다.' });
+    }
+    if (!timingSafeHexEqual(expectedSig, String(payment_signature || ''))) {
+        return res.status(403).json({ error: '앱 결제 검증에 실패했습니다.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        await client.query(
+            `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [req.session.userId, pkg.id, pkg.diamonds, pkg.priceKrw, providerName, txId]
+        );
+
+        const userRes = await client.query(
+            `UPDATE users
+             SET diamond = COALESCE(diamond, 0) + $1
+             WHERE id = $2
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+            [pkg.diamonds, req.session.userId]
+        );
+
+        await client.query('COMMIT');
+        return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        if (err?.code === '23505') {
+            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
+        }
+        console.error('diamond/app/complete error:', err);
+        return res.status(500).json({ error: '서버 오류' });
+    } finally {
+        client.release();
+    }
 });
 
 router.post('/diamond/purchase', async (req, res) => {

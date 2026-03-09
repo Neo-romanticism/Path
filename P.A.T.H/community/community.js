@@ -208,7 +208,7 @@ function HotCard(post) {
         <div class="c-hot-card__cat ${cat.cls}">${cat.label}</div>
         <p class="c-hot-card__title">${escHtml(post.title)}</p>
         <div class="c-hot-card__footer">
-          <span class="c-hot-card__author">${escHtml(post.display_nickname || post.nickname || '익명')}(${escHtml(post.ip_prefix ?? '?')})</span>
+          <span class="c-hot-card__author">${renderNicknameWithBadge(post.display_nickname || post.nickname || '익명', post.is_verified_nickname)}(${escHtml(post.ip_prefix ?? '?')})</span>
           <span class="c-hot-card__stats">
             <span class="c-hot-card__stat">
               <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
@@ -299,6 +299,7 @@ async function loadNextPage() {
                 category:     post.category,
                 title:        post.title,
                 nickname:     post.display_nickname || post.nickname || '익명',
+                isVerifiedNickname: Boolean(post.is_verified_nickname),
                 ipPrefix:     post.ip_prefix ?? '?.?',
                 likes:        post.likes,
                 comments:     post.comments_count,
@@ -398,7 +399,7 @@ function renderDetailBody(container, { post, postId, comments }) {
     const cmtHtml = comments.map(c => `
       <li class="cmt-item" data-comment-id="${c.id}">
         <div class="cmt-meta">
-          <span class="cmt-nick">${escHtml(c.display_nickname || c.nickname || '익명')}</span>
+          <span class="cmt-nick">${renderNicknameWithBadge(c.display_nickname || c.nickname || '익명', c.is_verified_nickname)}</span>
           <span class="cmt-ip">(${escHtml(c.ip_prefix ?? '?.?')})</span>
           <span class="cmt-date">${fmtRelative(c.created_at)}</span>
           ${canModerate ? '<button class="cmt-admin-del" type="button">삭제</button>' : ''}
@@ -413,7 +414,7 @@ function renderDetailBody(container, { post, postId, comments }) {
       </div>
       <h3 class="detail-title">${escHtml(post.title)}</h3>
       <div class="detail-author-row">
-        <span class="cmt-nick">${escHtml(post.display_nickname || post.nickname || '익명')}</span>
+        <span class="cmt-nick">${renderNicknameWithBadge(post.display_nickname || post.nickname || '익명', post.is_verified_nickname)}</span>
         <span class="cmt-ip">(${escHtml(post.ip_prefix ?? '?.?')})</span>
         <span class="detail-stat">조회 ${post.views}</span>
         <span class="detail-stat" style="color:var(--accent-red)">추천 ${post.likes}</span>
@@ -543,7 +544,7 @@ function renderDetailBody(container, { post, postId, comments }) {
             li.className = 'cmt-item';
             li.innerHTML = `
               <div class="cmt-meta">
-                <span class="cmt-nick">${escHtml(comment.display_nickname || comment.nickname || '익명')}</span>
+                <span class="cmt-nick">${renderNicknameWithBadge(comment.display_nickname || comment.nickname || '익명', comment.is_verified_nickname)}</span>
                 <span class="cmt-ip">(${escHtml(comment.ip_prefix ?? '?.?')})</span>
                 <span class="cmt-date">방금</span>
               </div>
@@ -1045,6 +1046,13 @@ function escHtml(s) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function renderNicknameWithBadge(nickname, isVerifiedNickname) {
+  const badge = isVerifiedNickname
+    ? '<span class="user-verified-badge" aria-label="계정 닉네임 일치" title="계정 닉네임 일치">✓</span>'
+    : '';
+  return `<span class="user-name-inline">${escHtml(nickname)}${badge}</span>`;
 }
 
 function safeHttpUrl(url) {

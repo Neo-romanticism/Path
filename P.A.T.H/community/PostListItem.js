@@ -21,6 +21,7 @@ export const CATEGORY_META = {
  * @param {string}  post.category
  * @param {string}  post.title
  * @param {string}  post.nickname
+ * @param {boolean} post.isVerifiedNickname
  * @param {string}  post.ipPrefix
  * @param {number}  post.likes
  * @param {number}  post.comments
@@ -39,6 +40,9 @@ export function PostListItem(post) {
   const date   = formatDate(post.createdAt);
   const views  = fmtNum(post.views);
   const likes  = fmtNum(post.likes);
+  const verifiedBadge = post.isVerifiedNickname
+    ? '<span class="user-verified-badge" aria-label="계정 닉네임 일치" title="계정 닉네임 일치">✓</span>'
+    : '';
 
   const numCell = post.isHot
     ? `<span class="post-row__num post-row__num--hot">
@@ -62,7 +66,7 @@ export function PostListItem(post) {
         ${post.comments > 0 ? `<span class="post-row__cmts" aria-label="댓글 ${post.comments}개">${post.comments}</span>` : ''}
       </div>
       <span class="post-row__author">
-        <span class="post-row__author-nick">${escHtml(post.nickname)}</span><!-- --><span class="post-author-ip">(${escHtml(post.ipPrefix)})</span>
+        <span class="post-row__author-nick">${escHtml(post.nickname)}${verifiedBadge}</span><!-- --><span class="post-author-ip">(${escHtml(post.ipPrefix)})</span>
       </span>
       <span class="post-row__sep">·</span>
       <span class="post-row__date">${date}</span>

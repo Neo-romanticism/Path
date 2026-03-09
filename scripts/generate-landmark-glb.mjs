@@ -417,43 +417,230 @@ function buildSkku() {
 
 function buildHanyang() {
   const g = new THREE.Group();
-  add(g, new THREE.BoxGeometry(2.2, 7.2, 2.2), MAT_STONE, -2.1, 4.0, 0);
-  add(g, new THREE.BoxGeometry(2.2, 7.2, 2.2), MAT_STONE, 2.1, 4.0, 0);
-  add(g, new THREE.BoxGeometry(5.2, 1.2, 1.8), MAT_ACCENT, 0, 5.8, 0);
-  add(g, new THREE.SphereGeometry(1.2, 16, 12), MAT_BRONZE, 0, 9.2, 1.4);
-  addWindowGrid(g, 0, 5.0, 1.2, 4, 2, 1.2, 1.0);
+  const concrete = new THREE.MeshStandardMaterial({ color: 0x787f89, roughness: 0.9, metalness: 0.06 });
+  const darkConcrete = new THREE.MeshStandardMaterial({ color: 0x5f6670, roughness: 0.86, metalness: 0.08 });
+  const steelBlue = new THREE.MeshStandardMaterial({ color: 0x1f5cae, roughness: 0.42, metalness: 0.26 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x7bb6df, roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.88 });
+  const bronze = new THREE.MeshStandardMaterial({ color: 0xa68460, roughness: 0.55, metalness: 0.3 });
+
+  // Base plinth with stepped approach.
+  add(g, new THREE.BoxGeometry(13.2, 1.0, 7.6), darkConcrete, 0, 0.5, 0.35);
+  add(g, new THREE.BoxGeometry(10.8, 0.6, 6.0), concrete, 0, 1.3, 0.75);
+  for (let s = 0; s < 4; s += 1) {
+    add(g, new THREE.BoxGeometry(5.4 - s * 0.45, 0.18, 0.48), concrete, 0, 0.2 + s * 0.18, 3.2 + s * 0.1);
+  }
+
+  // Core masses.
+  add(g, new THREE.BoxGeometry(3.0, 8.8, 2.8), concrete, -3.25, 5.7, 0);
+  add(g, new THREE.BoxGeometry(3.0, 8.8, 2.8), concrete, 3.25, 5.7, 0);
+  add(g, new THREE.BoxGeometry(7.8, 3.2, 2.6), concrete, 0, 3.1, 0.15);
+
+  // H motif bridge and frame.
+  add(g, new THREE.BoxGeometry(7.9, 1.25, 1.95), steelBlue, 0, 6.4, 0.15);
+  add(g, new THREE.BoxGeometry(1.05, 3.0, 1.2), steelBlue, -1.75, 4.95, 0.8);
+  add(g, new THREE.BoxGeometry(1.05, 3.0, 1.2), steelBlue, 1.75, 4.95, 0.8);
+
+  // Secondary skybridge/cantilever for modern identity.
+  add(g, new THREE.BoxGeometry(5.8, 0.42, 1.25), steelBlue, 0, 8.9, -0.4);
+  add(g, new THREE.BoxGeometry(0.24, 1.2, 0.24), darkConcrete, -2.6, 8.2, -0.35);
+  add(g, new THREE.BoxGeometry(0.24, 1.2, 0.24), darkConcrete, 2.6, 8.2, -0.35);
+
+  // Minimal curtain-wall strips.
+  add(g, new THREE.BoxGeometry(2.1, 7.0, 0.55), glass, -3.25, 5.7, 1.45);
+  add(g, new THREE.BoxGeometry(2.1, 7.0, 0.55), glass, 3.25, 5.7, 1.45);
+  add(g, new THREE.BoxGeometry(6.2, 1.6, 0.45), glass, 0, 3.2, 1.55);
+
+  // Facade lines/windows rhythm.
+  addWindowGrid(g, -3.25, 5.7, 1.72, 2, 5, 0.8, 1.2, 0x9dc3e9);
+  addWindowGrid(g, 3.25, 5.7, 1.72, 2, 5, 0.8, 1.2, 0x9dc3e9);
+  addWindowGrid(g, 0, 3.2, 1.75, 5, 2, 0.95, 0.9, 0x9bbde2);
+
+  // Symbolic orb/plaza sculpture.
+  add(g, new THREE.SphereGeometry(1.05, 18, 14), bronze, 0, 9.55, 1.45);
+  add(g, new THREE.CylinderGeometry(0.22, 0.28, 1.5, 10), steelBlue, 0, 8.75, 1.45);
+
+  // Front gate slab to reinforce campus entrance feel.
+  add(g, new THREE.BoxGeometry(8.2, 0.85, 1.3), darkConcrete, 0, 3.55, 3.0);
+  add(g, new THREE.BoxGeometry(0.75, 2.2, 1.3), darkConcrete, -3.5, 2.55, 3.0);
+  add(g, new THREE.BoxGeometry(0.75, 2.2, 1.3), darkConcrete, 3.5, 2.55, 3.0);
+
   return g;
 }
 
 function buildChungang() {
   const g = new THREE.Group();
-  add(g, new THREE.CylinderGeometry(3.0, 3.2, 5.8, 14), MAT_STONE, 0, 3.4, 0);
-  const crown = add(g, new THREE.TorusGeometry(3.0, 0.35, 8, 30), MAT_ACCENT, 0, 6.8, 0);
+  const stone = new THREE.MeshStandardMaterial({ color: 0x7d848f, roughness: 0.9, metalness: 0.06 });
+  const darkStone = new THREE.MeshStandardMaterial({ color: 0x636b77, roughness: 0.88, metalness: 0.08 });
+  const blueAccent = new THREE.MeshStandardMaterial({ color: 0x1f4f9b, roughness: 0.42, metalness: 0.24 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x83b5de, roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.88 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x8e96a3, roughness: 0.35, metalness: 0.72 });
+
+  // Circular podium and approach.
+  add(g, new THREE.CylinderGeometry(6.0, 6.3, 1.0, 24), darkStone, 0, 0.5, 0.25);
+  add(g, new THREE.CylinderGeometry(4.9, 5.2, 0.65, 24), stone, 0, 1.35, 0.55);
+  for (let s = 0; s < 5; s += 1) {
+    add(g, new THREE.BoxGeometry(4.5 - s * 0.35, 0.16, 0.45), stone, 0, 0.18 + s * 0.16, 3.25 + s * 0.1);
+  }
+
+  // Main circular core and ring gallery.
+  add(g, new THREE.CylinderGeometry(3.3, 3.6, 6.6, 18), MAT_STONE, 0, 4.35, 0.2);
+  add(g, new THREE.CylinderGeometry(4.4, 4.4, 1.2, 24), stone, 0, 5.3, 0.2);
+  add(g, new THREE.CylinderGeometry(2.7, 2.9, 3.0, 16), darkStone, 0, 7.9, 0.0);
+
+  // Crown ring and spire.
+  const crown = add(g, new THREE.TorusGeometry(3.4, 0.28, 10, 38), blueAccent, 0, 8.25, 0.0);
   crown.rotation.x = Math.PI / 2;
-  add(g, new THREE.ConeGeometry(1.6, 2.8, 10), MAT_ROOF, 0, 9.2, 0);
-  add(g, new THREE.BoxGeometry(0.6, 2.2, 0.6), MAT_ACCENT, 0, 11.0, 0);
+  const innerCrown = add(g, new THREE.TorusGeometry(2.45, 0.16, 8, 30), metal, 0, 8.55, 0.0);
+  innerCrown.rotation.x = Math.PI / 2;
+  add(g, new THREE.ConeGeometry(1.95, 2.8, 12), MAT_ROOF, 0, 10.65, 0.0);
+  add(g, new THREE.CylinderGeometry(0.2, 0.24, 1.8, 8), blueAccent, 0, 12.55, 0.0);
+
+  // Clocktower motif near the top.
+  add(g, new THREE.CylinderGeometry(1.15, 1.2, 1.0, 12), stone, 0, 9.4, 1.35);
+  const clockFace = add(g, new THREE.CylinderGeometry(0.52, 0.52, 0.1, 18), metal, 0, 9.4, 1.88);
+  clockFace.rotation.x = Math.PI / 2;
+  add(g, new THREE.BoxGeometry(0.06, 0.34, 0.04), blueAccent, 0, 9.5, 1.92);
+  add(g, new THREE.BoxGeometry(0.24, 0.06, 0.04), blueAccent, 0.08, 9.4, 1.92);
+
+  // Facade articulation.
+  for (let i = 0; i < 12; i += 1) {
+    const a = (i / 12) * Math.PI * 2;
+    const x = Math.cos(a) * 3.25;
+    const z = Math.sin(a) * 3.25 + 0.2;
+    const fin = add(g, new THREE.BoxGeometry(0.22, 2.8, 0.3), stone, x, 4.5, z);
+    fin.rotation.y = -a;
+  }
+  addWindowGrid(g, 0, 4.45, 1.95, 5, 3, 0.85, 1.0, 0x9fc1e4);
+  add(g, new THREE.CylinderGeometry(2.15, 2.15, 1.4, 16), glass, 0, 5.8, 0.2);
+
+  // Front entry portico.
+  add(g, new THREE.BoxGeometry(3.9, 2.2, 0.45), darkStone, 0, 2.8, 2.55);
+  add(g, new THREE.BoxGeometry(0.28, 2.2, 0.35), stone, -1.75, 2.8, 2.65);
+  add(g, new THREE.BoxGeometry(0.28, 2.2, 0.35), stone, 1.75, 2.8, 2.65);
+
   return g;
 }
 
 function buildKyunghee() {
   const g = new THREE.Group();
-  add(g, new THREE.BoxGeometry(8.4, 2.4, 3.8), MAT_STONE, 0, 1.2, 0);
-  const dome = add(g, new THREE.SphereGeometry(2.8, 24, 16), MAT_BRONZE, 0, 5.6, 0);
-  dome.scale.y = 0.72;
-  for (let i = -3; i <= 3; i += 1) {
-    add(g, new THREE.CylinderGeometry(0.28, 0.28, 2.4, 8), MAT_STONE, i * 1.15, 1.3, 2.0);
+  const limestone = new THREE.MeshStandardMaterial({ color: 0xc4b89f, roughness: 0.78, metalness: 0.05 });
+  const darkStone = new THREE.MeshStandardMaterial({ color: 0x8d816e, roughness: 0.86, metalness: 0.04 });
+  const domeBronze = new THREE.MeshStandardMaterial({ color: 0xa88856, roughness: 0.6, metalness: 0.3 });
+  const trimBlue = new THREE.MeshStandardMaterial({ color: 0x35558e, roughness: 0.5, metalness: 0.2 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0xbfd7ea, roughness: 0.2, metalness: 0.15, transparent: true, opacity: 0.85 });
+
+  // Ceremonial podium and stairs.
+  add(g, new THREE.BoxGeometry(14.8, 1.0, 8.8), darkStone, 0, 0.5, 0.6);
+  add(g, new THREE.BoxGeometry(12.4, 0.7, 7.0), limestone, 0, 1.35, 1.0);
+  for (let s = 0; s < 7; s += 1) {
+    add(g, new THREE.BoxGeometry(6.4 - s * 0.45, 0.16, 0.52), limestone, 0, 0.18 + s * 0.16, 3.75 + s * 0.11);
   }
-  addWindowGrid(g, 0, 2.2, 1.4, 5, 2, 1.2, 0.9, 0xd7c8a7);
+
+  // Main hall + side wings.
+  add(g, new THREE.BoxGeometry(8.8, 3.2, 4.8), MAT_STONE, 0, 3.2, 0.2);
+  add(g, new THREE.BoxGeometry(3.6, 2.6, 3.4), MAT_STONE, -4.6, 2.9, 0.35);
+  add(g, new THREE.BoxGeometry(3.6, 2.6, 3.4), MAT_STONE, 4.6, 2.9, 0.35);
+
+  // Grand drum + dome silhouette.
+  add(g, new THREE.CylinderGeometry(2.9, 3.2, 1.6, 20), limestone, 0, 5.25, 0.2);
+  const dome = add(g, new THREE.SphereGeometry(3.55, 28, 20), domeBronze, 0, 7.4, 0.2);
+  dome.scale.y = 0.75;
+  add(g, new THREE.CylinderGeometry(0.24, 0.28, 1.3, 8), domeBronze, 0, 10.15, 0.2);
+  add(g, new THREE.SphereGeometry(0.3, 12, 10), domeBronze, 0, 10.85, 0.2);
+
+  // Front colonnade.
+  for (let i = -4; i <= 4; i += 1) {
+    add(g, new THREE.CylinderGeometry(0.22, 0.24, 2.9, 10), limestone, i * 0.95, 3.2, 2.55);
+  }
+  add(g, new THREE.BoxGeometry(9.0, 0.42, 0.45), darkStone, 0, 4.45, 2.55);
+  add(g, new THREE.BoxGeometry(9.0, 0.35, 0.4), darkStone, 0, 1.95, 2.55);
+
+  // Pediment and neoclassical trim.
+  const pediment = add(g, new THREE.ConeGeometry(2.7, 1.25, 4), darkStone, 0, 5.1, 2.55);
+  pediment.rotation.y = Math.PI * 0.25;
+  add(g, new THREE.BoxGeometry(5.4, 0.24, 0.2), trimBlue, 0, 4.95, 2.75);
+
+  // Wings roof caps.
+  const leftRoof = add(g, new THREE.ConeGeometry(1.55, 0.9, 4), darkStone, -4.6, 4.65, 0.35);
+  leftRoof.rotation.y = Math.PI * 0.25;
+  const rightRoof = add(g, new THREE.ConeGeometry(1.55, 0.9, 4), darkStone, 4.6, 4.65, 0.35);
+  rightRoof.rotation.y = Math.PI * 0.25;
+
+  // Facade windows / rhythm.
+  addWindowGrid(g, 0, 3.2, 2.05, 6, 2, 1.05, 0.95, 0xdac9a9);
+  addWindowGrid(g, -4.6, 2.9, 1.7, 2, 2, 0.85, 0.9, 0xd1c2a4);
+  addWindowGrid(g, 4.6, 2.9, 1.7, 2, 2, 0.85, 0.9, 0xd1c2a4);
+  add(g, new THREE.BoxGeometry(3.2, 1.0, 0.35), glass, 0, 6.0, 2.05);
+
+  // Side towerlets to enrich skyline.
+  add(g, new THREE.CylinderGeometry(0.7, 0.8, 3.0, 12), limestone, -2.9, 4.2, 0.4);
+  add(g, new THREE.CylinderGeometry(0.7, 0.8, 3.0, 12), limestone, 2.9, 4.2, 0.4);
+  add(g, new THREE.ConeGeometry(0.62, 0.9, 8), darkStone, -2.9, 6.15, 0.4);
+  add(g, new THREE.ConeGeometry(0.62, 0.9, 8), darkStone, 2.9, 6.15, 0.4);
+
   return g;
 }
 
 function buildSogang() {
   const g = new THREE.Group();
-  add(g, new THREE.BoxGeometry(6.2, 2.6, 3.4), MAT_STONE, 0, 1.3, 0);
-  add(g, new THREE.BoxGeometry(2.0, 8.4, 2.0), MAT_STONE, 0, 4.8, -1.0);
-  add(g, new THREE.BoxGeometry(3.0, 0.9, 0.8), MAT_ACCENT, 0, 8.8, -1.0);
-  add(g, new THREE.BoxGeometry(0.8, 2.4, 0.8), MAT_ACCENT, 0, 8.8, -1.0);
-  addWindowGrid(g, 0, 2.0, 1.6, 4, 2, 1.0, 0.9, 0xc9abab);
+  const stone = new THREE.MeshStandardMaterial({ color: 0x85766e, roughness: 0.9, metalness: 0.04 });
+  const darkStone = new THREE.MeshStandardMaterial({ color: 0x6a5c56, roughness: 0.88, metalness: 0.05 });
+  const crimson = new THREE.MeshStandardMaterial({ color: 0x8d2e2f, roughness: 0.52, metalness: 0.16 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xaa865b, roughness: 0.45, metalness: 0.3 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0xbfaeaa, roughness: 0.22, metalness: 0.1, transparent: true, opacity: 0.86 });
+
+  // Base podium and front steps.
+  add(g, new THREE.BoxGeometry(12.2, 0.95, 7.2), darkStone, 0, 0.48, 0.45);
+  add(g, new THREE.BoxGeometry(10.0, 0.6, 5.8), stone, 0, 1.25, 0.85);
+  for (let s = 0; s < 5; s += 1) {
+    add(g, new THREE.BoxGeometry(4.9 - s * 0.38, 0.16, 0.45), stone, 0, 0.18 + s * 0.16, 3.25 + s * 0.1);
+  }
+
+  // Main hall + side annexes.
+  add(g, new THREE.BoxGeometry(7.4, 3.3, 3.9), MAT_STONE, 0, 3.0, 0.15);
+  add(g, new THREE.BoxGeometry(2.6, 2.5, 3.0), MAT_STONE, -3.4, 2.6, 0.35);
+  add(g, new THREE.BoxGeometry(2.6, 2.5, 3.0), MAT_STONE, 3.4, 2.6, 0.35);
+
+  // Bell tower axis.
+  add(g, new THREE.BoxGeometry(2.2, 9.8, 2.2), stone, 0, 6.0, -1.05);
+  add(g, new THREE.BoxGeometry(1.65, 2.1, 1.65), darkStone, 0, 11.0, -1.05);
+  add(g, new THREE.ConeGeometry(1.4, 2.2, 10), darkStone, 0, 13.15, -1.05);
+
+  // Cross motif on tower top.
+  add(g, new THREE.BoxGeometry(0.18, 1.25, 0.16), brass, 0, 14.35, -1.05);
+  add(g, new THREE.BoxGeometry(0.65, 0.14, 0.16), brass, 0, 14.0, -1.05);
+
+  // Bell opening frames.
+  add(g, new THREE.BoxGeometry(1.05, 1.35, 0.2), darkStone, 0, 10.6, 0.05);
+  add(g, new THREE.BoxGeometry(0.18, 1.35, 0.18), stone, -0.45, 10.6, 0.12);
+  add(g, new THREE.BoxGeometry(0.18, 1.35, 0.18), stone, 0.45, 10.6, 0.12);
+  add(g, new THREE.SphereGeometry(0.24, 10, 8), brass, 0, 10.35, 0.08);
+
+  // Cloister-like front arches.
+  for (let i = -2; i <= 2; i += 1) {
+    const x = i * 1.15;
+    const arch = add(g, new THREE.TorusGeometry(0.5, 0.08, 8, 20, Math.PI), darkStone, x, 3.35, 2.1);
+    arch.rotation.x = Math.PI / 2;
+    add(g, new THREE.BoxGeometry(0.16, 1.25, 0.16), stone, x - 0.5, 2.75, 2.12);
+    add(g, new THREE.BoxGeometry(0.16, 1.25, 0.16), stone, x + 0.5, 2.75, 2.12);
+  }
+  add(g, new THREE.BoxGeometry(6.0, 0.22, 0.2), darkStone, 0, 4.0, 2.12);
+
+  // Red accent lintel and center axis strip.
+  add(g, new THREE.BoxGeometry(3.2, 0.55, 0.55), crimson, 0, 8.95, -1.05);
+  add(g, new THREE.BoxGeometry(0.65, 2.2, 0.55), crimson, 0, 8.95, -1.05);
+
+  // Facade windows.
+  addWindowGrid(g, 0, 3.0, 1.65, 5, 2, 1.0, 0.95, 0xcfb6b0);
+  addWindowGrid(g, -3.4, 2.6, 1.45, 2, 2, 0.8, 0.9, 0xc7afa9);
+  addWindowGrid(g, 3.4, 2.6, 1.45, 2, 2, 0.8, 0.9, 0xc7afa9);
+  add(g, new THREE.BoxGeometry(2.1, 0.8, 0.32), glass, 0, 10.55, 0.12);
+
+  // Front portal frame.
+  add(g, new THREE.BoxGeometry(2.6, 2.1, 0.3), darkStone, 0, 2.45, 2.25);
+  add(g, new THREE.BoxGeometry(0.22, 2.1, 0.24), stone, -1.15, 2.45, 2.3);
+  add(g, new THREE.BoxGeometry(0.22, 2.1, 0.24), stone, 1.15, 2.45, 2.3);
+
   return g;
 }
 

@@ -450,6 +450,7 @@ async function initHub() {
 
         updateHUD(currentUser);
         updateMyBuilding(currentUser);
+        await handleDiamondWebPaymentCallback();
         await Promise.all([loadRankingAndMap(), loadNotifBadge(), loadUniversitiesCache(), refreshFriendBadge()]);
         fetch('/api/friends/list', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(friends => {
             if (window.WorldScene) window.WorldScene.setFriendIds(friends.map(f => f.id));
@@ -1310,6 +1311,65 @@ function getAppStoreProvider() {
     return '';
 }
 
+function getAbsoluteMainHubUrl() {
+    return `${window.location.origin}/mainHub/`;
+}
+
+async function loadTossPaymentsSdk() {
+    if (window.TossPayments) return window.TossPayments;
+
+    await new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-toss-sdk="1"]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(), { once: true });
+            existing.addEventListener('error', () => reject(new Error('토스 SDK 로드 실패')), { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://js.tosspayments.com/v1/payment';
+        script.async = true;
+        script.dataset.tossSdk = '1';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('토스 SDK 로드 실패'));
+        document.head.appendChild(script);
+    });
+
+    return window.TossPayments;
+}
+
+async function handleDiamondWebPaymentCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const paymentKey = params.get('paymentKey');
+    const orderId = params.get('orderId');
+    const amountRaw = params.get('amount');
+    if (!paymentKey || !orderId || !amountRaw) return;
+
+    const amount = parseInt(amountRaw, 10);
+    if (!Number.isInteger(amount)) return;
+
+    try {
+        const r = await fetch('/api/estate/diamond/web/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ paymentKey, orderId, amount })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            alert(data.error || '토스 결제 확인에 실패했습니다.');
+        } else {
+            currentUser = { ...(currentUser || {}), ...(data.user || {}) };
+            updateHUD(currentUser);
+            alert(`다이아 충전 완료! +${Number(data.addedDiamond || 0).toLocaleString()}D`);
+        }
+    } catch (e) {
+        alert('결제 확인 중 오류가 발생했습니다.');
+    } finally {
+        window.history.replaceState({}, document.title, getAbsoluteMainHubUrl());
+    }
+}
+
 function switchShopTab(tab, btn) {
     currentShopTab = tab;
     const parent = btn.parentElement;
@@ -1820,43 +1880,106 @@ async function buySkin(skinId, price) {
     } catch (e) { alert('오류 발생'); }
 }
 
+async function completeAppDiamondPurchase(packageId, priceKrw, providerName, providerTxId, paymentSignature) {
+    const r = await fetch('/api/estate/diamond/app/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+            package_id: packageId,
+            provider: providerName,
+            provider_tx_id: providerTxId,
+            paid_amount_krw: priceKrw,
+            payment_signature: paymentSignature,
+            client_platform: 'app'
+        })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || '앱 결제 반영 실패');
+    currentUser = { ...(currentUser || {}), ...(data.user || {}) };
+    updateHUD(currentUser);
+    alert(`다이아 충전 완료! +${Number(data.addedDiamond || 0).toLocaleString()}D`);
+    renderShopContent('diamond');
+}
+
+async function startWebTossDiamondPayment(packageId) {
+    const prepRes = await fetch('/api/estate/diamond/web/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ package_id: packageId })
+    });
+    const prepData = await prepRes.json();
+    if (!prepRes.ok) throw new Error(prepData.error || '결제 준비 실패');
+
+    const TossPayments = await loadTossPaymentsSdk();
+    const tossPayments = TossPayments(prepData.clientKey);
+    await tossPayments.requestPayment('카드', {
+        amount: prepData.amount,
+        orderId: prepData.orderId,
+        orderName: prepData.orderName,
+        successUrl: getAbsoluteMainHubUrl(),
+        failUrl: getAbsoluteMainHubUrl(),
+        customerName: currentUser?.nickname || 'P.A.T.H USER'
+    });
+}
+
+async function startAppDiamondPayment(packageId, priceKrw, providerName) {
+    const bridge = window.PathNativeIAP;
+    if (!bridge || typeof bridge.requestDiamondPurchase !== 'function') {
+        throw new Error('앱 결제 브리지(PathNativeIAP.requestDiamondPurchase)가 연결되지 않았습니다.');
+    }
+
+    const payload = await bridge.requestDiamondPurchase({
+        packageId,
+        provider: providerName,
+        amountKrw: priceKrw
+    });
+    if (!payload) throw new Error('앱 결제 결과가 없습니다.');
+
+    await completeAppDiamondPurchase(
+        packageId,
+        priceKrw,
+        providerName,
+        String(payload.provider_tx_id || ''),
+        String(payload.payment_signature || '')
+    );
+}
+
 async function purchaseDiamondPackage(packageId, priceKrw, provider) {
     const providerName = String(provider || '').trim().toLowerCase();
     if (!providerName) return;
 
-    const providerTxId = prompt('결제 거래번호(provider_tx_id)를 입력하세요.');
-    if (!providerTxId) return;
-
-    const paymentSignature = prompt('결제 서버에서 발급한 payment_signature를 입력하세요.');
-    if (!paymentSignature) return;
-
     try {
-        const r = await fetch('/api/estate/diamond/purchase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                package_id: packageId,
-                provider: providerName,
-                provider_tx_id: providerTxId,
-                paid_amount_krw: priceKrw,
-                payment_signature: paymentSignature,
-                client_platform: getClientPlatform()
-            })
-        });
-        const data = await r.json();
-        if (!r.ok) {
-            alert(data.error || '다이아 결제 반영 실패');
+        if (providerName === 'toss') {
+            await startWebTossDiamondPayment(packageId);
             return;
         }
-        currentUser = { ...(currentUser || {}), ...(data.user || {}) };
-        updateHUD(currentUser);
-        alert(`다이아 충전 완료! +${Number(data.addedDiamond || 0).toLocaleString()}D`);
-        renderShopContent('diamond');
+
+        await startAppDiamondPayment(packageId, priceKrw, providerName);
     } catch (e) {
-        alert('다이아 결제 처리 중 오류가 발생했습니다.');
+        alert(e?.message || '다이아 결제 처리 중 오류가 발생했습니다.');
     }
 }
+
+window.onPathDiamondPurchaseCompleted = async function onPathDiamondPurchaseCompleted(payload) {
+    try {
+        if (!payload || typeof payload !== 'object') throw new Error('결제 결과 payload가 비어 있습니다.');
+
+        const priceKrw = parseInt(payload.paid_amount_krw, 10);
+        if (!Number.isInteger(priceKrw)) throw new Error('결제 금액 정보가 올바르지 않습니다.');
+
+        await completeAppDiamondPurchase(
+            String(payload.package_id || ''),
+            priceKrw,
+            String(payload.provider || ''),
+            String(payload.provider_tx_id || ''),
+            String(payload.payment_signature || '')
+        );
+    } catch (e) {
+        alert(e?.message || '앱 결제 반영 실패');
+    }
+};
 
 async function equipSkin(skinId) {
     try {
