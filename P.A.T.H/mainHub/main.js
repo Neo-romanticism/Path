@@ -2905,49 +2905,90 @@ function bindBtn(el, handler) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ── 정적 HTML의 모든 onclick/onchange를 명시적 이벤트 리스너로 교체 ──
-    // inline onclick이 차단되는 환경(일부 WebView/모바일 브라우저) 대응
+    // ── onclick 속성 문자열을 파싱하여 핸들러 생성 ──────────────────
+    // el.onclick이 null인 환경(CSP/WebView inline 차단)에서도 동작
+    function parseAttrHandler(el, attrName) {
+        const attr = (el.getAttribute(attrName) || '').trim();
+        if (!attr) return null;
+
+        // window.location.href = 'url'
+        const navM = attr.match(/^window\.location\.href\s*=\s*['"]([^'"]+)['"]\s*;?$/);
+        if (navM) { const url = navM[1]; return () => { window.location.href = url; }; }
+
+        // document.getElementById('id').method()
+        const domM = attr.match(/^document\.getElementById\(['"]([^'"]+)['"]\)\.(\w+)\(\)\s*;?$/);
+        if (domM) {
+            const id = domM[1], method = domM[2];
+            return () => { const t = document.getElementById(id); if (t) t[method](); };
+        }
+
+        // functionName(arg1, arg2, ...)
+        const callM = attr.match(/^([\w$]+)\((.*)\)\s*;?$/);
+        if (!callM) return null;
+        const fn = window[callM[1]];
+        if (typeof fn !== 'function') return null;
+        const rawArgs = callM[2].trim() ? callM[2].trim().split(',').map(s => s.trim()) : [];
+
+        return (e) => {
+            const args = rawArgs.map(a => {
+                if (a === 'this') return el;
+                if (a === 'event') return e;
+                const q = a.match(/^['"](.*)['"]$/);
+                if (q) return q[1];
+                if (a !== '' && !isNaN(+a)) return +a;
+                return undefined;
+            });
+            fn.apply(el, args);
+        };
+    }
+
+    // ── 정적 HTML의 모든 onclick을 명시적 이벤트 리스너로 교체 ──────
     document.querySelectorAll('[onclick]').forEach(el => {
-        const fn = el.onclick;
-        if (typeof fn !== 'function') return;
+        const handler = parseAttrHandler(el, 'onclick');
+        if (!handler) return;
         el.removeAttribute('onclick');
         el.onclick = null;
-        let _lastTap = 0;
+        let _t = 0;
         el.addEventListener('pointerup', (e) => {
             if (e.pointerType !== 'touch') return;
             const now = Date.now();
-            if (now - _lastTap < 250) return;
-            _lastTap = now;
+            if (now - _t < 250) return;
+            _t = now;
             e.preventDefault();
             e.stopPropagation();
-            fn.call(el, e);
+            handler(e);
         }, { passive: false });
         el.addEventListener('click', (e) => {
             const now = Date.now();
-            if (now - _lastTap < 350) { e.preventDefault(); e.stopPropagation(); return; }
-            fn.call(el, e);
+            if (now - _t < 350) { e.preventDefault(); e.stopPropagation(); return; }
+            handler(e);
         });
     });
 
-    // onchange 속성도 동일하게 교체
+    // ── onchange 교체 ───────────────────────────────────────────────
     document.querySelectorAll('[onchange]').forEach(el => {
-        const fn = el.onchange;
-        if (typeof fn !== 'function') return;
+        const handler = parseAttrHandler(el, 'onchange');
+        if (!handler) return;
         el.removeAttribute('onchange');
         el.onchange = null;
-        el.addEventListener('change', (e) => fn.call(el, e));
+        el.addEventListener('change', handler);
     });
 
-    // oninput 속성도 교체 (검색 입력)
-    document.querySelectorAll('[oninput]').forEach(el => {
-        const fn = el.oninput;
-        if (typeof fn !== 'function') return;
-        el.removeAttribute('oninput');
-        el.oninput = null;
-        el.addEventListener('input', (e) => fn.call(el, e));
-    });
+    // ── oninput 교체 (검색) ─────────────────────────────────────────
+    const searchInput = document.getElementById('global-search');
+    if (searchInput) {
+        searchInput.removeAttribute('oninput');
+        searchInput.addEventListener('input', () => onSearch(searchInput.value));
+    }
 
-    // 프로필 버튼 (onclick 없이 bindBtn으로 직접 연결)
+    // ── onkeydown 교체 (메시지 입력) ───────────────────────────────
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.removeAttribute('onkeydown');
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+    }
+
+    // ── 프로필 버튼 (onclick 속성 없음, 직접 연결) ─────────────────
     bindBtn(document.getElementById('tutorial-profile'), () => openProfileCustomizer());
 });
 
