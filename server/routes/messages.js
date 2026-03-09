@@ -100,6 +100,41 @@ function requireAuth(req, res, next) {
     next();
 }
 
+// 메시지 첨부 파일 조회 (대화 참여자만 접근 가능)
+router.get('/file/:filename', requireAuth, async (req, res) => {
+    const filename = String(req.params.filename || '').trim();
+    if (!/^[a-zA-Z0-9._-]+$/.test(filename)) {
+        return res.status(400).json({ error: '잘못된 파일 경로입니다' });
+    }
+
+    const filePath = `/uploads/messages/${filename}`;
+
+    try {
+        const access = await pool.query(
+            `SELECT 1
+               FROM messages
+              WHERE file_path = $1
+                AND (sender_id = $2 OR receiver_id = $2)
+              LIMIT 1`,
+            [filePath, req.session.userId]
+        );
+
+        if (access.rows.length === 0) {
+            return res.status(404).json({ error: '파일을 찾을 수 없습니다' });
+        }
+
+        const absolutePath = path.join(uploadDir, filename);
+        if (!fs.existsSync(absolutePath)) {
+            return res.status(404).json({ error: '파일이 존재하지 않습니다' });
+        }
+
+        return res.sendFile(absolutePath);
+    } catch (err) {
+        console.error('messages/file 오류:', err.message);
+        return res.status(500).json({ error: '서버 오류' });
+    }
+});
+
 // 대화 목록 (가장 최근 메시지 기준)
 router.get('/conversations', requireAuth, async (req, res) => {
     try {

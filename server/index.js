@@ -197,6 +197,9 @@ app.use('/uploads/gpa/:filename', (req, res) => {
 app.use('/uploads/profiles/:filename', (req, res) => {
     res.redirect(`/api/auth/profile-image/${req.params.filename}`);
 });
+app.use('/uploads/messages/:filename', (req, res) => {
+    res.redirect(`/api/messages/file/${req.params.filename}`);
+});
 app.use('/uploads/study-proofs/:filename', (req, res) => {
     res.redirect(`/api/study/proof-image/${req.params.filename}`);
 });

@@ -95,6 +95,16 @@ async function enforceAlwaysMainAdminByNickname(userId) {
     };
 }
 
+async function isPrivilegedAdmin(userId) {
+    const result = await pool.query(
+        'SELECT is_admin, admin_role FROM users WHERE id = $1',
+        [userId]
+    );
+    const row = result.rows[0];
+    if (!row) return false;
+    return row.is_admin === true || row.admin_role === 'main' || row.admin_role === 'sub';
+}
+
 const scoreStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(__dirname, '../../uploads/scores');
@@ -462,8 +472,7 @@ router.post('/upload-score', requireAuth, upload.single('scoreImage'), async (re
 });
 
 router.get('/score-image/:filename', requireAuth, async (req, res) => {
-    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [req.session.userId]);
-    const isAdmin = adminCheck.rows[0]?.is_admin;
+    const isAdmin = await isPrivilegedAdmin(req.session.userId);
     const filename = path.basename(req.params.filename);
 
     if (!isAdmin) {
@@ -508,8 +517,7 @@ router.post('/toggle-gpa-public', requireAuth, async (req, res) => {
 });
 
 router.get('/gpa-image/:filename', requireAuth, async (req, res) => {
-    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [req.session.userId]);
-    const isAdmin = adminCheck.rows[0]?.is_admin;
+    const isAdmin = await isPrivilegedAdmin(req.session.userId);
     const filename = path.basename(req.params.filename);
 
     if (!isAdmin) {
@@ -525,8 +533,7 @@ router.get('/gpa-image/:filename', requireAuth, async (req, res) => {
 });
 
 router.get('/profile-image/:filename', requireAuth, async (req, res) => {
-    const adminCheck = await pool.query('SELECT is_admin FROM users WHERE id = $1', [req.session.userId]);
-    const isAdmin = adminCheck.rows[0]?.is_admin;
+    const isAdmin = await isPrivilegedAdmin(req.session.userId);
     const filename = path.basename(req.params.filename);
 
     if (!isAdmin) {
