@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../db');
 const { STUDY_GOLD_PER_HR } = require('../data/universities');
+const { recalculateStreak, evaluateMilestoneTitles, formatDisplayName } = require('../utils/progression');
 
 const router = express.Router();
 const STUDY_PROOF_BONUS_GOLD = 5;
@@ -412,6 +413,13 @@ router.post('/complete', async (req, res) => {
             );
         }
 
+        const streakInfo = await recalculateStreak(client, req.session.userId);
+        const grantedTitles = await evaluateMilestoneTitles(client, req.session.userId, {
+            completedAt: new Date(),
+            studyMode,
+            studyResult
+        });
+
         const updRes = await client.query(
             `UPDATE users
              SET gold = gold + $1,
@@ -421,12 +429,16 @@ router.post('/complete', async (req, res) => {
                  target_duration_sec = 0,
                  current_study_subject_id = NULL
              WHERE id = $3
-             RETURNING id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score`,
+             RETURNING id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, active_title, streak_count, streak_last_date`,
             [earnedGold, earnedExp, req.session.userId]
         );
 
+        const safeUser = updRes.rows[0];
+        safeUser.active_streak = streakInfo.activeStreak;
+        safeUser.display_nickname = formatDisplayName(safeUser.nickname, safeUser.active_title);
+
         await client.query('COMMIT');
-        res.json({ ok: true, earnedGold, earnedExp, studyRecordId, user: updRes.rows[0] });
+        res.json({ ok: true, earnedGold, earnedExp, studyRecordId, grantedTitles, user: safeUser });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('complete error:', err);
@@ -546,7 +558,7 @@ router.get('/stats', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
         const userResult = await pool.query(
-            'SELECT id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score FROM users WHERE id = $1',
+            'SELECT id, nickname, university, gold, exp, tier, tickets, is_studying, mock_exam_score, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
             [req.session.userId]
         );
         const recordsResult = await pool.query(
@@ -561,7 +573,11 @@ router.get('/stats', async (req, res) => {
              FROM study_records WHERE user_id = $1 AND created_at >= CURRENT_DATE`,
             [req.session.userId]
         );
-        res.json({ user: userResult.rows[0], stats: { ...recordsResult.rows[0], ...todayResult.rows[0] } });
+        const user = userResult.rows[0] || null;
+        if (user) {
+            user.display_nickname = formatDisplayName(user.nickname, user.active_title);
+        }
+        res.json({ user, stats: { ...recordsResult.rows[0], ...todayResult.rows[0] } });
     } catch (err) {
         console.error('stats error:', err);
         res.status(500).json({ error: '서버 오류' });

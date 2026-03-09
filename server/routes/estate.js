@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { getTaxRate, getTicketPrice, getPercentile } = require('../data/universities');
+const { getActiveStreakFromUser, getStreakMultiplier, STREAK_BONUS_RATE } = require('../utils/progression');
 
 const router = express.Router();
 
@@ -28,11 +29,14 @@ router.get('/tax', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
         const result = await pool.query(
-            'SELECT university, last_tax_collected_at, gold, is_n_su, prev_university, gpa_score, gpa_status FROM users WHERE id = $1',
+            'SELECT university, last_tax_collected_at, gold, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1',
             [req.session.userId]
         );
         const user = result.rows[0];
-        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status);
+        const baseRate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status);
+        const activeStreak = getActiveStreakFromUser(user);
+        const streakMultiplier = getStreakMultiplier(activeStreak);
+        const rate = baseRate * streakMultiplier;
         const percentile = getPercentile(user.university);
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
@@ -49,19 +53,22 @@ router.get('/tax', async (req, res) => {
             university: user.university,
             ticketPrice,
             is_n_su: user.is_n_su,
-            prev_university: user.prev_university
+            prev_university: user.prev_university,
+            active_streak: activeStreak,
+            streak_bonus_rate: activeStreak > 0 ? STREAK_BONUS_RATE : 0,
+            streak_multiplier: streakMultiplier
         };
 
-        const baseRate = getTaxRate(user.university);
+        const taxBaseRate = getTaxRate(user.university);
         if (user.is_n_su && user.prev_university) {
             const bonus = getTaxRate(user.prev_university) * NSU_BONUS_RATE;
-            resp.baseRate = Math.round(baseRate * 100) / 100;
+            resp.baseRate = Math.round(taxBaseRate * 100) / 100;
             resp.nsuBonus = Math.round(bonus * 100) / 100;
         }
 
         const gpaBonus = calcGpaBonus(user.gpa_score, user.gpa_status);
         if (gpaBonus > 0) {
-            if (!resp.baseRate) resp.baseRate = Math.round(baseRate * 100) / 100;
+            if (!resp.baseRate) resp.baseRate = Math.round(taxBaseRate * 100) / 100;
             resp.gpaBonus = Math.round(gpaBonus * 100) / 100;
             resp.gpaScore = parseFloat(user.gpa_score);
         }
@@ -79,11 +86,12 @@ router.post('/collect-tax', async (req, res) => {
     try {
         await client.query('BEGIN');
         const userRes = await client.query(
-            'SELECT university, last_tax_collected_at, is_n_su, prev_university, gpa_score, gpa_status FROM users WHERE id = $1 FOR UPDATE',
+            'SELECT university, last_tax_collected_at, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1 FOR UPDATE',
             [req.session.userId]
         );
         const user = userRes.rows[0];
-        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status);
+        const activeStreak = getActiveStreakFromUser(user);
+        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status) * getStreakMultiplier(activeStreak);
 
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,

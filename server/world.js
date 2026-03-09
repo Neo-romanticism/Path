@@ -64,6 +64,8 @@ function playerPublic(p) {
     return {
         id: p.userId,
         nickname: p.nickname,
+        display_nickname: p.display_nickname || p.nickname,
+        active_streak: Number(p.active_streak || 0),
         university: p.university,
         balloon_skin: p.balloon_skin,
         status_message: p.status_message || null,
@@ -104,6 +106,7 @@ function setup(io) {
 
             const {
                 nickname = '', university = '',
+                display_nickname = '', active_streak = 0,
                 balloon_skin = 'default', status_message = null,
                 worldX = 0, worldY = 0,
             } = data;
@@ -115,7 +118,13 @@ function setup(io) {
             const { cx, cy } = chunkOf(clamped.worldX, clamped.worldY);
 
             players.set(socket.id, {
-                userId, nickname, university, balloon_skin, status_message,
+                userId,
+                nickname,
+                display_nickname: display_nickname || nickname,
+                active_streak: Number(active_streak || 0),
+                university,
+                balloon_skin,
+                status_message,
                 worldX: clamped.worldX, worldY: clamped.worldY, cx, cy,
             });
 

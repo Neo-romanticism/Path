@@ -1,6 +1,8 @@
 const UI = {
     currentMode: 'timer',
     currentTab: 'study',
+    currentUser: null,
+    rankingInfo: null,
     universityList: [],
     scoreCalcUniversityInfo: null,
     subjects: [],
@@ -50,6 +52,9 @@ const UI = {
         balloonMetricToday: document.getElementById('balloon-metric-today'),
         balloonMetricTotal: document.getElementById('balloon-metric-total'),
         balloonMetricSuccess: document.getElementById('balloon-metric-success'),
+        balloonAiHeadline: document.getElementById('balloon-ai-headline'),
+        balloonAiDetail: document.getElementById('balloon-ai-detail'),
+        balloonAiMeta: document.getElementById('balloon-ai-meta'),
         subjectSelect: document.getElementById('subject-select'),
         subjectInput: document.getElementById('subject-input'),
         subjectAddBtn: document.getElementById('subject-add-btn'),
@@ -93,6 +98,7 @@ const UI = {
     async init() {
         const userData = await StorageManager.load();
         if (!userData) return;
+        this.currentUser = userData;
 
         this.updateAssets(userData);
         if (this.elements.bottomInfo) {
@@ -128,14 +134,17 @@ const UI = {
             const r = await fetch('/api/ranking/me', { credentials: 'include' });
             if (r.ok) {
                 const data = await r.json();
+                this.rankingInfo = data;
                 const totalHr = Math.floor((data.total_sec || 0) / 3600);
                 const totalMin = Math.floor(((data.total_sec || 0) % 3600) / 60);
                 if (this.elements.rankPct) this.elements.rankPct.textContent = data.pct + '%';
                 if (this.elements.tierTag) {
                     this.elements.tierTag.textContent = `${totalHr}h ${totalMin}m / TOP ${data.pct}%`;
                 }
+                return data;
             }
         } catch (e) {}
+        return this.rankingInfo;
     },
 
     bindEvents() {
@@ -547,7 +556,10 @@ const UI = {
     },
 
     async loadBalloonMetrics() {
-        const stats = await StorageManager.fetchStudyStats();
+        const [stats, rankInfo] = await Promise.all([
+            StorageManager.fetchStudyStats(),
+            this.rankingInfo ? Promise.resolve(this.rankingInfo) : this.loadRankInfo()
+        ]);
         const todaySec = parseInt(stats?.today_sec, 10) || 0;
         const totalSec = parseInt(stats?.total_sec, 10) || 0;
         const successSec = parseInt(stats?.success_sec, 10) || 0;
@@ -561,6 +573,95 @@ const UI = {
         if (this.elements.balloonMetricSuccess) {
             this.elements.balloonMetricSuccess.textContent = this.formatDuration(successSec);
         }
+
+        this.renderBalloonAiReport({
+            stats,
+            rankInfo,
+            user: stats?.user || this.currentUser
+        });
+    },
+
+    renderBalloonAiReport({ stats, rankInfo, user }) {
+        if (!this.elements.balloonAiHeadline || !this.elements.balloonAiDetail || !this.elements.balloonAiMeta) {
+            return;
+        }
+
+        const rankingPct = parseFloat(rankInfo?.pct);
+        const studyTopPct = Number.isFinite(rankingPct) ? Math.max(0, Math.min(100, rankingPct)) : null;
+        const userPercentile = studyTopPct === null ? null : 100 - studyTopPct;
+        const todaySec = parseInt(stats?.today_sec, 10) || 0;
+        const totalSec = parseInt(stats?.total_sec, 10) || 0;
+        const successSec = parseInt(stats?.success_sec, 10) || 0;
+
+        const targetUni = this.pickTargetUniversity(userPercentile, user?.university);
+        const uniName = targetUni?.name || (String(user?.university || '').trim() || '목표 대학');
+        const targetBase = Number.isFinite(Number(targetUni?.basePercentile))
+            ? Number(targetUni.basePercentile)
+            : 85;
+
+        const estimatedNow = this.estimateAcceptanceChance(userPercentile, targetBase, totalSec, successSec);
+        const predictedLift = this.estimateTrendLift(userPercentile, targetBase, todaySec, totalSec, successSec);
+        const projected = Math.min(95, estimatedNow + predictedLift);
+
+        const successRate = totalSec > 0 ? Math.round((successSec / totalSec) * 100) : 0;
+        const nowText = studyTopPct === null ? '집계 대기' : `상위 ${studyTopPct.toFixed(2)}%`;
+
+        this.elements.balloonAiHeadline.textContent = `이 추세라면 ${uniName} 합격 확률 ${predictedLift}% 상승 예상`;
+        this.elements.balloonAiDetail.textContent = `현재 학습 백분위 ${nowText}, 오늘 집중 ${this.formatDuration(todaySec)} 기준으로 ${estimatedNow}% -> ${projected}%를 기대할 수 있어요. 성공 세션 비율 ${successRate}%를 유지하면 상승폭이 더 커집니다.`;
+        this.elements.balloonAiMeta.textContent = `기준: 누적 ${this.formatDuration(totalSec)} · 목표 기준 백분위 ${targetBase.toFixed(1)} · 학습 패턴 기반 추정`;
+    },
+
+    pickTargetUniversity(userPercentile, preferredUniversity) {
+        const preferred = String(preferredUniversity || '').trim();
+        if (preferred && Array.isArray(this.universityList) && this.universityList.length > 0) {
+            const exact = this.universityList.find((u) => String(u?.name || '').trim() === preferred);
+            if (exact) return exact;
+        }
+
+        if (!Array.isArray(this.universityList) || this.universityList.length === 0 || userPercentile == null) {
+            return null;
+        }
+
+        const sorted = [...this.universityList]
+            .filter((u) => Number.isFinite(Number(u?.basePercentile)))
+            .sort((a, b) => Math.abs(Number(a.basePercentile) - userPercentile) - Math.abs(Number(b.basePercentile) - userPercentile));
+        return sorted[0] || null;
+    },
+
+    estimateAcceptanceChance(userPercentile, targetBasePercentile, totalSec, successSec) {
+        const userPct = Number.isFinite(userPercentile) ? userPercentile : 50;
+        const targetPct = Number.isFinite(targetBasePercentile) ? targetBasePercentile : 85;
+        const percentileGap = userPct - targetPct;
+        const successRate = totalSec > 0 ? (successSec / totalSec) : 0.55;
+        const totalHours = totalSec / 3600;
+
+        let chance = 45 + (percentileGap * 2.4);
+        chance += Math.min(12, totalHours * 0.25);
+        chance += (successRate - 0.5) * 20;
+
+        return Math.max(5, Math.min(90, Math.round(chance)));
+    },
+
+    estimateTrendLift(userPercentile, targetBasePercentile, todaySec, totalSec, successSec) {
+        const todayHours = todaySec / 3600;
+        const totalHours = totalSec / 3600;
+        const successRate = totalSec > 0 ? (successSec / totalSec) : 0.55;
+        const userPct = Number.isFinite(userPercentile) ? userPercentile : 50;
+        const targetPct = Number.isFinite(targetBasePercentile) ? targetBasePercentile : 85;
+        const gap = targetPct - userPct;
+
+        let lift = 6;
+        lift += Math.min(7, todayHours * 2.1);
+        lift += Math.min(4, totalHours / 40);
+        lift += (successRate - 0.5) * 18;
+
+        if (gap > 0) {
+            lift += Math.min(3, gap / 4);
+        } else {
+            lift -= Math.min(2, Math.abs(gap) / 10);
+        }
+
+        return Math.max(4, Math.min(20, Math.round(lift)));
     },
 
     toggleSubjectAddRow() {

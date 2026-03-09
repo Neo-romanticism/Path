@@ -606,6 +606,45 @@ body:not(.light) .balloon-badge {
     letter-spacing: -0.01em;
 }
 
+.balloon-ai-report {
+    grid-column: 1 / -1;
+    border: 1px solid var(--line-color);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(49, 130, 246, 0.12), rgba(0, 196, 113, 0.08));
+    padding: 16px;
+    display: grid;
+    gap: 8px;
+}
+
+body:not(.light) .balloon-ai-report {
+    background: linear-gradient(135deg, rgba(63, 137, 255, 0.2), rgba(20, 140, 91, 0.16));
+}
+
+.balloon-ai-kicker {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: var(--accent-blue);
+}
+
+.balloon-ai-headline {
+    font-size: clamp(1rem, 1.6vw, 1.2rem);
+    line-height: 1.45;
+    color: var(--text-primary);
+}
+
+.balloon-ai-detail {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.balloon-ai-meta {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 0.01em;
+}
+
 @keyframes balloonFloat {
     0%,
     100% {
@@ -1793,6 +1832,10 @@ body.active .tab-panel {
 
     .balloon-metrics {
         grid-template-columns: 1fr;
+    }
+
+    .balloon-ai-report {
+        padding: 14px;
     }
 
     .cmd-btn {

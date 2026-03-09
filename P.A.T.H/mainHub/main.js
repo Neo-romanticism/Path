@@ -134,6 +134,91 @@ let dragStartX, dragStartY;
 let mapOffsetX = 0, mapOffsetY = 0;
 let scale = 1.0;
 let currentRankTab = 'total';
+const LANDMARK_UNIVERSITIES = [
+    '서울대학교',
+    '연세대학교',
+    '고려대학교',
+    '카이스트',
+    '포항공과대학교',
+    '성균관대학교',
+    '한양대학교',
+    '중앙대학교',
+    '경희대학교',
+    '서강대학교',
+    '이화여자대학교',
+    '부산대학교'
+];
+
+function normalizeUniName(name) {
+    return String(name || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function matchesUniversity(userUniversity, targetUniversity) {
+    const userUni = normalizeUniName(userUniversity);
+    const targetUni = normalizeUniName(targetUniversity);
+    if (!userUni || !targetUni) return false;
+    if (userUni === targetUni) return true;
+
+    const uniInfo = allUniversities.find((u) => normalizeUniName(u.name) === targetUni);
+    if (!uniInfo) return userUni.includes(targetUni) || targetUni.includes(userUni);
+
+    const aliases = (uniInfo.aliases || []).map(normalizeUniName);
+    if (aliases.some((a) => a && (userUni.includes(a) || a.includes(userUni)))) return true;
+    return userUni.includes(targetUni) || targetUni.includes(userUni);
+}
+
+function getTopScorerForUniversity(universityName) {
+    const universityUsers = allUsers.filter((u) => matchesUniversity(u.university, universityName));
+    const approvedScoreUsers = universityUsers
+        .filter((u) => u.score_status === 'approved' && Number.isFinite(parseFloat(u.mock_exam_score)) && parseFloat(u.mock_exam_score) > 0)
+        .sort((a, b) => parseFloat(b.mock_exam_score) - parseFloat(a.mock_exam_score));
+
+    if (approvedScoreUsers.length > 0) {
+        const top = approvedScoreUsers[0];
+        return {
+            topScorerNickname: top.nickname,
+            topScorerScore: Math.round(parseFloat(top.mock_exam_score))
+        };
+    }
+
+    const byStudyTime = universityUsers
+        .filter((u) => Number.isFinite(parseFloat(u.total_sec)) && parseFloat(u.total_sec) > 0)
+        .sort((a, b) => parseFloat(b.total_sec) - parseFloat(a.total_sec));
+
+    if (byStudyTime.length > 0) {
+        return {
+            topScorerNickname: byStudyTime[0].nickname,
+            topScorerScore: null
+        };
+    }
+
+    return { topScorerNickname: null, topScorerScore: null };
+}
+
+function buildLandmarkUniversityStats() {
+    const stats = {};
+    LANDMARK_UNIVERSITIES.forEach((universityName) => {
+        const basePercentile = getUniBasePercentile(universityName);
+        const predictedCutScore = typeof basePercentile === 'number'
+            ? Math.round(percentileToCutline(basePercentile))
+            : null;
+        const topScorer = getTopScorerForUniversity(universityName);
+
+        stats[universityName] = {
+            university: universityName,
+            basePercentile,
+            predictedCutScore,
+            topScorerNickname: topScorer.topScorerNickname,
+            topScorerScore: topScorer.topScorerScore
+        };
+    });
+    return stats;
+}
+
+function syncLandmarkUniversityStatsToScene() {
+    if (!window.WorldScene || !window.WorldScene.isReady || !window.WorldScene.setUniversityLandmarkStats) return;
+    window.WorldScene.setUniversityLandmarkStats(buildLandmarkUniversityStats());
+}
 
 function getOnboardingDoneKey(userId) {
     return `${ONBOARDING_DONE_PREFIX}${userId}`;
@@ -388,9 +473,15 @@ function secToHour(sec) {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function getDisplayNickname(userLike) {
+    if (!userLike) return '';
+    return userLike.display_nickname || userLike.nickname || '';
+}
+
 function updateHUD(user) {
     document.getElementById('badge-char').textContent = (user.nickname || '?').charAt(0).toUpperCase();
-    document.getElementById('hud-univ').textContent = user.university || '-';
+    const titlePrefix = user.active_title ? `[${user.active_title}] ` : '';
+    document.getElementById('hud-univ').textContent = `${titlePrefix}${user.university || '-'}`;
     document.getElementById('hud-gold').textContent = (user.gold || 0).toLocaleString();
     document.getElementById('hud-hours').textContent = secToHour(myTotalSec);
     document.getElementById('hud-tickets').textContent = (user.tickets || 0) + '장';
@@ -416,6 +507,7 @@ async function loadRankingAndMap() {
         const data = await r.json();
         allUsers = data.ranking || [];
         renderOtherUsers(allUsers);
+        syncLandmarkUniversityStatsToScene();
         if (!document.getElementById('panel-rank').classList.contains('hidden')) {
             loadRankPanel(currentRankTab);
         }
@@ -426,10 +518,14 @@ async function loadRankingAndMap() {
 
 async function loadUniversitiesCache() {
     try {
-        const r = await fetch('/api/universities', { credentials: 'include' });
+        let r = await fetch('/api/universities', { credentials: 'include' });
+        if (!r.ok) {
+            r = await fetch('/api/university/list', { credentials: 'include' });
+        }
         if (!r.ok) return;
         const data = await r.json();
         allUniversities = data.universities || [];
+        syncLandmarkUniversityStatsToScene();
     } catch (e) {
         console.error('loadUniversitiesCache 오류:', e);
     }
@@ -448,13 +544,28 @@ async function loadRankPanel(tab) {
     listEl.textContent = '로딩 중...';
     try {
         const url = tab === 'today' ? '/api/ranking/today' : '/api/ranking';
-        const r = await fetch(url, { credentials: 'include' });
-        const data = await r.json();
+        const [rankRes, bountyRes] = await Promise.all([
+            fetch(url, { credentials: 'include' }),
+            fetch('/api/ranking/bounty', { credentials: 'include' })
+        ]);
+        const data = await rankRes.json();
         const list = data.ranking;
+        const bountyData = bountyRes.ok ? await bountyRes.json() : { bounties: [] };
 
         if (!list || list.length === 0) { listEl.textContent = '데이터 없음'; return; }
 
-        listEl.innerHTML = list.map((u, i) => {
+        const bountyHtml = (bountyData.bounties || []).length
+            ? `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:10px;background:rgba(255,80,80,0.08)">
+                <div style="font-size:11px;color:var(--accent-red);font-weight:700;letter-spacing:0.08em;margin-bottom:8px">WANTED BOARD</div>
+                ${(bountyData.bounties || []).map((b) => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:4px;">
+                    <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.reason || '현상수배')}</span>
+                    <span style="color:var(--gold);font-weight:700">+${Number(b.reward_gold || 0).toLocaleString()}G</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-sub);margin-bottom:6px;">타겟: ${esc(b.display_nickname || b.nickname || '')}${b.active_streak > 0 ? ` · 🔥${b.active_streak}` : ''}</div>`).join('')}
+            </div>`
+            : '';
+
+        const rowsHtml = list.map((u, i) => {
             const isMe = u.id === currentUser?.id;
             const val = tab === 'today'
                 ? `<span style="color:#aaa">${secToHour(u.today_sec || 0)}</span>`
@@ -462,12 +573,13 @@ async function loadRankPanel(tab) {
             return `<div class="rank-item ${isMe ? 'me' : ''}" onclick="focusUser(${u.id})">
                 <span class="rank-num">${i + 1}</span>
                 <div style="flex:1;min-width:0">
-                    <div class="rank-nick">${u.nickname} ${u.is_studying ? '<span class="rank-studying">📖</span>' : ''}</div>
+                    <div class="rank-nick">${esc(getDisplayNickname(u))} ${u.active_streak > 0 ? `<span class="rank-studying">🔥${u.active_streak}</span>` : ''} ${u.is_studying ? '<span class="rank-studying">📖</span>' : ''}</div>
                     <div class="rank-univ">${u.university || '-'}</div>
                 </div>
                 <div style="text-align:right">${val}</div>
             </div>`;
         }).join('');
+        listEl.innerHTML = bountyHtml + rowsHtml;
     } catch (e) { listEl.textContent = '오류 발생'; }
 }
 
@@ -525,10 +637,13 @@ async function openEstate() {
 
         let rateParts = [];
         let rateDisplay = `${data.rate}G/hr`;
-        if (data.nsuBonus || data.gpaBonus) {
+        if (data.nsuBonus || data.gpaBonus || data.streak_bonus_rate) {
             rateParts.push(data.baseRate || data.rate);
             if (data.nsuBonus) rateParts.push(`<span style="color:#4CAF50">+${data.nsuBonus} N수</span>`);
             if (data.gpaBonus) rateParts.push(`<span style="color:#2196F3">+${data.gpaBonus} 내신</span>`);
+            if (data.streak_bonus_rate) {
+                rateParts.push(`<span style="color:#ff8c42">x${Number(data.streak_multiplier || 1).toFixed(2)} 콤보🔥</span>`);
+            }
             rateDisplay = rateParts.join(' + ') + ` = ${data.rate}G/hr`;
         }
 
@@ -820,7 +935,7 @@ async function collectTax() {
 // ── 유저 모달 (도전/모의지원) ─────────────────────────────────────────
 function openUserModal(user) {
     selectedUser = user;
-    document.getElementById('user-modal-title').textContent = `🎓 ${user.nickname}의 모의진학`;
+    document.getElementById('user-modal-title').textContent = `🎓 ${getDisplayNickname(user)}의 모의진학`;
     const myScore = currentUser?.mock_exam_score || 0;
 
     // 합격 확률 계산
@@ -971,7 +1086,7 @@ async function doInvade() {
     if ((currentUser?.tickets || 0) < 1) { alert('원서비가 없습니다.\nSHOP에서 골드로 구매하세요!'); return; }
     if (!currentUser?.mock_exam_score) { alert('평가원 점수를 먼저 등록해주세요.\n(내 성채 클릭 → 점수 등록)'); return; }
 
-    if (!confirm(`${selectedUser.nickname}의 모의진학(${selectedUser.university || '?'})에 지원하시겠습니까?\n원서비 1장 소모`)) return;
+    if (!confirm(`${getDisplayNickname(selectedUser)}의 모의진학(${selectedUser.university || '?'})에 지원하시겠습니까?\n원서비 1장 소모`)) return;
 
     try {
         const r = await fetch('/api/invasion/attack', {
@@ -988,7 +1103,11 @@ async function doInvade() {
         const msg = won
             ? `🎉 모의지원 합격!\n\n내 점수: ${data.attacker_score}점${probLine}\n🏫 대학: ${data.defender_university}(으)로 변경!`
             : `📝 모의지원 불합격\n\n내 점수: ${data.attacker_score}점${probLine}\n\n더 열심히 공부해서 다시 도전하세요!`;
-        alert(msg);
+        const bountyLine = data.bounty_reward > 0 ? `\n💰 현상금 보너스: +${Number(data.bounty_reward).toLocaleString()}G` : '';
+        const titleLine = Array.isArray(data.grantedTitles) && data.grantedTitles.length
+            ? `\n🏷️ 신규 칭호 획득: ${data.grantedTitles.map((t) => `[${t}]`).join(', ')}`
+            : '';
+        alert(msg + bountyLine + titleLine);
         currentUser = data.user;
         updateHUD(data.user);
         updateMyBuilding(data.user);
@@ -2426,6 +2545,8 @@ function initWorldSocket(user) {
     worldSocket.emit('player:join', {
         userId:         user.id,
         nickname:       user.nickname       || '',
+        display_nickname: user.display_nickname || getDisplayNickname(user),
+        active_streak: Number(user.active_streak || 0),
         university:     user.university     || '',
         balloon_skin:   user.balloon_skin   || 'default',
         status_message: user.status_message || null,
@@ -2473,27 +2594,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Explicitly bind settings button to prevent double-invocation on touch browsers
-    // where nav.js fallback + native onclick can both fire togglePanel.
-    const settingsBtn = document.getElementById('tutorial-btn-settings');
-    if (settingsBtn) {
-        settingsBtn.removeAttribute('onclick');
-        let _settingsLastTap = 0;
-        settingsBtn.addEventListener('pointerup', (e) => {
+    // Explicitly bind onclick buttons to prevent double-invocation on touch browsers
+    // where nav.js fallback + native onclick can both fire the handler.
+    function bindBtn(el, handler) {
+        if (!el) return;
+        el.removeAttribute('onclick');
+        let _lastTap = 0;
+        el.addEventListener('pointerup', (e) => {
             if (e.pointerType !== 'touch') return;
             const now = Date.now();
-            if (now - _settingsLastTap < 250) return;
-            _settingsLastTap = now;
+            if (now - _lastTap < 250) return;
+            _lastTap = now;
             e.preventDefault();
             e.stopPropagation();
-            togglePanel('panel-settings');
+            handler();
         }, { passive: false });
-        settingsBtn.addEventListener('click', (e) => {
+        el.addEventListener('click', (e) => {
             const now = Date.now();
-            if (now - _settingsLastTap < 350) { e.preventDefault(); e.stopPropagation(); return; }
-            togglePanel('panel-settings');
+            if (now - _lastTap < 350) { e.preventDefault(); e.stopPropagation(); return; }
+            handler();
         });
     }
+
+    // Header: settings open button
+    bindBtn(document.getElementById('tutorial-btn-settings'), () => togglePanel('panel-settings'));
+
+    // Settings panel: close button + logout button
+    const settingsPanel = document.getElementById('panel-settings');
+    if (settingsPanel) {
+        bindBtn(settingsPanel.querySelector('.close-btn'), () => togglePanel('panel-settings'));
+        bindBtn(settingsPanel.querySelector('.settings-action-btn'), () => doLogout());
+    }
+
+    // Settings panel: toggle switches and selects (onchange → explicit change listener)
+    ['theme-toggle', 'minimap-toggle', 'keyboard-guide-toggle', 'coordinates-toggle'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.removeAttribute('onchange');
+        el.addEventListener('change', () => saveUiSettings());
+    });
+    const camToggle = document.getElementById('cam-enabled-toggle');
+    if (camToggle) { camToggle.removeAttribute('onchange'); camToggle.addEventListener('change', () => saveCamSettings()); }
+    const camSelect = document.getElementById('cam-visibility-select');
+    if (camSelect) { camSelect.removeAttribute('onchange'); camSelect.addEventListener('change', () => saveCamSettings()); }
 });
 
 document.addEventListener('click', (e) => {
@@ -2524,6 +2667,7 @@ async function saveStatusMsg(e) {
 
 // Keep inline handlers stable for all browsers/build modes.
 window.togglePanel = togglePanel;
+window.doLogout = doLogout;
 window.goToCommunity = goToCommunity;
 window.goToTimer = goToTimer;
 

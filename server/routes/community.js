@@ -8,6 +8,7 @@
  * POST /api/community/posts          - 글 작성 (auth)
  * POST /api/community/posts/:id/view - 조회수 +1
  * POST /api/community/posts/:id/like - 추천 토글 (auth)
+ * POST /api/community/posts/:id/gold-like - 골드 추천 +1 (auth)
  * GET  /api/community/posts/:id/comments  - 댓글 목록
  * POST /api/community/posts/:id/comments  - 댓글 작성 (auth)
  */
@@ -18,8 +19,10 @@ const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { formatDisplayName } = require('../utils/progression');
 
 const BEST_MIN_LIKES = 15;
+const GOLD_LIKE_COST = 30;
 
 const communityUploadDir = path.join(__dirname, '../../uploads/community');
 if (!fs.existsSync(communityUploadDir)) {
@@ -178,18 +181,30 @@ router.get('/posts', async (req, res) => {
         const [cntRes, postsRes] = await Promise.all([
             pool.query(`SELECT COUNT(*) FROM community_posts ${where}`, params),
             pool.query(
-                `SELECT id, category, title, nickname, ip_prefix,
+                `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
+                        u.nickname AS user_nickname, u.active_title,
                         views, likes, comments_count, created_at,
                         image_url,
                         (image_url IS NOT NULL AND image_url <> '') AS has_image
-                 FROM community_posts ${where}
-                 ORDER BY created_at DESC
+                 FROM community_posts p
+                 LEFT JOIN users u ON u.id = p.user_id
+                 ${where.replace(/\btitle\b/g, 'p.title').replace(/\blikes\b/g, 'p.likes').replace(/\bcategory\b/g, 'p.category')}
+                 ORDER BY p.created_at DESC
                  LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
                 [...params, limit, offset]
             )
         ]);
+        const posts = postsRes.rows.map((row) => {
+            const displayNickname = row.active_title
+                ? formatDisplayName(row.nickname, row.active_title)
+                : row.nickname;
+            return {
+                ...row,
+                display_nickname: displayNickname
+            };
+        });
 
-        res.json({ total: parseInt(cntRes.rows[0].count), posts: postsRes.rows });
+        res.json({ total: parseInt(cntRes.rows[0].count), posts });
     } catch (err) {
         console.error('[community] GET /posts', err.message);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -212,16 +227,25 @@ router.get('/posts/hot', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, category, title, nickname, ip_prefix,
+            `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
+                    u.nickname AS user_nickname, u.active_title,
                     views, likes, comments_count, created_at,
                     image_url,
                     (image_url IS NOT NULL AND image_url <> '') AS has_image
-             FROM community_posts ${where}
-             ORDER BY likes DESC, created_at DESC
+             FROM community_posts p
+             LEFT JOIN users u ON u.id = p.user_id
+             ${where.replace(/\blikes\b/g, 'p.likes').replace(/\bcategory\b/g, 'p.category')}
+             ORDER BY p.likes DESC, p.created_at DESC
              LIMIT 8`,
             params
         );
-        res.json({ posts: result.rows });
+        const posts = result.rows.map((row) => ({
+            ...row,
+            display_nickname: row.active_title
+                ? formatDisplayName(row.nickname, row.active_title)
+                : row.nickname
+        }));
+        res.json({ posts });
     } catch (err) {
         console.error('[community] GET /posts/hot', err.message);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -237,13 +261,20 @@ router.get('/posts/:id', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, category, title, body, image_url, link_url, nickname, ip_prefix,
+            `SELECT p.id, p.category, p.title, p.body, p.image_url, p.link_url, p.nickname, p.ip_prefix,
+                    u.nickname AS user_nickname, u.active_title,
                     views, likes, comments_count, created_at
-             FROM community_posts WHERE id = $1`,
+             FROM community_posts p
+             LEFT JOIN users u ON u.id = p.user_id
+             WHERE p.id = $1`,
             [id]
         );
         if (!result.rows.length) return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
-        res.json({ post: result.rows[0] });
+        const post = result.rows[0];
+        post.display_nickname = post.active_title
+            ? formatDisplayName(post.nickname, post.active_title)
+            : post.nickname;
+        res.json({ post });
     } catch (err) {
         console.error('[community] GET /posts/:id', err.message);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -426,6 +457,74 @@ router.post('/posts/:id/like', requireAuth, async (req, res) => {
 });
 
 /* ════════════════════════════════════════════════════════════ */
+/* POST /posts/:id/gold-like — 골드 추천(+1)                    */
+/* ════════════════════════════════════════════════════════════ */
+router.post('/posts/:id/gold-like', requireAuth, async (req, res) => {
+    const postId = parseInt(req.params.id);
+    const userId = req.session.userId;
+    if (!postId) return res.status(400).json({ error: '잘못된 요청입니다.' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const postRes = await client.query(
+            'SELECT id, likes FROM community_posts WHERE id = $1 FOR UPDATE',
+            [postId]
+        );
+        if (!postRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
+        }
+
+        const userRes = await client.query(
+            'SELECT gold FROM users WHERE id = $1 FOR UPDATE',
+            [userId]
+        );
+        if (!userRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        }
+
+        const myGold = Number(userRes.rows[0].gold || 0);
+        if (myGold < GOLD_LIKE_COST) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: `골드가 부족합니다. 필요: ${GOLD_LIKE_COST}G` });
+        }
+
+        const spentRes = await client.query(
+            `UPDATE users
+             SET gold = gold - $1
+             WHERE id = $2
+             RETURNING gold`,
+            [GOLD_LIKE_COST, userId]
+        );
+
+        const likeRes = await client.query(
+            `UPDATE community_posts
+             SET likes = likes + 1
+             WHERE id = $1
+             RETURNING likes`,
+            [postId]
+        );
+
+        await client.query('COMMIT');
+        return res.json({
+            ok: true,
+            cost: GOLD_LIKE_COST,
+            likes: likeRes.rows[0]?.likes ?? 0,
+            remainingGold: spentRes.rows[0]?.gold ?? 0,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[community] POST /posts/:id/gold-like', err.message);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    } finally {
+        client.release();
+    }
+});
+
+/* ════════════════════════════════════════════════════════════ */
 /* GET /posts/:id/comments — 댓글 목록                          */
 /* ════════════════════════════════════════════════════════════ */
 router.get('/posts/:id/comments', async (req, res) => {
@@ -434,13 +533,21 @@ router.get('/posts/:id/comments', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT id, nickname, ip_prefix, body, created_at
-             FROM community_comments
-             WHERE post_id = $1
-             ORDER BY created_at ASC`,
+            `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
+                    u.nickname AS user_nickname, u.active_title
+             FROM community_comments c
+             LEFT JOIN users u ON u.id = c.user_id
+             WHERE c.post_id = $1
+             ORDER BY c.created_at ASC`,
             [postId]
         );
-        res.json({ comments: result.rows });
+        const comments = result.rows.map((row) => ({
+            ...row,
+            display_nickname: row.user_nickname
+                ? formatDisplayName(row.user_nickname, row.active_title)
+                : row.nickname
+        }));
+        res.json({ comments });
     } catch (err) {
         console.error('[community] GET /posts/:id/comments', err.message);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -465,11 +572,12 @@ router.post('/posts/:id/comments', requireAuth, async (req, res) => {
         await client.query('BEGIN');
 
         const userRes = await client.query(
-            'SELECT nickname FROM users WHERE id = $1',
+            'SELECT nickname, active_title FROM users WHERE id = $1',
             [req.session.userId]
         );
         if (!userRes.rows.length) throw new Error('user not found');
         const nickname = userRes.rows[0].nickname;
+        const activeTitle = userRes.rows[0].active_title;
 
         const result = await client.query(
             `INSERT INTO community_comments (post_id, user_id, body, ip_prefix, nickname)
@@ -484,7 +592,10 @@ router.post('/posts/:id/comments', requireAuth, async (req, res) => {
         );
 
         await client.query('COMMIT');
-        res.status(201).json({ comment: result.rows[0] });
+        res.status(201).json({ comment: {
+            ...result.rows[0],
+            display_nickname: formatDisplayName(nickname, activeTitle)
+        } });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('[community] POST /posts/:id/comments', err.message);

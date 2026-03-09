@@ -8,6 +8,7 @@
  *   POST /api/community/posts
  *   POST /api/community/posts/:id/view
  *   POST /api/community/posts/:id/like
+ *   POST /api/community/posts/:id/gold-like
  *   GET  /api/community/posts/:id/comments
  *   POST /api/community/posts/:id/comments
  */
@@ -19,6 +20,7 @@ import { useInfiniteScroll }                          from './useInfiniteScroll.
 const PAGE_SIZE     = 25;
 const HOT_THRESHOLD = 15;  // 베스트 승격 기준(추천 15+)
 const WRITABLE_CATS = ['정보', '질문', '잡담'];
+const GOLD_LIKE_COST = 30;
 
 /* ─── 카테고리 탭 ───────────────────────────────────────────── */
 const CATEGORIES = [
@@ -170,7 +172,7 @@ function HotCard(post) {
         <div class="c-hot-card__cat ${cat.cls}">${cat.label}</div>
         <p class="c-hot-card__title">${escHtml(post.title)}</p>
         <div class="c-hot-card__footer">
-          <span class="c-hot-card__author">${escHtml(post.nickname ?? '익명')}(${escHtml(post.ip_prefix ?? '?')})</span>
+          <span class="c-hot-card__author">${escHtml(post.display_nickname || post.nickname || '익명')}(${escHtml(post.ip_prefix ?? '?')})</span>
           <span class="c-hot-card__stats">
             <span class="c-hot-card__stat">
               <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
@@ -260,7 +262,7 @@ async function loadNextPage() {
               hasImage:     Boolean(post.has_image || post.image_url),
                 category:     post.category,
                 title:        post.title,
-                nickname:     post.nickname ?? '익명',
+                nickname:     post.display_nickname || post.nickname || '익명',
                 ipPrefix:     post.ip_prefix ?? '?.?',
                 likes:        post.likes,
                 comments:     post.comments_count,
@@ -360,7 +362,7 @@ function renderDetailBody(container, { post, postId, comments }) {
     const cmtHtml = comments.map(c => `
       <li class="cmt-item" data-comment-id="${c.id}">
         <div class="cmt-meta">
-          <span class="cmt-nick">${escHtml(c.nickname ?? '익명')}</span>
+          <span class="cmt-nick">${escHtml(c.display_nickname || c.nickname || '익명')}</span>
           <span class="cmt-ip">(${escHtml(c.ip_prefix ?? '?.?')})</span>
           <span class="cmt-date">${fmtRelative(c.created_at)}</span>
           ${canModerate ? '<button class="cmt-admin-del" type="button">삭제</button>' : ''}
@@ -375,7 +377,7 @@ function renderDetailBody(container, { post, postId, comments }) {
       </div>
       <h3 class="detail-title">${escHtml(post.title)}</h3>
       <div class="detail-author-row">
-        <span class="cmt-nick">${escHtml(post.nickname ?? '익명')}</span>
+        <span class="cmt-nick">${escHtml(post.display_nickname || post.nickname || '익명')}</span>
         <span class="cmt-ip">(${escHtml(post.ip_prefix ?? '?.?')})</span>
         <span class="detail-stat">조회 ${post.views}</span>
         <span class="detail-stat" style="color:var(--accent-red)">추천 ${post.likes}</span>
@@ -390,6 +392,12 @@ function renderDetailBody(container, { post, postId, comments }) {
           </svg>
           추천 <span id="like-count">${post.likes}</span>
         </button>
+        <button class="detail-gold-like-btn" id="detail-gold-like-btn" ${currentUser ? '' : 'disabled'}>
+          🪙 ${GOLD_LIKE_COST}G 추천 +1
+        </button>
+        <span class="detail-gold-balance" id="detail-gold-balance">
+          보유 골드 ${Number(currentUser?.gold || 0).toLocaleString()}G
+        </span>
         ${canModerate ? '<button class="detail-admin-del-btn" id="detail-admin-del-btn">게시글 삭제</button>' : ''}
       </div>
       <div class="detail-comments">
@@ -425,6 +433,54 @@ function renderDetailBody(container, { post, postId, comments }) {
         } catch (_) { showToast('오류가 발생했어요'); }
     });
 
+    const goldLikeBtn = container.querySelector('#detail-gold-like-btn');
+    const goldBalanceEl = container.querySelector('#detail-gold-balance');
+    if (goldLikeBtn) {
+      goldLikeBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+          showToast('로그인 후 이용할 수 있어요');
+          return;
+        }
+
+        goldLikeBtn.disabled = true;
+        const prevText = goldLikeBtn.textContent;
+        goldLikeBtn.textContent = '처리 중...';
+
+        try {
+          const r = await fetch(`/api/community/posts/${postId}/gold-like`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            showToast(data.error || '오류가 발생했어요');
+            return;
+          }
+
+          const nextLikes = Number(data.likes || 0);
+          const nextGold = Number(data.remainingGold || 0);
+          currentUser.gold = nextGold;
+
+          const countSpan = container.querySelector('#like-count');
+          if (countSpan) countSpan.textContent = nextLikes;
+          if (goldBalanceEl) {
+            goldBalanceEl.textContent = `보유 골드 ${nextGold.toLocaleString()}G`;
+          }
+
+          const likeEl = postList.querySelector(`[data-id="${postId}"] .post-row__likes`);
+          if (likeEl) likeEl.lastChild.textContent = nextLikes;
+
+          showToast(`골드 추천 완료! (${GOLD_LIKE_COST}G 사용)`);
+        } catch (_) {
+          showToast('오류가 발생했어요');
+        } finally {
+          goldLikeBtn.disabled = false;
+          goldLikeBtn.textContent = prevText;
+        }
+      });
+    }
+
     // 댓글 등록
     container.querySelector('#cmt-submit').addEventListener('click', async () => {
         if (!currentUser) { showToast('로그인 후 댓글을 달 수 있어요'); return; }
@@ -451,7 +507,7 @@ function renderDetailBody(container, { post, postId, comments }) {
             li.className = 'cmt-item';
             li.innerHTML = `
               <div class="cmt-meta">
-                <span class="cmt-nick">${escHtml(comment.nickname ?? '익명')}</span>
+                <span class="cmt-nick">${escHtml(comment.display_nickname || comment.nickname || '익명')}</span>
                 <span class="cmt-ip">(${escHtml(comment.ip_prefix ?? '?.?')})</span>
                 <span class="cmt-date">방금</span>
               </div>
@@ -1024,6 +1080,15 @@ detailStyle.textContent = `
   transition:color var(--transition),border-color var(--transition);
 }
 .detail-like-btn:hover { color:var(--accent-red); border-color:rgba(255,69,58,0.3); }
+.detail-gold-like-btn {
+  display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 12px;
+  background:rgba(246,166,35,0.16); border-radius:var(--radius-pill); font-size:12px;
+  font-weight:700; color:var(--accent-gold); border:1px solid rgba(246,166,35,0.35);
+}
+.detail-gold-like-btn:disabled { opacity:0.45; cursor:not-allowed; }
+.detail-gold-balance {
+  display:inline-flex; align-items:center; height:32px; font-size:12px; color:var(--text-2);
+}
 .detail-comments { display:flex; flex-direction:column; gap:12px; }
 .detail-cmt-head { font-size:13px; font-weight:700; color:var(--text-2); }
 .cmt-list { display:flex; flex-direction:column; }
