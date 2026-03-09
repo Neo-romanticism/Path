@@ -2207,10 +2207,13 @@ const WorldScene = {
 
         // 거리 기반 LOD 업데이트 (10프레임마다)
         if (this.frameCount % 10 === 0 && this.myBalloon) {
-            const myPos = this.myBalloon.group.position;
+            // IMPORTANT: my balloon stays near scene origin while the camera moves
+            // through world space, so culling must use camera position.
+            const viewX = this.camPos.x;
+            const viewY = this.camPos.y;
             this.balloons.forEach((b) => {
                 if (b.isMe) return;
-                const dist = myPos.distanceTo(b.group.position);
+                const dist = Math.hypot(b.group.position.x - viewX, b.group.position.y - viewY);
                 if (dist > 6000) {
                     b.group.visible = false;
                 } else {
