@@ -373,6 +373,43 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cc_post_created_at ON community_comments(post_id, created_at DESC);
         `);
 
+        // ── 그룹 타이머 방 ─────────────────────────────────────────────────
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS study_rooms (
+                id              SERIAL PRIMARY KEY,
+                name            VARCHAR(60) NOT NULL,
+                goal            VARCHAR(100),
+                creator_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                invite_code     VARCHAR(12) UNIQUE NOT NULL,
+                max_members     INTEGER NOT NULL DEFAULT 10,
+                is_active       BOOLEAN DEFAULT TRUE,
+                created_at      TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_study_rooms_invite_code ON study_rooms(invite_code);
+            CREATE INDEX IF NOT EXISTS idx_study_rooms_creator ON study_rooms(creator_id);
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS study_room_members (
+                room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                joined_at   TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (room_id, user_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_study_room_members_user ON study_room_members(user_id);
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS study_room_messages (
+                id          SERIAL PRIMARY KEY,
+                room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                content     VARCHAR(500) NOT NULL,
+                created_at  TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_study_room_messages_room ON study_room_messages(room_id, created_at);
+        `);
+
         console.log('DB 스키마 초기화 완료');
     } catch (err) {
         console.error('DB 스키마 초기화 오류:', err.message);
