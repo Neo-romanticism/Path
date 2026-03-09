@@ -48,7 +48,7 @@ const EULA_SUMMARY = [
     '5) 본 약관 동의가 없으면 커뮤니티 작성/상호작용 등 주요 기능 이용이 제한될 수 있습니다.'
 ].join('\n');
 
-const USER_FIELDS = 'id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, profile_image_url, balloon_skin, owned_skins, balloon_aura, owned_auras, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role, active_title, streak_count, streak_last_date, eula_version, eula_agreed_at, ui_theme, owned_themes';
+const USER_FIELDS = 'id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score, real_name, is_n_su, prev_university, score_status, score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public, profile_image_url, balloon_skin, owned_skins, balloon_aura, owned_auras, status_emoji, status_message, phone_verified, phone_verified_at, auth_provider, google_email, is_admin, admin_role, active_title, streak_count, streak_last_date, eula_version, eula_agreed_at, ui_theme, owned_themes, user_code';
 
 function escapeHtml(str) {
     if (!str) return str;
@@ -219,6 +219,22 @@ async function makeUniqueNickname(base) {
     return `user${Date.now().toString().slice(-8)}`;
 }
 
+async function ensureUserCode(userId) {
+    const existing = await pool.query('SELECT user_code FROM users WHERE id = $1', [userId]);
+    if (!existing.rows.length) return null;
+    if (existing.rows[0].user_code) return existing.rows[0].user_code;
+
+    const nextCode = `PATH-${String(userId).padStart(6, '0')}`;
+    const updated = await pool.query(
+        `UPDATE users
+         SET user_code = $2
+         WHERE id = $1
+         RETURNING user_code`,
+        [userId, nextCode]
+    );
+    return updated.rows[0]?.user_code || nextCode;
+}
+
 router.post('/register', registerLimiter, async (req, res) => {
     const { real_name, nickname, password, university, is_n_su, prev_university, privacy_agreed, eula_agreed } = req.body;
     if (!nickname || !password || !university) {
@@ -272,6 +288,7 @@ router.post('/register', registerLimiter, async (req, res) => {
             [nickname, hash, initialEstate, real_name, !!privacy_agreed, !!is_n_su, prev_university || null, phoneHash, phoneVerified, phoneVerified ? new Date() : null, EULA_VERSION]
         );
         const user = result.rows[0];
+        user.user_code = await ensureUserCode(user.id);
         
         // 인증 정보 세션에서 제거
         req.session.verifiedPhone = null;
@@ -300,8 +317,10 @@ router.post('/login', loginLimiter, async (req, res) => {
         if (!valid) return res.status(401).json({ error: '닉네임 또는 비밀번호가 올바르지 않습니다.' });
 
         const enforced = await enforceAlwaysMainAdminByNickname(user.id);
+        const ensuredUserCode = await ensureUserCode(user.id);
         req.session.userId = user.id;
         const { password_hash, ...safeUser } = user;
+        safeUser.user_code = safeUser.user_code || ensuredUserCode;
 
         if (enforced?.is_admin === true) safeUser.is_admin = true;
         if (enforced?.admin_role) safeUser.admin_role = enforced.admin_role;
@@ -334,10 +353,57 @@ router.get('/me', requireAuth, async (req, res) => {
             req.session.destroy();
             return res.status(401).json({ error: '유저를 찾을 수 없습니다.' });
         }
-        res.json({ user: addPercentile(result.rows[0]) });
+        const user = result.rows[0];
+        user.user_code = user.user_code || await ensureUserCode(user.id);
+        res.json({ user: addPercentile(user) });
     } catch (err) {
         console.error('me error:', err);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+});
+
+router.post('/change-password', requireAuth, async (req, res) => {
+    const currentPassword = typeof req.body?.current_password === 'string' ? req.body.current_password : '';
+    const newPassword = typeof req.body?.new_password === 'string' ? req.body.new_password : '';
+
+    if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ error: '새 비밀번호는 8자 이상이어야 합니다.' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT auth_provider, password_hash FROM users WHERE id = $1',
+            [req.session.userId]
+        );
+        if (!result.rows.length) {
+            return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
+        }
+
+        const row = result.rows[0];
+        const isGoogleOnly = row.auth_provider === 'google';
+
+        if (!isGoogleOnly && !currentPassword) {
+            return res.status(400).json({ error: '현재 비밀번호를 입력해주세요.' });
+        }
+
+        if (currentPassword) {
+            const validCurrent = await bcrypt.compare(currentPassword, row.password_hash);
+            if (!validCurrent) {
+                return res.status(401).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
+            }
+        }
+
+        if (currentPassword && currentPassword === newPassword) {
+            return res.status(400).json({ error: '새 비밀번호가 현재 비밀번호와 동일합니다.' });
+        }
+
+        const nextHash = await bcrypt.hash(newPassword, 10);
+        await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [nextHash, req.session.userId]);
+
+        return res.json({ ok: true, message: '비밀번호가 변경되었습니다.' });
+    } catch (err) {
+        console.error('change-password error:', err);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 });
 

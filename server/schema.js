@@ -49,6 +49,11 @@ async function initSchema() {
             ALTER TABLE users ADD COLUMN IF NOT EXISTS active_title VARCHAR(40) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_last_date DATE DEFAULT NULL;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS user_code VARCHAR(20);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_user_code_unique ON users(user_code) WHERE user_code IS NOT NULL;
+            UPDATE users
+            SET user_code = CONCAT('PATH-', LPAD(id::text, 6, '0'))
+            WHERE user_code IS NULL;
         `);
 
         await client.query(`

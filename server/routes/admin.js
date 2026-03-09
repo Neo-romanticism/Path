@@ -192,7 +192,7 @@ router.get('/all-users', requireAdmin, async (req, res) => {
             `SELECT id, nickname, real_name, university, prev_university, is_n_su,
                     gold, exp, tier, tickets, mock_exam_score, score_status,
                     score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public,
-                    is_admin, admin_role, created_at
+                    is_admin, admin_role, user_code, created_at
              FROM users ORDER BY created_at DESC`
         );
         res.json({ users: result.rows });
