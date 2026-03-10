@@ -8,6 +8,9 @@ import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './ball
 if (typeof window !== 'undefined' && !window.THREE) {
     window.THREE = THREE;
 }
+if (typeof window !== 'undefined' && !window.createShopBalloonModel) {
+    window.createShopBalloonModel = (scale = 0.8, skinId = 'default') => create3DBalloon(scale, skinId, false);
+}
 
 // ── World constants ──────────────────────────────────────────────────────────
 // The game world is 200,000 × 200,000 world-units.  A WORLD_SCALE factor maps
@@ -1688,14 +1691,20 @@ const WorldScene = {
                     맵을 탐험하며 다양한 대학의 하늘섬을 발견해보세요!
                 </div>
             `}
-            <button onclick="document.getElementById('island-info').remove()" style="
+            <button id="island-info-close" style="
                 background:rgba(49,130,246,0.12); border:1.5px solid rgba(49,130,246,0.35);
                 color:#3182F6; padding:10px 28px; border-radius:999px;
                 font-size:13px; font-weight:700; cursor:pointer;
                 transition:all 0.2s; font-family:'Pretendard Variable',sans-serif;
-            " onmouseover="this.style.background='#3182F6';this.style.color='#fff'"
-               onmouseout="this.style.background='rgba(49,130,246,0.12)';this.style.color='#3182F6'">닫기</button>
+            ">닫기</button>
         `;
+
+        const _closeIslandInfo = () => { const t = document.getElementById('island-info'); if (t) t.remove(); };
+        const _closeBtn1 = infoEl.querySelector('#island-info-close');
+        if (_closeBtn1) {
+            _closeBtn1.addEventListener('click', _closeIslandInfo);
+            _closeBtn1.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') { e.preventDefault(); _closeIslandInfo(); } }, { passive: false });
+        }
 
         if (isUniversityLandmark) {
             const admissionBtn = infoEl.querySelector('#island-admission-link');
@@ -2592,14 +2601,18 @@ class InteractableProp {
             <div style="font-size:12px;color:var(--text-secondary,#7E94B8);line-height:1.65;margin-bottom:18px;">
                 클릭으로 활성화하면 근처의 모든 플레이어에게 실시간으로 반영됩니다.
             </div>
-            <button onclick="document.getElementById('island-info').remove()" style="
+            <button id="island-info-close" style="
                 background:rgba(49,130,246,0.12);border:1.5px solid rgba(49,130,246,0.35);
                 color:#3182F6;padding:10px 28px;border-radius:999px;
                 font-size:13px;font-weight:700;cursor:pointer;
-                font-family:'Pretendard Variable',sans-serif;"
-                onmouseover="this.style.background='#3182F6';this.style.color='#fff'"
-                onmouseout="this.style.background='rgba(49,130,246,0.12)';this.style.color='#3182F6'">닫기</button>
+                font-family:'Pretendard Variable',sans-serif;">닫기</button>
         `;
+        const _closeBtn2 = el.querySelector('#island-info-close');
+        if (_closeBtn2) {
+            const _rm = () => { if (el.parentElement) el.remove(); };
+            _closeBtn2.addEventListener('click', _rm);
+            _closeBtn2.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') { e.preventDefault(); _rm(); } }, { passive: false });
+        }
         setTimeout(() => {
             if (el && el.parentElement) {
                 el.style.opacity = '0';

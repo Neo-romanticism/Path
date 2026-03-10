@@ -39,6 +39,22 @@ const verificationLimiter = rateLimit({
     message: { error: '인증번호 요청이 너무 많습니다. 1시간 후 다시 시도해주세요.' }
 });
 
+const recoverySendLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '복구 인증번호 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+});
+
+const recoveryResetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '비밀번호 재설정 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+});
+
 const EULA_VERSION = process.env.EULA_VERSION || '2026-03-09';
 const EULA_TITLE = 'P.A.T.H 서비스 이용약관';
 const EULA_SUMMARY = [
@@ -286,6 +302,21 @@ function appendQueryParam(url, key, value) {
     if (!url) return url;
     const sep = url.includes('?') ? '&' : '?';
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
+function cleanPhoneInput(phone) {
+    return String(phone || '').replace(/[^0-9]/g, '');
+}
+
+function maskEmail(email) {
+    const value = String(email || '').trim();
+    const atIndex = value.indexOf('@');
+    if (atIndex <= 1) return null;
+    const local = value.slice(0, atIndex);
+    const domain = value.slice(atIndex + 1);
+    if (!domain) return null;
+    const maskedLocal = `${local[0]}${'*'.repeat(Math.max(1, local.length - 2))}${local[local.length - 1]}`;
+    return `${maskedLocal}@${domain}`;
 }
 
 function resolveOauthPlatform(req) {
@@ -1188,6 +1219,227 @@ router.get('/verification-status', (req, res) => {
         expiresIn, // 인증 유효시간 (10분)
         phone: verified ? '인증됨' : null
     });
+});
+
+// ===== 비밀번호 분실 복구 API =====
+
+router.get('/password-recovery/options', async (req, res) => {
+    const nickname = String(req.query.nickname || '').trim();
+    if (!nickname) {
+        return res.json({
+            ok: true,
+            hasPhoneRecovery: false,
+            hasGoogleRecovery: false,
+            maskedGoogleEmail: null,
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT phone_verified, google_email FROM users WHERE nickname = $1 LIMIT 1',
+            [nickname]
+        );
+
+        if (!result.rows.length) {
+            return res.json({
+                ok: true,
+                hasPhoneRecovery: false,
+                hasGoogleRecovery: false,
+                maskedGoogleEmail: null,
+            });
+        }
+
+        const row = result.rows[0];
+        return res.json({
+            ok: true,
+            hasPhoneRecovery: row.phone_verified === true,
+            hasGoogleRecovery: !!row.google_email,
+            maskedGoogleEmail: maskEmail(row.google_email),
+        });
+    } catch (err) {
+        console.error('password-recovery/options error:', err);
+        return res.status(500).json({ error: '복구 옵션 조회 중 오류가 발생했습니다.' });
+    }
+});
+
+router.post('/password-recovery/send-code', recoverySendLimiter, async (req, res) => {
+    const nickname = String(req.body?.nickname || '').trim();
+    const cleanPhone = cleanPhoneInput(req.body?.phone);
+
+    if (!nickname || !cleanPhone) {
+        return res.status(400).json({ error: '닉네임과 전화번호를 입력해주세요.' });
+    }
+    if (!/^01[0-9]{8,9}$/.test(cleanPhone)) {
+        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
+    }
+
+    const ip = req.ip || req.connection.remoteAddress;
+    const phoneHash = aligoService.hashPhone(cleanPhone);
+
+    try {
+        const [userResult, recentCheck, ipCheck] = await Promise.all([
+            pool.query(
+                `SELECT id
+                 FROM users
+                 WHERE nickname = $1 AND phone_hash = $2 AND phone_verified = true
+                 LIMIT 1`,
+                [nickname, phoneHash]
+            ),
+            pool.query(
+                `SELECT id FROM phone_verifications
+                 WHERE phone_hash = $1 AND created_at > NOW() - INTERVAL '5 minutes'
+                 ORDER BY created_at DESC LIMIT 1`,
+                [phoneHash]
+            ),
+            pool.query(
+                `SELECT COUNT(*) as count FROM phone_verifications
+                 WHERE ip_address = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+                [ip]
+            )
+        ]);
+
+        if (recentCheck.rows.length > 0) {
+            return res.status(429).json({
+                error: '인증번호는 5분에 한 번만 요청할 수 있습니다.',
+                retryAfter: 300,
+            });
+        }
+
+        if (parseInt(ipCheck.rows[0].count, 10) >= 10) {
+            return res.status(429).json({
+                error: '인증번호 요청 한도를 초과했습니다. 1시간 후 다시 시도해주세요.',
+            });
+        }
+
+        // 계정 존재 여부/일치 여부는 노출하지 않고 동일 응답을 반환한다.
+        if (!userResult.rows.length) {
+            return res.json({
+                ok: true,
+                message: '입력한 정보와 일치하는 계정이 있으면 인증번호를 발송했습니다.',
+                expiresIn: 300,
+            });
+        }
+
+        const code = aligoService.generateCode();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        await pool.query(
+            `INSERT INTO phone_verifications (phone_hash, code, expires_at, ip_address)
+             VALUES ($1, $2, $3, $4)`,
+            [phoneHash, code, expiresAt, ip]
+        );
+
+        try {
+            await aligoService.sendVerificationCode(cleanPhone, code);
+            return res.json({
+                ok: true,
+                message: '입력한 정보와 일치하는 계정이 있으면 인증번호를 발송했습니다.',
+                expiresIn: 300,
+            });
+        } catch (sendError) {
+            console.error('password-recovery/send-code send error:', sendError.message);
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`[개발 모드][복구] 인증번호: ${code}`);
+                return res.json({
+                    ok: true,
+                    message: '개발 모드: 콘솔에서 인증번호를 확인하세요.',
+                    expiresIn: 300,
+                });
+            }
+            throw sendError;
+        }
+    } catch (err) {
+        console.error('password-recovery/send-code error:', err);
+        return res.status(500).json({ error: '인증번호 발송에 실패했습니다.' });
+    }
+});
+
+router.post('/password-recovery/reset', recoveryResetLimiter, async (req, res) => {
+    const nickname = String(req.body?.nickname || '').trim();
+    const cleanPhone = cleanPhoneInput(req.body?.phone);
+    const code = String(req.body?.code || '').trim();
+    const newPassword = typeof req.body?.new_password === 'string' ? req.body.new_password : '';
+
+    if (!nickname || !cleanPhone || !code || !newPassword) {
+        return res.status(400).json({ error: '닉네임, 전화번호, 인증번호, 새 비밀번호를 모두 입력해주세요.' });
+    }
+    if (!/^01[0-9]{8,9}$/.test(cleanPhone)) {
+        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
+    }
+    if (!/^\d{6}$/.test(code)) {
+        return res.status(400).json({ error: '인증번호는 6자리 숫자여야 합니다.' });
+    }
+
+    const phoneHash = aligoService.hashPhone(cleanPhone);
+
+    try {
+        const userResult = await pool.query(
+            `SELECT id, nickname, real_name
+             FROM users
+             WHERE nickname = $1 AND phone_hash = $2 AND phone_verified = true
+             LIMIT 1`,
+            [nickname, phoneHash]
+        );
+        if (!userResult.rows.length) {
+            return res.status(400).json({ error: '인증 정보가 올바르지 않습니다.' });
+        }
+
+        const verificationResult = await pool.query(
+            `SELECT id, code, expires_at, verified
+             FROM phone_verifications
+             WHERE phone_hash = $1
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [phoneHash]
+        );
+        if (!verificationResult.rows.length) {
+            return res.status(400).json({ error: '인증번호 요청 기록이 없습니다.' });
+        }
+
+        const verification = verificationResult.rows[0];
+        if (verification.verified) {
+            return res.status(400).json({ error: '이미 사용된 인증번호입니다. 새 인증번호를 요청해주세요.' });
+        }
+        if (new Date() > new Date(verification.expires_at)) {
+            return res.status(400).json({ error: '인증번호가 만료되었습니다. 다시 요청해주세요.' });
+        }
+        if (verification.code !== code) {
+            return res.status(400).json({ error: '인증번호가 일치하지 않습니다.' });
+        }
+
+        const user = userResult.rows[0];
+        const passwordValidation = validatePasswordStrength({
+            password: newPassword,
+            nickname: user.nickname,
+            realName: user.real_name,
+        });
+        if (!passwordValidation.ok) {
+            return res.status(400).json({ error: passwordValidation.error });
+        }
+
+        const nextHash = await bcrypt.hash(newPassword, 10);
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            await client.query('UPDATE phone_verifications SET verified = true WHERE id = $1', [verification.id]);
+            await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [nextHash, user.id]);
+            await client.query('COMMIT');
+        } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+        } finally {
+            client.release();
+        }
+
+        return res.json({
+            ok: true,
+            message: '비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해주세요.',
+        });
+    } catch (err) {
+        console.error('password-recovery/reset error:', err);
+        return res.status(500).json({ error: '비밀번호 재설정에 실패했습니다.' });
+    }
 });
 
 module.exports = router;

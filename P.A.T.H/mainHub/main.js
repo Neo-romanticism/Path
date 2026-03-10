@@ -1398,8 +1398,10 @@ function createBalloonPreviewCanvas(skinId, size = 80) {
     directionalLight.position.set(5, 10, 7);
     scene.add(directionalLight);
 
-    // Create 3D balloon model
-    const balloon = make3DBalloonPreview(0.8, skinId);
+    // Prefer the world renderer's real model so shop and in-world visuals match exactly.
+    const balloon = typeof window.createShopBalloonModel === 'function'
+        ? window.createShopBalloonModel(0.8, skinId)
+        : make3DBalloonPreview(0.8, skinId);
     scene.add(balloon);
 
     // Animation loop with rotation
