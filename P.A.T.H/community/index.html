@@ -32,6 +32,9 @@
     rel="stylesheet"
   >
   <link rel="stylesheet" href="style.css">
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
+     crossorigin="anonymous"></script>
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -142,6 +145,20 @@
   <span class="c-list-header__likes">추천</span>
 </div>
 
+<!-- ── 광고 섹션 (Apple 정책 준수) ─────────────────────────── -->
+<div class="c-ad-container" aria-label="광고">
+  <div class="c-ad-label">광고</div>
+  <div class="c-ad-wrapper">
+    <!-- Google AdSense 디스플레이 광고 -->
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-XXXXXXXXXX"
+         data-ad-slot="YYYYYYYYYY"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+  </div>
+</div>
+
 <!-- ── 게시글 리스트 ─────────────────────────────────────────── -->
 <main class="c-main">
   <ul id="post-list" class="c-post-list" aria-live="polite" aria-label="게시글 목록"></ul>
@@ -157,6 +174,10 @@
 
 <script src="/shared/nav.js?v=3"></script>
 <script type="module" src="community.js"></script>
+<script>
+  // Google AdSense 광고 로드
+  (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
 </body>
 </html>

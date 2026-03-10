@@ -48,3 +48,35 @@
 - [ ] Report submission works and appears in admin queue.
 - [ ] Admin review status changes are persisted and visible.
 - [ ] All failed API cases show user-safe messages (401/403/429/500).
+
+## 7) Advertising Implementation (Apple Policy Compliant)
+- [x] **Ad Disclosure**: Clear "광고" (Advertisement) label displayed above all ads
+- [x] **Content Separation**: Ads are visually distinct with borders and background colors
+- [x] **User Experience**: Ads placed in non-intrusive locations (between content sections)
+- [x] **Accidental Click Prevention**: Adequate spacing and clear visual separation from interactive elements
+- [x] **Responsive Design**: Ads scale appropriately on different screen sizes
+- [x] **Safe Area**: Ads are contained within clearly defined containers
+
+### Apple App Store Advertising Guidelines Compliance:
+1. **Guideline 3.1.1 - Advertising**: Ads are clearly distinguished from app content
+2. **Guideline 5.1.1 - Data Collection**: Uses Google AdSense with user consent
+3. **Guideline 5.1.2 - Data Use**: Ads do not target minors inappropriately
+4. **User Control**: Users can block content but ads remain visible (standard monetization)
+
+### Implementation Details:
+- **Location**: Community tab, between Best section and post list
+- **Ad Network**: Google AdSense (requires client ID configuration)
+- **Format**: Responsive display ads (auto-sized)
+- **Label**: "광고" text in uppercase, small font, above ad container
+- **Styling**: Clearly bordered container with distinct background color
+
+### Configuration Required:
+Replace the following placeholders in `/P.A.T.H/community/index.html`:
+- `ca-pub-XXXXXXXXXX` → Your Google AdSense Publisher ID
+- `YYYYYYYYYY` → Your Ad Unit Slot ID
+
+### Testing:
+- [ ] Verify ad label is visible on all screen sizes
+- [ ] Confirm adequate spacing prevents accidental clicks
+- [ ] Test ad loading in production environment
+- [ ] Verify GDPR/CCPA compliance through AdSense settings

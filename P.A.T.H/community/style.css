@@ -719,6 +719,61 @@ body.light .theme-icon--moon { display: block; }
 #write-fab:hover  { transform: translateY(-3px) scale(1.06); box-shadow: 0 8px 26px rgba(212,175,55,0.55); }
 #write-fab:active { transform: translateY(0) scale(0.97); }
 
+/* ─── 광고 컨테이너 (Apple 정책 준수) ────────────────────────────────────── */
+.c-ad-container {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.c-ad-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.c-ad-wrapper {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.c-ad-wrapper ins.adsbygoogle {
+  background: transparent !important;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* 광고 로딩 중 표시 */
+.c-ad-wrapper:empty::after {
+  content: '광고 로딩 중...';
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+@media (min-width: 640px) {
+  .c-ad-container {
+    margin: 32px auto;
+  }
+  
+  .c-ad-wrapper {
+    padding: 20px;
+    min-height: 120px;
+  }
+}
+
 /* ─── Write Modal ────────────────────────────────────────────────────────── */
 .modal-backdrop {
   position: fixed;

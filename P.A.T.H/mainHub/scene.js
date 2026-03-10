@@ -1150,10 +1150,10 @@ const WorldScene = {
 
         const keepIds = new Set(users.map(u => u.id));
         if (me) keepIds.add(me.id);
-        this.balloons.forEach((b, id) => {
-            // Never remove my balloon or background balloons during setUsers
-            if (!keepIds.has(id) && !b.isMe && !b.isBackground) {
-                this.scene.remove(b.group);
+        this.balloons.forEach((_, id) => {
+            if (!keepIds.has(id)) {
+                const b = this.balloons.get(id);
+                if (b) this.scene.remove(b.group);
                 this.balloons.delete(id);
             }
         });
@@ -1166,11 +1166,9 @@ const WorldScene = {
             if (this.myBalloon) {
                 this._updateBalloonColor(this.myBalloon.group, skinId);
                 this._updateBalloonAura(this.myBalloon.group, auraId, true);
-                this.myBalloon.group.visible = true;
             } else {
                 const grp = this.addBalloon(me, null, true);
                 grp.position.set(0, 0, 0);
-                grp.visible = true;
             }
         }
 
@@ -1313,56 +1311,10 @@ const WorldScene = {
     /** Remove a player balloon when they disconnect (socket player:left). */
     removeWorldPlayer(userId) {
         const b = this.balloons.get(userId);
-        if (b && !b.isMe && !b.isBackground) {
+        if (b && !b.isMe) {
             this.scene.remove(b.group);
             this.balloons.delete(userId);
         }
-    },
-
-    /**
-     * Display ranking users as distant background balloons.
-     * These are farther from camera and don't interfere with nearby socket players.
-     */
-    setBackgroundUsers(users, isLight) {
-        // Remove existing background balloons that are no longer in the list
-        const keepIds = new Set(users.map(u => u.id));
-        this.balloons.forEach((b, id) => {
-            if (b.isBackground && !keepIds.has(id)) {
-                this.scene.remove(b.group);
-                this.balloons.delete(id);
-            }
-        });
-
-        // Place background users in a distant spiral pattern
-        users.forEach((user, i) => {
-            const angle = i * 137.508;
-            const radius = 2500 + Math.sqrt(i) * 350;  // Much farther than nearby players
-            const sx = radius * Math.cos(angle * Math.PI / 180);
-            const sy = radius * Math.sin(angle * Math.PI / 180);
-            const sz = Math.sin(i * 3.7) * 120;
-
-            const skinId = user.balloon_skin || 'default';
-            const auraId = user.balloon_aura || 'none';
-
-            if (this.balloons.has(user.id)) {
-                const b = this.balloons.get(user.id);
-                if (!b.isMe) {  // Don't touch my balloon
-                    b.isBackground = true;
-                    b.group.position.set(sx, sy, sz);
-                    b.group.userData.baseY = sy;
-                    this._updateBalloonColor(b.group, skinId);
-                    this._updateBalloonAura(b.group, auraId, false);
-                    b.group.visible = true;
-                }
-            } else {
-                const grp = this.addBalloon(user, null, false);
-                grp.position.set(sx, sy, sz);
-                grp.userData.baseY = sy;
-                grp.visible = true;
-                const b = this.balloons.get(user.id);
-                if (b) b.isBackground = true;
-            }
-        });
     },
 
     _getSrc(skinId, isLight) {
