@@ -616,10 +616,12 @@ function toggleTheme() {
                             <span>리얼리즘 점수</span>
                             <strong id="room-showcase-score">0</strong>
                         </div>
+                        <div id="room-showcase-meta" class="room-showcase-meta">오늘 그룹 공부 0분 · 내 순위 -</div>
                         <div id="room-showcase-mood" class="room-showcase-mood">분위기를 계산 중입니다.</div>
                         <div id="room-showcase-caption" class="room-showcase-caption">아직 꾸미기 정보가 없어요.</div>
                         <div class="room-showcase-actions">
                             <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.copyDecorShowcaseText()">문구 복사</button>
+                            <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.saveDecorShowcaseImage()">카드 저장</button>
                             <button class="room-copy-btn" onclick="GroupRooms.shareDecorShowcase()">자랑 공유</button>
                         </div>
                     </div>

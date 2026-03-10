@@ -79,6 +79,21 @@
         space: 14,
     };
 
+    const PROP_RARITY_WEIGHTS = {
+        plant: 1,
+        coffee: 1,
+        clock: 2,
+        lamp: 2,
+        trophy: 4,
+        pizza: 1,
+        cat: 3,
+        books: 2,
+        ac: 3,
+        star: 2,
+        music: 3,
+        cookie: 1,
+    };
+
     const GroupRooms = {
         myRooms: [],
         activeRoomId: null,
@@ -980,6 +995,18 @@
             return found ? found.name : '기본';
         },
 
+        _getRoomStudyStats() {
+            const rows = Array.isArray(this.leaderboard) ? this.leaderboard : [];
+            const totalSec = rows.reduce((sum, r) => sum + (parseInt(r.today_sec, 10) || 0), 0);
+            const myId = typeof UI !== 'undefined' && UI.currentUser ? UI.currentUser.id : null;
+            const myIndex = rows.findIndex(r => String(r.id) === String(myId));
+            return {
+                totalSec,
+                myRank: myIndex >= 0 ? myIndex + 1 : null,
+                memberCount: rows.length,
+            };
+        },
+
         _getDecorSummary() {
             const wallpaper = this._decor.wallpaper || 'default';
             const propKeys = this._decor.props || [];
@@ -991,19 +1018,22 @@
             const rareCount = propKeys.filter(k => rareSet.has(k)).length;
             const comfortCount = propKeys.filter(k => comfortSet.has(k)).length;
 
-            const base = 48;
-            const wallpaperBonus = WALLPAPER_REALISM_BONUS[wallpaper] || 4;
-            const densityBonus = Math.min(30, propCount * 5);
-            const varietyBonus = Math.min(8, uniqueCount * 2);
-            const balanceBonus = comfortCount >= 2 && rareCount >= 1 ? 6 : (comfortCount >= 1 ? 3 : 0);
-            const penalty = propCount === 0 ? 18 : (propCount > 8 ? 6 : 0);
+            const rarityWeighted = propKeys.reduce((sum, key) => sum + (PROP_RARITY_WEIGHTS[key] || 1), 0);
 
-            const score = Math.max(20, Math.min(99, base + wallpaperBonus + densityBonus + varietyBonus + balanceBonus - penalty));
+            const base = 35;
+            const wallpaperBonus = WALLPAPER_REALISM_BONUS[wallpaper] || 4;
+            const densityBonus = Math.min(20, propCount * 3);
+            const varietyBonus = Math.min(15, uniqueCount * 3);
+            const rarityBonus = Math.min(22, rarityWeighted * 2);
+            const balanceBonus = comfortCount >= 2 && rareCount >= 1 ? 8 : (comfortCount >= 1 ? 3 : 0);
+            const penalty = propCount === 0 ? 24 : (propCount > 8 ? 8 : 0);
+
+            const score = Math.max(15, Math.min(99, base + wallpaperBonus + densityBonus + varietyBonus + rarityBonus + balanceBonus - penalty));
 
             let grade = '꾸미기 시작';
-            if (score >= 90) grade = '전설의 쇼룸';
-            else if (score >= 80) grade = '자랑 가능한 시그니처 룸';
-            else if (score >= 70) grade = '완성도 높은 스터디룸';
+            if (score >= 95) grade = '전설의 쇼룸';
+            else if (score >= 85) grade = '자랑 가능한 시그니처 룸';
+            else if (score >= 75) grade = '완성도 높은 스터디룸';
             else if (score >= 60) grade = '분위기 좋은 베이직 룸';
 
             const moodMap = {
@@ -1023,12 +1053,14 @@
                 wallpaper,
                 wallpaperName: this._getWallpaperName(wallpaper),
                 propCount,
+                rarityWeighted,
                 mood: moodMap[wallpaper] || '집중형 커스텀 무드',
             };
         },
 
         _renderDecorShowcase() {
             const summary = this._getDecorSummary();
+            const stats = this._getRoomStudyStats();
             const roomName = document.getElementById('room-view-name')?.textContent?.trim() || '우리 방';
 
             const chip = document.getElementById('room-decor-score-chip');
@@ -1038,23 +1070,149 @@
 
             const gradeEl = document.getElementById('room-showcase-grade');
             const scoreEl = document.getElementById('room-showcase-score');
+            const metaEl = document.getElementById('room-showcase-meta');
             const moodEl = document.getElementById('room-showcase-mood');
             const captionEl = document.getElementById('room-showcase-caption');
 
-            const caption = `${roomName} | ${summary.wallpaperName} 테마 + 소품 ${summary.propCount}개. 리얼리즘 ${summary.score}점으로 완성!`;
+            const totalStudy = _fmtHM(stats.totalSec);
+            const rankText = stats.myRank ? `내 순위 ${stats.myRank}/${stats.memberCount}` : '내 순위 집계 중';
+            const caption = `${roomName} | ${summary.wallpaperName} 테마 + 소품 ${summary.propCount}개(희소도 ${summary.rarityWeighted})로 리얼리즘 ${summary.score}점 달성!`;
             if (gradeEl) gradeEl.textContent = summary.grade;
             if (scoreEl) scoreEl.textContent = String(summary.score);
+            if (metaEl) metaEl.textContent = `오늘 그룹 공부 ${totalStudy} · ${rankText}`;
             if (moodEl) moodEl.textContent = summary.mood;
             if (captionEl) captionEl.textContent = caption;
 
-            return { ...summary, caption, roomName };
+            return { ...summary, ...stats, caption, roomName, rankText, totalStudy };
         },
 
         _generateDecorShareText() {
             const data = this._renderDecorShowcase();
             const code = document.getElementById('room-view-code')?.textContent?.trim() || '';
             const roomUrl = code ? `${location.origin}/room/${code}` : `${location.origin}/timer/`;
-            return `🏠 ${data.roomName}\n${data.caption}\n무드: ${data.mood}\n\n같이 꾸미고 공부하러 오기\n${roomUrl}`;
+            return `🏠 ${data.roomName}\n${data.caption}\n무드: ${data.mood}\n오늘 그룹 공부: ${data.totalStudy} · ${data.rankText}\n\n같이 꾸미고 공부하러 오기\n${roomUrl}`;
+        },
+
+        _getWallpaperGradients(key) {
+            const item = ROOM_SHOP.wallpapers.find(w => w.key === key);
+            return (item && Array.isArray(item.gradients) && item.gradients.length >= 2)
+                ? item.gradients
+                : ['#f8f9fa', '#e9ecef'];
+        },
+
+        async _generateShowcaseCardBlob() {
+            const data = this._renderDecorShowcase();
+            const [c1, c2] = this._getWallpaperGradients(data.wallpaper);
+            const canvas = document.createElement('canvas');
+            canvas.width = 1080;
+            canvas.height = 1350;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('canvas-not-supported');
+
+            const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            bg.addColorStop(0, c1);
+            bg.addColorStop(1, c2);
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const drawRoundRect = (x, y, w, h, r) => {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+            };
+
+            // Ambient circles
+            ctx.globalAlpha = 0.18;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(180, 180, 120, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(920, 260, 90, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 1;
+
+            // Main card
+            drawRoundRect(90, 120, 900, 1110, 36);
+            ctx.fillStyle = 'rgba(10, 16, 28, 0.66)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#EAF3FF';
+            ctx.font = '700 34px Pretendard, sans-serif';
+            ctx.fillText('ROOM STYLE REPORT', 150, 210);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '900 68px Pretendard, sans-serif';
+            ctx.fillText(data.grade, 150, 300);
+
+            ctx.fillStyle = '#A9C6FF';
+            ctx.font = '700 30px Pretendard, sans-serif';
+            ctx.fillText(`REALISM ${data.score}`, 150, 360);
+
+            ctx.fillStyle = '#DDE9FF';
+            ctx.font = '600 32px Pretendard, sans-serif';
+            ctx.fillText(`${data.roomName}`, 150, 430);
+
+            ctx.fillStyle = '#C7D6F8';
+            ctx.font = '500 28px Pretendard, sans-serif';
+            ctx.fillText(`테마: ${data.wallpaperName} · 소품 ${data.propCount}개 · 희소도 ${data.rarityWeighted}`, 150, 490);
+            ctx.fillText(`오늘 그룹 공부: ${data.totalStudy}`, 150, 545);
+            ctx.fillText(`순위: ${data.rankText}`, 150, 600);
+
+            ctx.fillStyle = '#F2F7FF';
+            ctx.font = '600 30px Pretendard, sans-serif';
+            ctx.fillText(`무드: ${data.mood}`, 150, 685);
+
+            drawRoundRect(140, 740, 800, 250, 24);
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '600 30px Pretendard, sans-serif';
+            const lines = [
+                data.caption,
+                '같이 꾸미고 공부하러 오기',
+                `${location.origin}/room/${document.getElementById('room-view-code')?.textContent?.trim() || ''}`,
+            ];
+            lines.forEach((line, i) => {
+                ctx.fillText(line, 170, 810 + i * 70, 740);
+            });
+
+            ctx.fillStyle = '#9EB7E8';
+            ctx.font = '500 26px Pretendard, sans-serif';
+            ctx.fillText('P.A.T.H Group Room Showcase', 150, 1145);
+
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob((b) => b ? resolve(b) : reject(new Error('blob-failed')), 'image/png');
+            });
+            return blob;
+        },
+
+        async saveDecorShowcaseImage() {
+            try {
+                const blob = await this._generateShowcaseCardBlob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `path-room-showcase-${Date.now()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+                showToast('룸 자랑 카드 이미지를 저장했어요');
+            } catch {
+                showToast('이미지 생성에 실패했어요');
+            }
         },
 
         async copyDecorShowcaseText() {
@@ -1073,13 +1231,28 @@
             const roomUrl = code ? `${location.origin}/room/${code}` : `${location.origin}/timer/`;
             const roomName = document.getElementById('room-view-name')?.textContent?.trim() || '그룹룸';
 
+            let file = null;
+            try {
+                const blob = await this._generateShowcaseCardBlob();
+                file = new File([blob], `path-room-showcase-${Date.now()}.png`, { type: 'image/png' });
+            } catch (e) {}
+
             if (navigator.share) {
                 try {
-                    await navigator.share({
-                        title: `P.A.T.H 룸 자랑 - ${roomName}`,
-                        text,
-                        url: roomUrl,
-                    });
+                    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: `P.A.T.H 룸 자랑 - ${roomName}`,
+                            text,
+                            url: roomUrl,
+                            files: [file],
+                        });
+                    } else {
+                        await navigator.share({
+                            title: `P.A.T.H 룸 자랑 - ${roomName}`,
+                            text,
+                            url: roomUrl,
+                        });
+                    }
                     return;
                 } catch (e) {
                     if (e.name === 'AbortError') return;

@@ -3538,6 +3538,16 @@ body.active .tab-panel {
     letter-spacing: -0.7px;
 }
 
+.room-showcase-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: rgba(49, 130, 246, 0.10);
+    border: 1px solid rgba(49, 130, 246, 0.18);
+    border-radius: 999px;
+    padding: 5px 10px;
+    align-self: flex-start;
+}
+
 .room-showcase-mood {
     font-size: 13px;
     color: var(--text-primary);
@@ -3555,6 +3565,7 @@ body.active .tab-panel {
 
 .room-showcase-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
