@@ -1317,6 +1317,63 @@ const WorldScene = {
         }
     },
 
+    /**
+     * Render ranking users as distant background balloons when nearby count is low.
+     * Background balloons are tagged and can be cleared independently.
+     */
+    setBackgroundUsers(users, isLight) {
+        const keepIds = new Set((users || []).map(u => u.id));
+
+        // Remove old background balloons not present in the new list.
+        this.balloons.forEach((b, id) => {
+            if (b.isBackground && !keepIds.has(id)) {
+                this.scene.remove(b.group);
+                this.balloons.delete(id);
+            }
+        });
+
+        (users || []).forEach((user, i) => {
+            if (!user || user.id == null) return;
+
+            const angle = i * 137.508;
+            const radius = 2500 + Math.sqrt(i) * 350;
+            const sx = radius * Math.cos(angle * Math.PI / 180);
+            const sy = radius * Math.sin(angle * Math.PI / 180);
+            const sz = Math.sin(i * 3.7) * 120;
+
+            const skinId = user.balloon_skin || 'default';
+            const auraId = user.balloon_aura || 'none';
+
+            if (this.balloons.has(user.id)) {
+                const b = this.balloons.get(user.id);
+                if (!b.isMe) {
+                    b.isBackground = true;
+                    b.group.position.set(sx, sy, sz);
+                    b.group.userData.baseY = sy;
+                    this._updateBalloonColor(b.group, skinId);
+                    this._updateBalloonAura(b.group, auraId, false);
+                    b.group.visible = true;
+                }
+            } else {
+                const grp = this.addBalloon(user, null, false);
+                grp.position.set(sx, sy, sz);
+                grp.userData.baseY = sy;
+                grp.visible = true;
+                const b = this.balloons.get(user.id);
+                if (b) b.isBackground = true;
+            }
+        });
+    },
+
+    clearBackgroundUsers() {
+        this.balloons.forEach((b, id) => {
+            if (b.isBackground) {
+                this.scene.remove(b.group);
+                this.balloons.delete(id);
+            }
+        });
+    },
+
     _getSrc(skinId, isLight) {
         const skins = {
             default: { dark: 'assets/balloon_dark.png', light: 'assets/balloon_light.png' },

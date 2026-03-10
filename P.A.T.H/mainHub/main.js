@@ -474,12 +474,33 @@ function renderOtherUsers(users) {
         const nearbyCount = _wsNearby.size;
         // Show background ranking users if we have fewer than 15 nearby players
         if (nearbyCount < 15) {
-            const backgroundUsers = users.filter(u => !_wsNearby.has(u.id) && (!currentUser || u.id !== currentUser.id)).slice(0, 200);
+            const myId = _normalizeUserId(currentUser?.id);
+            const normalized = users
+                .map((u) => {
+                    const id = _normalizeUserId(u?.id);
+                    if (id === null) return null;
+                    return { ...u, id };
+                })
+                .filter(Boolean);
+
+            const backgroundUsers = normalized
+                .filter(u => !_wsNearby.has(u.id) && (myId === null || u.id !== myId))
+                .slice(0, 200);
             window.WorldScene.setBackgroundUsers(backgroundUsers, isLight);
+        } else if (window.WorldScene.clearBackgroundUsers) {
+            window.WorldScene.clearBackgroundUsers();
         }
     } else {
         // No socket: use full ranking display
-        window.WorldScene.setUsers(users, currentUser, isLight);
+        const normalizedUsers = users
+            .map((u) => {
+                const id = _normalizeUserId(u?.id);
+                if (id === null) return null;
+                return { ...u, id };
+            })
+            .filter(Boolean);
+        const me = currentUser ? { ...currentUser, id: _normalizeUserId(currentUser.id) ?? currentUser.id } : currentUser;
+        window.WorldScene.setUsers(normalizedUsers, me, isLight);
     }
 }
 

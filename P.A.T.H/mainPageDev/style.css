@@ -3147,7 +3147,7 @@ body.active .tab-panel {
     display: flex;
     gap: 4px;
     margin: 12px 0 4px;
-    background: var(--surface-soft);
+    background: var(--surface-hover);
     border-radius: 12px;
     padding: 4px;
 }
@@ -3167,7 +3167,7 @@ body.active .tab-panel {
 }
 
 .room-list-tab.active {
-    background: var(--surface);
+    background: var(--surface-strong);
     color: var(--accent-blue);
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
@@ -3205,9 +3205,9 @@ body.active .tab-panel {
 .room-search-input {
     width: 100%;
     padding: 10px 12px 10px 36px;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--line-color);
     border-radius: 12px;
-    background: var(--surface);
+    background: var(--surface-strong);
     font-size: 14px;
     font-family: 'Pretendard', sans-serif;
     color: var(--text-primary);
@@ -3227,9 +3227,9 @@ body.active .tab-panel {
 
 .room-sort-pill {
     padding: 6px 14px;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--line-color);
     border-radius: 20px;
-    background: var(--surface);
+    background: var(--surface-strong);
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
@@ -3304,7 +3304,7 @@ body.active .tab-panel {
 }
 
 .room-public-action-btn.room-public-action-open:hover {
-    background: var(--border);
+    background: var(--surface-hover);
 }
 
 .room-card-meta {
@@ -3324,7 +3324,7 @@ body.active .tab-panel {
     width: 100%;
     padding: 12px;
     margin-top: 8px;
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--line-color);
     border-radius: 12px;
     background: transparent;
     font-size: 14px;
@@ -3378,9 +3378,13 @@ body.active .tab-panel {
     position: absolute;
     cursor: pointer;
     inset: 0;
-    background: var(--border);
+    background: #c1c7ce;
     border-radius: 26px;
     transition: background 0.2s;
+}
+
+body:not(.light) .room-toggle-slider {
+    background: #48484a;
 }
 
 .room-toggle-slider::before {
