@@ -1073,6 +1073,13 @@ const WorldScene = {
         const auraId = me.balloon_aura || 'none';
         let b = this.balloons.get(me.id);
 
+        // If my id was previously rendered as remote/ranking/background,
+        // rebuild it as true self balloon so scale/offset/depth are consistent.
+        if (b && !b.isMe) {
+            this._removeBalloonById(me.id);
+            b = null;
+        }
+
         if (!b) {
             const grp = this.addBalloon(me, null, true);
             grp.position.set(0, 0, 0);
@@ -1087,6 +1094,7 @@ const WorldScene = {
         b.user = { ...b.user, ...me };
         b.group.userData.user = b.user;
         if (!Number.isFinite(b.group.position.x)) b.group.position.x = 0;
+        if (!Number.isFinite(b.group.position.z)) b.group.position.z = 0;
         if (!Number.isFinite(b.group.userData.baseY)) b.group.userData.baseY = 0;
         b.group.visible = true;
         this._updateBalloonColor(b.group, skinId);

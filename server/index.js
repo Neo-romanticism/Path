@@ -34,7 +34,14 @@ if (isProduction && !process.env.ALIGO_API_KEY) {
 }
 
 const projectRoot = path.join(__dirname, '..');
-const appIconSourcePath = path.join(projectRoot, 'IMG_0203.png');
+const brandAssetMap = Object.freeze({
+    'app-icon-master-1024.png': path.join(projectRoot, 'icons', 'IMG_0219.png'),
+    'app-icon-alt-square-1024.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116611_20260310203802.png'),
+    'splash-landscape-a-1408x768.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116612_20260310204735.png'),
+    'splash-landscape-b-1408x768.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116612_20260310204810.png'),
+    'promo-preview.mp4': path.join(projectRoot, 'icons', 'gemini_generated_video_29ABE2A4.mp4'),
+});
+const appIconSourcePath = brandAssetMap['app-icon-master-1024.png'];
 
 function escapeHtml(value) {
     return String(value || '')
@@ -275,6 +282,17 @@ app.get('/icons/:filename', (req, res, next) => {
     res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
     res.type('png');
     return res.sendFile(appIconSourcePath);
+});
+
+// Clean aliases for brand assets kept under /icons.
+app.get('/brand/:filename', (req, res, next) => {
+    const filename = String(req.params.filename || '');
+    const sourcePath = brandAssetMap[filename];
+
+    if (!sourcePath) return next();
+
+    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    return res.sendFile(sourcePath);
 });
 
 // ── PWA: Icons (long-lived cache) ──────────────────────────────────────────

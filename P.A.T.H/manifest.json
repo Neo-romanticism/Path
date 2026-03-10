@@ -76,6 +76,21 @@
       "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "/brand/splash-landscape-a-1408x768.png",
+      "sizes": "1408x768",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "P.A.T.H 타이머 메인 화면"
+    },
+    {
+      "src": "/brand/splash-landscape-b-1408x768.png",
+      "sizes": "1408x768",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "P.A.T.H 학습 대시보드 화면"
+    }
+  ],
   "prefer_related_applications": false
 }
