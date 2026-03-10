@@ -1228,6 +1228,26 @@ const WorldScene = {
         const isLight = this.isLight;
         const isLightMode = isLight;
 
+        // In realtime-only mode, ensure local player balloon exists here
+        // (setUsers() may no longer run for world rendering).
+        if (me) {
+            const mySkinId = me.balloon_skin || 'default';
+            const myAuraId = me.balloon_aura || 'none';
+            if (this.myBalloon) {
+                this._updateBalloonColor(this.myBalloon.group, mySkinId);
+                this._updateBalloonAura(this.myBalloon.group, myAuraId, true);
+                this.myBalloon.group.visible = true;
+                this.myBalloon.user = { ...this.myBalloon.user, ...me };
+                this.myBalloon.group.userData.user = this.myBalloon.user;
+            } else {
+                const grp = this.addBalloon(me, null, true);
+                grp.position.set(0, 0, 0);
+                grp.userData.baseY = 0;
+                grp.visible = true;
+                this._updateBalloonAura(grp, myAuraId, true);
+            }
+        }
+
         const keepIds = new Set(players.map(p => p.id));
         if (me) keepIds.add(me.id);
 
