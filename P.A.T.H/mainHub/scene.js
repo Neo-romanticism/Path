@@ -486,7 +486,7 @@ const WorldScene = {
             { x: 1400, y: -55, z: -700, rx: 2.2, name: '포스텍 스틸 아일랜드', university: '포항공과대학교', landmark: 'POSTECH · 지곡회관·상징 조형물', type: 'flower', admissionUrl: 'https://adm.postech.ac.kr', admissionNote: '입학전형/장학제도/공지사항 확인' },
             { x:-1600, y: -90, z: -900, rx: 1.4, name: '인문명륜 아일랜드', university: '성균관대학교', landmark: '성균관대학교 · 명륜당·은행나무 상징', type: 'rock', admissionUrl: 'https://admission.skku.edu', admissionNote: '캠퍼스별 모집요강 및 전형안내 확인' },
             { x:  500, y: -40, z:-1200, rx: 1.9, name: '사자 한양 아일랜드', university: '한양대학교', landmark: '한양대학교 · 사자상·본관 라인', type: 'star', admissionUrl: 'https://go.hanyang.ac.kr', admissionNote: '전형 일정, 경쟁률, 모집요강 확인' },
-            { x:-600,  y: -75, z: -500, rx: 1.5, name: '흑석 청룡 아일랜드', university: '중앙대학교', landmark: '중앙대학교 · 청룡상·중앙마루', type: 'rainbow', admissionUrl: 'https://admission.cau.ac.kr', admissionNote: '학과별 전형요소 및 합격자 발표일 확인' },
+            { x:-600,  y: -75, z: -500, rx: 1.5, name: '흑석 청룡 아일랜드', university: '중앙대학교', landmark: '중앙대학교 · 청룡상·중앙마루', type: 'aurora', admissionUrl: 'https://admission.cau.ac.kr', admissionNote: '학과별 전형요소 및 합격자 발표일 확인' },
             { x: 1800, y: -65, z: -400, rx: 2.4, name: '평화의 전당 아일랜드', university: '경희대학교', landmark: '경희대학교 · 평화의전당·캠퍼스 로드', type: 'fortress', admissionUrl: 'https://iphak.khu.ac.kr', admissionNote: '캠퍼스별 모집 인원과 전형계획 확인' },
             { x:-2000, y: -85, z: -600, rx: 1.3, name: '서강 알바트로스 아일랜드', university: '서강대학교', landmark: '서강대학교 · 본관·알바트로스 상징', type: 'moon', admissionUrl: 'https://admission.sogang.ac.kr', admissionNote: '모집요강, FAQ, 공지사항 확인' },
             { x: 1100, y: -45, z:-1100, rx: 1.7, name: '이화 유레카 아일랜드', university: '이화여자대학교', landmark: '이화여자대학교 · ECC·유레카 상징', type: 'dragon', admissionUrl: 'https://admission.ewha.ac.kr', admissionNote: '전형별 지원자격 및 제출서류 확인' },
@@ -1284,11 +1284,20 @@ const WorldScene = {
             }
             if (!b || b.isMe) return;
 
+            const wasNearby = b.kind === 'nearby';
+
             b.kind = 'nearby';
             b.isBackground = false;
             b.lastSeenAt = now;
             b.user = { ...b.user, ...user };
             b.group.userData.user = b.user;
+
+            // If this user was previously rendered by ranking/background source,
+            // snap to realtime position first to avoid long-distance spreading.
+            if (!wasNearby) {
+                b.group.position.set(sx, sy, sz);
+                b.group.userData.baseY = sy;
+            }
 
             b.group.userData.targetX = sx;
             b.group.userData.targetY = sy;
@@ -1386,14 +1395,10 @@ const WorldScene = {
     },
 
     _getSrc(skinId, isLight) {
-        const skins = {
-            default: { dark: 'assets/balloon_dark.png', light: 'assets/balloon_light.png' },
-            rainbow: { dark: 'assets/balloon_rainbow.png', light: 'assets/balloon_rainbow.png' },
-            pastel: { dark: 'assets/balloon_pastel.png', light: 'assets/balloon_pastel.png' },
-            redstripes: { dark: 'assets/balloon_redstripes.png', light: 'assets/balloon_redstripes.png' }
-        };
-        const s = skins[skinId] || skins.default;
-        return isLight ? s.light : s.dark;
+        const skins = window.BALLOON_SKINS || {};
+        const fallback = { darkImg: 'assets/balloon_dark.png', lightImg: 'assets/balloon_light.png' };
+        const s = skins[skinId] || skins.default || fallback;
+        return isLight ? (s.lightImg || fallback.lightImg) : (s.darkImg || fallback.darkImg);
     },
 
     updateMyBalloon(skinId) {

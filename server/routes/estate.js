@@ -435,7 +435,7 @@ router.post('/diamond/web/prepare', async (req, res) => {
 
     const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
     if (!tossClientKey) {
-        return res.status(503).json({ error: '토스 결제 키 설정이 누락되었습니다.' });
+        return res.status(503).json({ error: '웹 결제 키 설정이 누락되었습니다.' });
     }
 
     const orderId = makeDiamondOrderId(req.session.userId);
@@ -472,7 +472,7 @@ router.post('/diamond/web/confirm', async (req, res) => {
 
     const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
     if (!tossSecret) {
-        return res.status(503).json({ error: '토스 시크릿 키 설정이 누락되었습니다.' });
+        return res.status(503).json({ error: '웹 결제 시크릿 키 설정이 누락되었습니다.' });
     }
 
     const client = await pool.connect();
@@ -520,7 +520,7 @@ router.post('/diamond/web/confirm', async (req, res) => {
         } catch (apiErr) {
             await client.query('ROLLBACK');
             const status = apiErr?.response?.status || 400;
-            const msg = apiErr?.response?.data?.message || '토스 결제 검증에 실패했습니다.';
+            const msg = apiErr?.response?.data?.message || '웹 결제 검증에 실패했습니다.';
             return res.status(status).json({ error: msg });
         }
 
@@ -680,7 +680,7 @@ router.post('/diamond/purchase', async (req, res) => {
     const allowedProviders = DIAMOND_PROVIDER_BY_PLATFORM[clientPlatform] || [];
     if (!allowedProviders.includes(providerName)) {
         if (clientPlatform === 'web') {
-            return res.status(400).json({ error: '웹 결제는 토스(toss)만 지원합니다.' });
+            return res.status(400).json({ error: '웹 결제는 지정된 결제 수단만 지원합니다.' });
         }
         return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
     }
