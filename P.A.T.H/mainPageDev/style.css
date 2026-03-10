@@ -287,6 +287,159 @@ body.tab-calendar-active .focus-container {
     align-items: stretch;
 }
 
+#tab-scorecalc {
+    align-items: stretch;
+    gap: 16px;
+}
+
+.scorecalc-head {
+    border: 1px solid var(--line-color);
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(49, 130, 246, 0.12), rgba(49, 130, 246, 0.04) 52%, rgba(255, 255, 255, 0.72) 100%);
+    padding: 20px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scorecalc-kicker {
+    color: var(--accent-blue);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.scorecalc-title {
+    font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+    color: var(--text-primary);
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+}
+
+.scorecalc-copy {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.scorecalc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.scorecalc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.scorecalc-field span {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.scorecalc-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#scorecalc-calc-btn {
+    min-height: 50px;
+    min-width: 220px;
+    border-radius: var(--border-radius-md);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.scorecalc-result {
+    border: 1px solid var(--line-color);
+    border-radius: 16px;
+    background: var(--surface-soft);
+    min-height: 88px;
+    padding: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.scorecalc-summary {
+    border: 1px solid rgba(49, 130, 246, 0.24);
+    border-radius: 14px;
+    background: rgba(49, 130, 246, 0.08);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+
+.scorecalc-summary strong {
+    color: var(--text-primary);
+    font-size: 16px;
+    letter-spacing: -0.01em;
+}
+
+.scorecalc-summary span,
+.scorecalc-meta {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.scorecalc-meta {
+    margin: 8px 2px 8px;
+}
+
+.scorecalc-compare-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scorecalc-compare-list li {
+    border: 1px solid var(--line-color);
+    border-radius: 12px;
+    background: var(--surface-strong);
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.scorecalc-compare-list li span:first-child {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.scorecalc-compare-list .pos {
+    color: #0f9f5c;
+}
+
+.scorecalc-compare-list .neg {
+    color: var(--accent-red);
+}
+
+body:not(.light) .scorecalc-head {
+    background: linear-gradient(138deg, rgba(49, 130, 246, 0.22), rgba(12, 25, 44, 0.65) 55%, rgba(19, 27, 40, 0.9) 100%);
+    border-color: rgba(125, 183, 255, 0.3);
+}
+
+body:not(.light) .scorecalc-summary {
+    background: rgba(49, 130, 246, 0.14);
+    border-color: rgba(125, 183, 255, 0.34);
+}
+
+body:not(.light) .scorecalc-result {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .balloon-journey {
     width: 100%;
     display: grid;
@@ -1698,6 +1851,19 @@ body.active .tab-panel {
         grid-template-columns: 1fr;
     }
 
+    .scorecalc-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .scorecalc-actions {
+        justify-content: stretch;
+    }
+
+    #scorecalc-calc-btn {
+        width: 100%;
+        min-width: 0;
+    }
+
     .cmd-btn {
         width: 100%;
         min-width: 0;
@@ -1814,6 +1980,20 @@ body.active .tab-panel {
     .balloon-badge {
         font-size: 9px;
         padding: 5px 8px;
+    }
+
+    .scorecalc-head {
+        border-radius: 14px;
+        padding: 14px;
+    }
+
+    .scorecalc-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .scorecalc-result {
+        padding: 12px;
     }
 }
 
