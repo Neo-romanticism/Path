@@ -71,6 +71,23 @@
             font-weight: 700;
         }
 
+        .title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-logo {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            border: 1px solid var(--line-strong);
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px;
+            object-fit: cover;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+        }
+
         .sub {
             margin-top: 4px;
             font-size: 12px;
@@ -336,6 +353,12 @@
         }
 
         @media (max-width: 980px) {
+            .title-logo {
+                width: 26px;
+                height: 26px;
+                border-radius: 8px;
+            }
+
             .stats {
                 grid-template-columns: repeat(2, minmax(140px, 1fr));
             }
@@ -354,7 +377,10 @@
     <div class="wrap">
         <header class="header">
             <div>
-                <h1 class="title">P.A.T.H ADMIN DASHBOARD</h1>
+                <div class="title-row">
+                    <img class="title-logo" src="/brand/app-icon-master-1024.png" alt="P.A.T.H 로고">
+                    <h1 class="title">P.A.T.H ADMIN DASHBOARD</h1>
+                </div>
                 <p class="sub">점수/내신 검수, 사용자 상태 모니터링, 운영 현황 확인</p>
             </div>
             <div class="toolbar">

@@ -1926,8 +1926,10 @@ window.loadSettingsPanel = loadSettingsPanel;
 let currentAllyTab = 'list';
 let allyPanelOpen = false;
 let messengerPanelOpen = false;
+let currentChatMode = 'dm';
 let currentChatUserId = null;
 let currentChatUserName = null;
+let currentChatRoomId = null;
 let chatPollInterval = null;
 
 async function refreshFriendBadge() {
@@ -2239,8 +2241,10 @@ function closeMessengerPanel() {
 
 function messengerBack() {
     stopChatPoll();
+    currentChatMode = 'dm';
     currentChatUserId = null;
     currentChatUserName = null;
+    currentChatRoomId = null;
     showConversationList();
 }
 
@@ -2262,12 +2266,14 @@ async function loadConversations() {
     const convList = document.getElementById('messenger-conv-list');
     convList.innerHTML = '<div style="text-align:center;padding:20px;font-size:11px;color:#666">로딩 중...</div>';
     try {
-        const [convRes, friendRes] = await Promise.all([
+        const [convRes, friendRes, groupRes] = await Promise.all([
             fetch('/api/messages/conversations', { credentials: 'include' }),
-            fetch('/api/friends/list', { credentials: 'include' })
+            fetch('/api/friends/list', { credentials: 'include' }),
+            fetch('/api/messages/group-conversations', { credentials: 'include' })
         ]);
         const convs = convRes.ok ? await convRes.json() : [];
         const friends = friendRes.ok ? await friendRes.json() : [];
+        const groupConvs = groupRes.ok ? await groupRes.json() : [];
 
         const convIds = new Set(convs.map(c => c.other_user));
         const newFriends = friends.filter(f => !convIds.has(f.id));
@@ -2283,6 +2289,21 @@ async function loadConversations() {
             </div>
         `).join('');
 
+        const groupHtml = groupConvs.map(g => {
+            const roomName = (g.room_name || '그룹 채팅').trim() || '그룹 채팅';
+            const roomNameJson = JSON.stringify(roomName);
+            return `
+                <div class="conv-item" onclick='openGroupChat(${g.room_id}, ${roomNameJson})'>
+                    <div class="conv-avatar">👥</div>
+                    <div class="conv-info">
+                        <div class="conv-nick">${esc(roomName)}</div>
+                        <div class="conv-last">${esc(g.last_msg || '아직 채팅이 없습니다')}</div>
+                    </div>
+                    <div class="conv-studying"></div>
+                </div>
+            `;
+        }).join('');
+
         const newHtml = newFriends.length > 0 ? `
             <div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">동맹 — 새 대화 시작</div>
             ${newFriends.map(f => `
@@ -2297,20 +2318,24 @@ async function loadConversations() {
             `).join('')}
         ` : '';
 
-        if (!convHtml && !newHtml) {
+        if (!convHtml && !newHtml && !groupHtml) {
             convList.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">동맹을 추가하면<br>여기서 대화할 수 있어요.</div>';
             return;
         }
 
-        convList.innerHTML = (convHtml ? `<div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">${convs.length > 0 ? '최근 대화' : ''}</div>` + convHtml : '') + newHtml;
+        const dmSection = (convHtml ? `<div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">${convs.length > 0 ? '최근 대화' : ''}</div>` + convHtml : '') + newHtml;
+        const groupSection = groupHtml ? `<div style="padding:10px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">그룹 채팅</div>${groupHtml}` : '';
+        convList.innerHTML = dmSection + groupSection;
     } catch (e) {
         convList.innerHTML = '<div style="color:#e55;padding:16px;font-size:11px">로드 실패</div>';
     }
 }
 
 async function openChat(userId, nickname) {
+    currentChatMode = 'dm';
     currentChatUserId = userId;
     currentChatUserName = nickname;
+    currentChatRoomId = null;
 
     const convList = document.getElementById('messenger-conv-list');
     const chat = document.getElementById('messenger-chat');
@@ -2322,26 +2347,52 @@ async function openChat(userId, nickname) {
     backBtn.style.display = 'inline-block';
     title.textContent = nickname;
 
+    const fileBtn = document.querySelector('.chat-file-btn');
+    if (fileBtn) fileBtn.style.display = 'inline-flex';
+
+    await loadChatMessages();
+    startChatPoll();
+}
+
+async function openGroupChat(roomId, roomName) {
+    currentChatMode = 'group';
+    currentChatRoomId = roomId;
+    currentChatUserId = null;
+    currentChatUserName = null;
+
+    const convList = document.getElementById('messenger-conv-list');
+    const chat = document.getElementById('messenger-chat');
+    const backBtn = document.getElementById('messenger-back-btn');
+    const title = document.getElementById('messenger-title');
+
+    convList.style.display = 'none';
+    chat.style.display = 'flex';
+    backBtn.style.display = 'inline-block';
+    title.textContent = `그룹 · ${roomName || '채팅'}`;
+
+    cancelFileUpload();
+    const fileBtn = document.querySelector('.chat-file-btn');
+    if (fileBtn) fileBtn.style.display = 'none';
+
     await loadChatMessages();
     startChatPoll();
 }
 
 async function loadChatMessages() {
-    if (!currentChatUserId) return;
+    if (currentChatMode === 'dm' && !currentChatUserId) return;
+    if (currentChatMode === 'group' && !currentChatRoomId) return;
+
     try {
-        const r = await fetch(`/api/messages/conversation/${currentChatUserId}`, { credentials: 'include' });
+        const endpoint = currentChatMode === 'group'
+            ? `/api/messages/group-conversation/${currentChatRoomId}`
+            : `/api/messages/conversation/${currentChatUserId}`;
+
+        const r = await fetch(endpoint, { credentials: 'include' });
         const msgs = r.ok ? await r.json() : [];
         const container = document.getElementById('chat-messages');
-        
-        // 디버깅: 첫 번째 메시지 확인
-        if (msgs.length > 0) {
-            console.log('Sample message:', msgs[0]);
-            console.log('is_mine value:', msgs[0].is_mine, 'type:', typeof msgs[0].is_mine);
-        }
-        
+
         container.innerHTML = msgs.map(m => {
             const isMine = m.is_mine === true || m.is_mine === 1;
-            console.log(`Message ${m.id}: is_mine=${m.is_mine}, isMine=${isMine}, sender=${m.sender_id}`);
             const time = new Date(m.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
             
             let contentHtml = '';
@@ -2376,7 +2427,10 @@ async function loadChatMessages() {
                 }
             } else {
                 // 텍스트 메시지
-                contentHtml = esc(m.content);
+                const prefix = currentChatMode === 'group' && !isMine
+                    ? `<div style="font-size:10px;color:#6b7280;margin-bottom:2px;">${esc(m.sender_nickname || '알 수 없음')}</div>`
+                    : '';
+                contentHtml = `${prefix}${esc(m.content)}`;
             }
             
             return `
@@ -2419,6 +2473,26 @@ function cancelFileUpload() {
 async function sendMessage() {
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
+
+    if (currentChatMode === 'group') {
+        if (!content || !currentChatRoomId) return;
+        input.value = '';
+        try {
+            const r = await fetch(`/api/rooms/${currentChatRoomId}/messages`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ content })
+            });
+            if (!r.ok) {
+                const d = await r.json().catch(() => ({}));
+                alert(d.error || '전송 실패');
+                input.value = content;
+                return;
+            }
+            await loadChatMessages();
+        } catch (e) {}
+        return;
+    }
     
     // 파일이 선택된 경우
     if (selectedFile) {
@@ -2474,7 +2548,13 @@ async function sendMessage() {
 function startChatPoll() {
     stopChatPoll();
     chatPollInterval = setInterval(() => {
-        if (currentChatUserId) loadChatMessages();
+        if (currentChatMode === 'group' && currentChatRoomId) {
+            loadChatMessages();
+            return;
+        }
+        if (currentChatMode === 'dm' && currentChatUserId) {
+            loadChatMessages();
+        }
     }, 5000);
 }
 

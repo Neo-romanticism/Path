@@ -104,6 +104,25 @@
             color: #0f172a;
         }
 
+        .logo-mark {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(49, 130, 246, 0.24);
+            background: linear-gradient(145deg, rgba(49, 130, 246, 0.18), rgba(255, 255, 255, 0.9));
+            box-shadow: 0 16px 36px rgba(27, 100, 218, 0.22);
+            padding: 6px;
+        }
+
+        .logo-mark img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
         .tagline {
             margin-top: 10px;
             margin-bottom: 26px;
@@ -486,6 +505,12 @@
             color: #f4f8ff;
         }
 
+        body:not(.light) .logo-mark {
+            border-color: rgba(255, 255, 255, 0.22);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(7, 18, 33, 0.95));
+            box-shadow: 0 18px 38px rgba(2, 8, 20, 0.55);
+        }
+
         body:not(.light) .theme-toggle-btn {
             background: rgba(14, 26, 43, 0.7);
             color: #c8d5e9;
@@ -532,6 +557,12 @@
                 font-size: 38px;
             }
 
+            .logo-mark {
+                width: 56px;
+                height: 56px;
+                margin-bottom: 10px;
+            }
+
             .tagline {
                 font-size: 14px;
                 margin-bottom: 20px;
@@ -571,6 +602,9 @@ function toggleTheme() {
 </script>
 <button id="theme-btn" class="theme-toggle-btn">🌙</button>
     <main class="auth-shell">
+    <div class="logo-mark" aria-hidden="true">
+        <img src="/brand/app-icon-master-1024.png" alt="">
+    </div>
     <div class="logo">P.A.T.H</div>
     <div class="tagline">간결한 흐름으로 시작하는 학습 경쟁</div>
 

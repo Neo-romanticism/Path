@@ -2,7 +2,7 @@
  * World state manager for the P.A.T.H large-scale world.
  *
  * Architecture:
- *  - WORLD_SIZE  : 1,000,000 × 1,000,000 world-unit plane
+ *  - WORLD_SIZE  : 200,000 × 200,000 world-unit plane
  *  - WORLD_SEED  : fixed deterministic seed so all clients render the same props
  *
  * Sync model:
@@ -17,7 +17,7 @@
 
 'use strict';
 
-const WORLD_SIZE       = 1000000; // total world width/height in world-units
+const WORLD_SIZE       = 200000; // total world width/height in world-units
 const WORLD_SEED       = 777;     // fixed seed distributed to every client
 const MAX_PROP_ID_LEN  = 64;      // maximum length of a prop identifier string
 

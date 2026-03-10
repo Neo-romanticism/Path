@@ -129,6 +129,17 @@ body:not(.light) {
     flex-wrap: wrap;
 }
 
+.status-logo {
+    width: 32px;
+    height: 32px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--line-color);
+    background: var(--surface-soft);
+    padding: 2px;
+    box-shadow: var(--shadow-soft);
+}
+
 .status-label {
     font-size: 10px;
     color: var(--text-muted);
@@ -1906,6 +1917,12 @@ body.active .tab-panel {
 }
 
 @media (max-width: 620px) {
+    .status-logo {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+    }
+
     .status-left,
     .status-right {
         gap: 6px;

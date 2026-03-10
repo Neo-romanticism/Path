@@ -41,6 +41,22 @@ const upload = multer({
     }
 });
 
+let roomChatSchemaReady = false;
+async function ensureRoomChatSchema() {
+    if (roomChatSchemaReady) return;
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS study_room_messages (
+            id          SERIAL PRIMARY KEY,
+            room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            content     VARCHAR(500) NOT NULL,
+            created_at  TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_study_room_messages_room ON study_room_messages(room_id, created_at);
+    `);
+    roomChatSchemaReady = true;
+}
+
 // 전체 업로드 용량 확인 및 정리 (100MB 제한)
 async function cleanupOldFiles() {
     try {
@@ -171,6 +187,87 @@ router.get('/conversations', requireAuth, async (req, res) => {
         res.json(result.rows);
     } catch (err) {
         console.error('messages/conversations 오류:', err.message);
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+// 그룹 대화 목록 (내가 참여한 방 기준)
+router.get('/group-conversations', requireAuth, async (req, res) => {
+    try {
+        await ensureRoomChatSchema();
+
+        const result = await pool.query(
+            `SELECT
+                r.id AS room_id,
+                r.name AS room_name,
+                r.invite_code,
+                r.is_public,
+                COALESCE(last_msg.content, '') AS last_msg,
+                last_msg.created_at AS last_time,
+                (SELECT COUNT(*) FROM study_room_members m2 WHERE m2.room_id = r.id) AS member_count
+             FROM study_rooms r
+             JOIN study_room_members m ON m.room_id = r.id AND m.user_id = $1
+             LEFT JOIN LATERAL (
+                SELECT rm.content, rm.created_at
+                FROM study_room_messages rm
+                WHERE rm.room_id = r.id
+                ORDER BY rm.created_at DESC
+                LIMIT 1
+             ) last_msg ON TRUE
+             WHERE r.is_active = TRUE
+             ORDER BY last_time DESC NULLS LAST, r.created_at DESC`,
+            [req.session.userId]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error('messages/group-conversations 오류:', err.message);
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+// 특정 그룹방 대화 내역
+router.get('/group-conversation/:roomId', requireAuth, async (req, res) => {
+    const roomId = parseInt(req.params.roomId, 10);
+    if (!roomId) return res.status(400).json({ error: '잘못된 요청' });
+
+    try {
+        await ensureRoomChatSchema();
+
+        const memberCheck = await pool.query(
+            `SELECT 1 FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
+            [roomId, req.session.userId]
+        );
+        if (!memberCheck.rows.length) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+
+        const result = await pool.query(
+            `SELECT rm.id,
+                    rm.user_id AS sender_id,
+                    NULL::INTEGER AS receiver_id,
+                    rm.content,
+                    FALSE AS is_read,
+                    rm.created_at,
+                    NULL::TEXT AS file_path,
+                    NULL::TEXT AS file_type,
+                    NULL::INTEGER AS file_size,
+                    NULL::TEXT AS file_name,
+                    u.nickname AS sender_nickname,
+                    (rm.user_id = $1) AS is_mine,
+                    rm.user_id,
+                    r.id AS room_id,
+                    r.name AS room_name
+             FROM study_room_messages rm
+             JOIN users u ON u.id = rm.user_id
+             JOIN study_rooms r ON r.id = rm.room_id
+             WHERE rm.room_id = $2
+             ORDER BY rm.created_at ASC
+             LIMIT 200`,
+            [req.session.userId, roomId]
+        );
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error('messages/group-conversation 오류:', err.message);
         res.status(500).json({ error: '서버 오류' });
     }
 });
