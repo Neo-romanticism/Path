@@ -136,6 +136,11 @@ async function requireLatestEula(req, res, next) {
     }
 }
 
+async function requireLatestEulaIfAuthenticated(req, res, next) {
+    if (!req.session.userId) return next();
+    return requireLatestEula(req, res, next);
+}
+
 function makeBlockedPostCondition(userId, placeholderIndex, tableAlias = 'p') {
     if (!userId) return { sql: '', params: [] };
     return {
@@ -214,6 +219,7 @@ router.get('/posts', async (req, res) => {
     const page  = Math.max(0, parseInt(req.query.page)  || 0);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 25));
     const cat   = req.query.category || '전체';
+    const sort  = String(req.query.sort || 'latest').trim();
     const q     = (req.query.q || '').trim();
     const offset = page * limit;
 
@@ -245,6 +251,13 @@ router.get('/posts', async (req, res) => {
         .replace(/\blikes\b/g, 'p.likes')
         .replace(/\bcategory\b/g, 'p.category');
 
+    const orderByMap = {
+        latest: 'p.created_at DESC',
+        likes: 'p.likes DESC, p.created_at DESC',
+        views: 'p.views DESC, p.created_at DESC',
+    };
+    const orderBy = orderByMap[sort] || orderByMap.latest;
+
     try {
         const [cntRes, postsRes] = await Promise.all([
             pool.query(`SELECT COUNT(*) FROM community_posts p ${whereWithAlias}`, params),
@@ -260,7 +273,7 @@ router.get('/posts', async (req, res) => {
                  FROM community_posts p
                  LEFT JOIN users u ON u.id = p.user_id
                  ${whereWithAlias}
-                 ORDER BY p.created_at DESC
+                 ORDER BY ${orderBy}
                  LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
                 [...params, limit, offset]
             )
@@ -411,7 +424,7 @@ router.post('/uploads/image', requireAuth, requireLatestEula, (req, res) => {
 /* ════════════════════════════════════════════════════════════ */
 /* POST /posts — 글 작성 (로그인 필수)                           */
 /* ════════════════════════════════════════════════════════════ */
-router.post('/posts', requireAuth, requireLatestEula, async (req, res) => {
+router.post('/posts', requireLatestEulaIfAuthenticated, async (req, res) => {
     const { category, title, body = '', anonymous_nickname, image_url, link_url } = req.body;
     const bodyText = typeof body === 'string' ? body : '';
 
@@ -683,7 +696,7 @@ router.get('/posts/:id/comments', async (req, res) => {
 /* ════════════════════════════════════════════════════════════ */
 /* POST /posts/:id/comments — 댓글 작성                         */
 /* ════════════════════════════════════════════════════════════ */
-router.post('/posts/:id/comments', requireAuth, requireLatestEula, async (req, res) => {
+router.post('/posts/:id/comments', requireLatestEulaIfAuthenticated, async (req, res) => {
     const postId = parseInt(req.params.id);
     const { body } = req.body;
 
@@ -692,24 +705,40 @@ router.post('/posts/:id/comments', requireAuth, requireLatestEula, async (req, r
     if (body.trim().length > 1000) return res.status(400).json({ error: '댓글은 1,000자 이내로 입력해 주세요.' });
 
     const ipPrefix = getIpPrefix(req);
+    const guestNickname = normalizeCommunityNickname(req.body?.anonymous_nickname);
+    if (guestNickname === null) {
+        return res.status(400).json({ error: '익명 닉네임은 2~20자로 입력해 주세요.' });
+    }
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        const userRes = await client.query(
-            'SELECT nickname, active_title, profile_image_url FROM users WHERE id = $1',
-            [req.session.userId]
-        );
-        if (!userRes.rows.length) throw new Error('user not found');
-        const nickname = userRes.rows[0].nickname;
-        const activeTitle = userRes.rows[0].active_title;
+        let authorUserId = null;
+        let nickname = guestNickname || '익명';
+        let activeTitle = null;
+        let profileImageUrl = '';
+        let isVerifiedNickname = false;
+
+        if (req.session.userId) {
+            const userRes = await client.query(
+                'SELECT id, nickname, active_title, profile_image_url FROM users WHERE id = $1',
+                [req.session.userId]
+            );
+            if (userRes.rows.length) {
+                authorUserId = userRes.rows[0].id;
+                nickname = userRes.rows[0].nickname;
+                activeTitle = userRes.rows[0].active_title;
+                profileImageUrl = normalizeProfileImageUrl(userRes.rows[0].profile_image_url);
+                isVerifiedNickname = true;
+            }
+        }
 
         const result = await client.query(
             `INSERT INTO community_comments (post_id, user_id, body, ip_prefix, nickname)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING id, user_id, nickname, ip_prefix, body, created_at`,
-            [postId, req.session.userId, body.trim(), ipPrefix, nickname]
+            [postId, authorUserId, body.trim(), ipPrefix, nickname]
         );
 
         await client.query(
@@ -720,9 +749,9 @@ router.post('/posts/:id/comments', requireAuth, requireLatestEula, async (req, r
         await client.query('COMMIT');
         res.status(201).json({ comment: {
             ...result.rows[0],
-            display_nickname: formatDisplayName(nickname, activeTitle),
-            profile_image_url: normalizeProfileImageUrl(userRes.rows[0].profile_image_url),
-            is_verified_nickname: true
+            display_nickname: isVerifiedNickname ? formatDisplayName(nickname, activeTitle) : nickname,
+            profile_image_url: profileImageUrl,
+            is_verified_nickname: isVerifiedNickname
         } });
     } catch (err) {
         await client.query('ROLLBACK');

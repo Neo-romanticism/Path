@@ -351,6 +351,103 @@ body.light .theme-icon--moon { display: block; }
 }
 .c-hot-list::-webkit-scrollbar { display: none; }
 
+.c-compose {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px 10px;
+}
+
+.c-compose__inner {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(140deg, color-mix(in srgb, var(--surface-2) 84%, transparent), color-mix(in srgb, var(--surface) 92%, transparent)),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.c-compose__copy {
+  min-width: 0;
+}
+
+.c-compose__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.4;
+}
+
+.c-compose__desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.c-compose__btn {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: transform var(--transition), opacity var(--transition);
+}
+
+.c-compose__btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.c-sortbar {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2px 16px 6px;
+}
+
+.c-sortbar__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.c-sort-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.c-sort-chip:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.c-sort-chip.is-active {
+  color: var(--accent-blue);
+  background: color-mix(in srgb, var(--accent-blue) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent-blue) 30%, transparent);
+}
+
 .c-hot-card {
   flex-shrink: 0;
   width: 196px;
@@ -652,6 +749,10 @@ body.light .theme-icon--moon { display: block; }
     justify-content: center;
     font-size: 12px;
   }
+
+  .c-sortbar {
+    padding-bottom: 2px;
+  }
 }
 
 /* ─── Skeleton shimmer ───────────────────────────────────────────────────── */
@@ -767,10 +868,29 @@ body.light .theme-icon--moon { display: block; }
   .c-ad-container {
     margin: 32px auto;
   }
+
+  .c-compose {
+    padding-bottom: 14px;
+  }
+
+  .c-compose__inner {
+    padding: 16px 18px;
+  }
   
   .c-ad-wrapper {
     padding: 20px;
     min-height: 120px;
+  }
+}
+
+@media (max-width: 520px) {
+  .c-compose__inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .c-compose__btn {
+    width: 100%;
   }
 }
 

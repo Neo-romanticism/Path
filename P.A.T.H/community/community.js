@@ -37,6 +37,7 @@ let currentCat   = '전체';
 let currentPage  = 0;
 let totalPosts   = 0;
 let searchQuery  = '';
+let currentSort  = 'latest';
 let scrollHook   = null;
 let isLoading    = false;
 let currentUser  = null;  // { id, nickname, is_admin, admin_role } | null
@@ -65,7 +66,10 @@ const searchInput    = document.getElementById('search-input');
 const searchClear    = document.getElementById('search-clear');
 const writeFab       = document.getElementById('write-fab');
 const writeHeaderBtn = document.getElementById('write-header-btn');
+const quickComposeBtn = document.getElementById('quick-compose-btn');
+const composeStatusText = document.getElementById('compose-status-text');
 const themeToggleBtn = document.getElementById('theme-toggle');
+const sortChips = Array.from(document.querySelectorAll('.c-sort-chip'));
 
 const REQUIRED_DOM = {
   categoryBar,
@@ -131,6 +135,7 @@ async function init() {
   if (!hasRequiredDom()) return;
 
   applyThemeFromStorage();
+    syncSortChips();
     buildCategoryBar();
     bindEvents();
 
@@ -151,6 +156,7 @@ async function init() {
     } catch (_) { /* 무시 */ }
 
     updateWriteControls();
+    renderComposeStatus();
 
     await Promise.all([renderHotPosts(), resetAndLoad()]);
 }
@@ -177,6 +183,7 @@ function onCatChange(key) {
         btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     updateWriteControls();
+    renderComposeStatus();
     renderHotPosts();
     resetAndLoad();
 }
@@ -185,7 +192,7 @@ function onCatChange(key) {
     const blocked = currentCat === '념글';
     const title = blocked ? '베스트 게시판에는 직접 글을 작성할 수 없어요' : '글쓰기';
 
-    [writeFab, writeHeaderBtn].forEach((btn) => {
+    [writeFab, writeHeaderBtn, quickComposeBtn].forEach((btn) => {
       if (!btn) return;
       btn.disabled = blocked;
       btn.title = title;
@@ -193,6 +200,18 @@ function onCatChange(key) {
       btn.style.cursor = blocked ? 'not-allowed' : '';
     });
   }
+
+function renderComposeStatus() {
+  if (!composeStatusText) return;
+  if (currentCat === '념글') {
+    composeStatusText.textContent = '베스트는 추천으로 자동 승격됩니다. 정보/Q&A/잡담에서 먼저 작성해 보세요.';
+    return;
+  }
+
+  composeStatusText.textContent = currentUser
+    ? '지금 닉네임으로 바로 글과 댓글을 작성할 수 있어요.'
+    : '비로그인 익명 글쓰기와 댓글 참여를 지원합니다.';
+}
 
 /* ─── 베스트 게시글 ─────────────────────────────────────── */
 async function renderHotPosts() {
@@ -291,6 +310,7 @@ async function loadNextPage() {
         page:  currentPage,
         limit: PAGE_SIZE,
         category: currentCat,
+      sort: currentSort,
     });
     if (searchQuery) params.set('q', searchQuery);
 
@@ -488,6 +508,7 @@ function renderDetailBody(container, { post, postId, comments }) {
         <p class="detail-cmt-head">댓글 <strong>${comments.length}</strong></p>
         <ul class="cmt-list" id="cmt-list">${cmtHtml || '<li class="cmt-empty">아직 댓글이 없어요.</li>'}</ul>
         <div class="cmt-write">
+          ${currentUser ? '' : '<input id="cmt-anon-nick" class="write-input" type="text" maxlength="20" placeholder="익명 닉네임 (2~20자, 기본: 익명)" autocomplete="off">'}
           <textarea id="cmt-input" class="write-textarea" rows="2" placeholder="댓글을 입력하세요 (최대 1,000자)" maxlength="1000"></textarea>
           <div style="display:flex;justify-content:flex-end;margin-top:8px">
             <button class="write-submit-btn" id="cmt-submit">등록</button>
@@ -649,18 +670,19 @@ function renderDetailBody(container, { post, postId, comments }) {
     }
 
     // 댓글 등록
-    container.querySelector('#cmt-submit').addEventListener('click', async () => {
-        if (!currentUser) { showToast('로그인 후 댓글을 달 수 있어요'); return; }
+    const submitComment = async () => {
         const input = container.querySelector('#cmt-input');
+      const anonNickInput = container.querySelector('#cmt-anon-nick');
         const body  = input.value.trim();
         if (!body) { input.focus(); return; }
+      const anonymousNickname = anonNickInput ? anonNickInput.value.trim() : '';
 
         try {
             const r = await fetch(`/api/community/posts/${postId}/comments`, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ body }),
+          body: JSON.stringify({ body, anonymous_nickname: anonymousNickname }),
             });
             if (!r.ok) {
               const errorMsg = await readApiError(r, '오류가 발생했어요');
@@ -669,6 +691,7 @@ function renderDetailBody(container, { post, postId, comments }) {
             }
             const { comment } = await r.json();
             input.value = '';
+        if (anonNickInput && !currentUser) anonNickInput.value = '';
 
             const li = document.createElement('li');
             li.className = 'cmt-item';
@@ -705,6 +728,14 @@ function renderDetailBody(container, { post, postId, comments }) {
             const cmtBadge = postList.querySelector(`[data-id="${postId}"] .post-row__cmts`);
             if (cmtBadge) cmtBadge.textContent = parseInt(cmtBadge.textContent || '0') + 1;
         } catch (_) { showToast('오류가 발생했어요'); }
+    };
+
+    container.querySelector('#cmt-submit').addEventListener('click', submitComment);
+    container.querySelector('#cmt-input')?.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitComment();
+      }
     });
 
       if (canModerate) {
@@ -839,6 +870,26 @@ function bindEvents() {
     // 글쓰기
     writeFab?.addEventListener('click', handleWriteClick);
     writeHeaderBtn?.addEventListener('click', handleWriteClick);
+    quickComposeBtn?.addEventListener('click', handleWriteClick);
+
+    // 정렬
+    sortChips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const nextSort = String(chip.dataset.sort || '').trim();
+        if (!nextSort || nextSort === currentSort) return;
+        currentSort = nextSort;
+        syncSortChips();
+        resetAndLoad();
+      });
+    });
+}
+
+function syncSortChips() {
+  sortChips.forEach((chip) => {
+    const active = chip.dataset.sort === currentSort;
+    chip.classList.toggle('is-active', active);
+    chip.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
 }
 
 function handleWriteClick() {

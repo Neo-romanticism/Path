@@ -135,6 +135,24 @@
   <ul class="c-hot-list" id="hot-list" aria-label="베스트 게시글"></ul>
 </section>
 
+<section class="c-compose" aria-label="빠른 글쓰기">
+  <div class="c-compose__inner">
+    <div class="c-compose__copy">
+      <p class="c-compose__title">지금 바로 질문하고 정보 공유해 보세요</p>
+      <p class="c-compose__desc" id="compose-status-text">비로그인 익명 글쓰기와 댓글 참여를 지원합니다.</p>
+    </div>
+    <button class="c-compose__btn" id="quick-compose-btn" type="button">새 글 작성</button>
+  </div>
+</section>
+
+<div class="c-sortbar" aria-label="게시글 정렬">
+  <div class="c-sortbar__inner" role="tablist" aria-label="정렬 옵션">
+    <button class="c-sort-chip is-active" data-sort="latest" role="tab" aria-selected="true">최신순</button>
+    <button class="c-sort-chip" data-sort="likes" role="tab" aria-selected="false">추천순</button>
+    <button class="c-sort-chip" data-sort="views" role="tab" aria-selected="false">조회순</button>
+  </div>
+</div>
+
 <!-- ── 게시글 목록 헤더 ──────────────────────────────────────── -->
 <div class="c-list-header">
   <span class="c-list-header__num">번호</span>
