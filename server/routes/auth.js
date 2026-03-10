@@ -10,6 +10,7 @@ const pool = require('../db');
 const { getPercentile } = require('../data/universities');
 const aligoService = require('../utils/aligo');
 const { getActiveStreakFromUser, formatDisplayName } = require('../utils/progression');
+const { getUploadDir } = require('../utils/uploadRoot');
 
 const router = express.Router();
 const ALWAYS_MAIN_ADMIN_NICKNAME = '낭만화1';
@@ -129,8 +130,7 @@ async function ownsImagePath(userId, columnName, imagePath) {
 
 const scoreStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '../../uploads/scores');
-        fs.mkdirSync(dir, { recursive: true });
+        const dir = getUploadDir('scores');
         cb(null, dir);
     },
     filename: (req, file, cb) => {
@@ -141,8 +141,7 @@ const scoreStorage = multer.diskStorage({
 
 const gpaStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '../../uploads/gpa');
-        fs.mkdirSync(dir, { recursive: true });
+        const dir = getUploadDir('gpa');
         cb(null, dir);
     },
     filename: (req, file, cb) => {
@@ -153,8 +152,7 @@ const gpaStorage = multer.diskStorage({
 
 const profileStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dir = path.join(__dirname, '../../uploads/profiles');
-        fs.mkdirSync(dir, { recursive: true });
+        const dir = getUploadDir('profiles');
         cb(null, dir);
     },
     filename: (req, file, cb) => {
@@ -505,7 +503,7 @@ router.get('/score-image/:filename', requireAuth, async (req, res) => {
         }
     }
 
-    const filePath = path.join(__dirname, '../../uploads/scores', filename);
+    const filePath = path.join(getUploadDir('scores'), filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     setPrivateNoStore(res);
     res.sendFile(filePath);
@@ -552,7 +550,7 @@ router.get('/gpa-image/:filename', requireAuth, async (req, res) => {
         }
     }
 
-    const filePath = path.join(__dirname, '../../uploads/gpa', filename);
+    const filePath = path.join(getUploadDir('gpa'), filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     setPrivateNoStore(res);
     res.sendFile(filePath);
@@ -570,7 +568,7 @@ router.get('/profile-image/:filename', requireAuth, async (req, res) => {
         }
     }
 
-    const filePath = path.join(__dirname, '../../uploads/profiles', filename);
+    const filePath = path.join(getUploadDir('profiles'), filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     setPrivateNoStore(res);
     res.sendFile(filePath);

@@ -12,6 +12,7 @@ const path = require('path');
 const pool = require('./db');
 const { initSchema } = require('./schema');
 const worldManager = require('./world');
+const { getUploadDir } = require('./utils/uploadRoot');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -218,7 +219,7 @@ app.use('/uploads/study-proofs/:filename', (req, res) => {
     res.setHeader('Expires', '0');
     res.redirect(`/api/study/proof-image/${req.params.filename}`);
 });
-app.use('/uploads/community', express.static(path.join(projectRoot, 'uploads', 'community'), {
+app.use('/uploads/community', express.static(getUploadDir('community'), {
     maxAge: '30d',
     etag: true,
 }));

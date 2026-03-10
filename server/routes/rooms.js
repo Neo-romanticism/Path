@@ -70,7 +70,7 @@ const chatLimiter = rateLimit({
 router.get('/my', roomsReadLimiter, requireAuth, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT r.id, r.name, r.goal, r.invite_code, r.max_members, r.is_active, r.created_at,
+            `SELECT r.id, r.name, r.goal, r.invite_code, r.max_members, r.is_active, r.is_public, r.created_at,
                     r.creator_id,
                     (SELECT COUNT(*) FROM study_room_members m WHERE m.room_id = r.id) AS member_count,
                     (SELECT COUNT(*) FROM study_room_members m2
@@ -87,6 +87,53 @@ router.get('/my', roomsReadLimiter, requireAuth, async (req, res) => {
         console.error('rooms/my error:', err);
         res.status(500).json({ error: '서버 오류' });
     }
+});
+
+// GET /api/rooms/public — browse public rooms (search + sort + pagination)
+router.get('/public', roomsReadLimiter, async (req, res) => {
+    const q    = String(req.query.q    || '').trim().slice(0, 60);
+    const sort = ['study', 'members', 'new'].includes(req.query.sort) ? req.query.sort : 'study';
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    let orderBy;
+    if (sort === 'study')   orderBy = 'today_sec DESC, member_count DESC';
+    else if (sort === 'members') orderBy = 'member_count DESC, today_sec DESC';
+    else                    orderBy = 'r.created_at DESC';
+
+    try {
+        const params = [limit, offset];
+        const searchClause = q ? `AND (r.name ILIKE $3 OR r.goal ILIKE $3)` : '';
+        if (q) params.push(`%${q}%`);
+
+        const result = await pool.query(
+            `SELECT r.id, r.name, r.goal, r.invite_code, r.max_members, r.created_at,
+                    u.nickname AS creator_nickname,
+                    (SELECT COUNT(*) FROM study_room_members m WHERE m.room_id = r.id) AS member_count,
+                    COALESCE((
+                        SELECT SUM(sr.duration_sec) FROM study_records sr
+                        JOIN study_room_members m ON m.user_id = sr.user_id AND m.room_id = r.id
+                        WHERE sr.result = 'SUCCESS' AND sr.created_at >= CURRENT_DATE
+                    ), 0) AS today_sec
+             FROM study_rooms r
+             JOIN users u ON u.id = r.creator_id
+             WHERE r.is_active = TRUE AND r.is_public = TRUE
+             ${searchClause}
+             ORDER BY ${orderBy}
+             LIMIT $1 OFFSET $2`,
+            params
+        );
+        res.json({ rooms: result.rows, page, has_more: result.rows.length === limit });
+    } catch (err) {
+        console.error('rooms/public error:', err);
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+// GET /api/rooms/shop — room shop catalog (static)
+router.get('/shop', roomsReadLimiter, requireAuth, (req, res) => {
+    res.json({ shop: ROOM_SHOP });
 });
 
 // POST /api/rooms — create a new room
@@ -273,6 +320,7 @@ router.patch('/:id', roomsWriteLimiter, requireAuth, async (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 60);
     const goal = String(req.body.goal || '').trim().slice(0, 100);
     const maxMembers = Math.max(2, Math.min(50, parseInt(req.body.max_members, 10) || 10));
+    const isPublic = req.body.is_public === true || req.body.is_public === 'true';
     if (!name) return res.status(400).json({ error: '방 이름을 입력해주세요.' });
 
     try {
@@ -289,9 +337,9 @@ router.patch('/:id', roomsWriteLimiter, requireAuth, async (req, res) => {
             return res.status(400).json({ error: '현재 멤버 수보다 최대 인원을 작게 설정할 수 없습니다.' });
 
         const result = await pool.query(
-            `UPDATE study_rooms SET name = $1, goal = $2, max_members = $3
-             WHERE id = $4 RETURNING *`,
-            [name, goal || null, maxMembers, roomId]
+            `UPDATE study_rooms SET name = $1, goal = $2, max_members = $3, is_public = $4
+             WHERE id = $5 RETURNING *`,
+            [name, goal || null, maxMembers, isPublic, roomId]
         );
         res.json({ ok: true, room: result.rows[0] });
     } catch (err) {

@@ -20,6 +20,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { formatDisplayName } = require('../utils/progression');
+const { getUploadDir } = require('../utils/uploadRoot');
 
 const BEST_MIN_LIKES = 15;
 const GOLD_LIKE_COST = 30;
@@ -34,10 +35,7 @@ const REPORT_REASON_CODES = new Set([
     'other'
 ]);
 
-const communityUploadDir = path.join(__dirname, '../../uploads/community');
-if (!fs.existsSync(communityUploadDir)) {
-    fs.mkdirSync(communityUploadDir, { recursive: true });
-}
+const communityUploadDir = getUploadDir('community');
 
 const imageUpload = multer({
     storage: multer.diskStorage({

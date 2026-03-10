@@ -4,12 +4,10 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getUploadDir } = require('../utils/uploadRoot');
 
 // 파일 저장 디렉토리 설정
-const uploadDir = path.join(__dirname, '../../uploads/messages');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+const uploadDir = getUploadDir('messages');
 
 // Multer 설정
 const storage = multer.diskStorage({
@@ -74,7 +72,8 @@ async function cleanupOldFiles() {
                 if (deletedSize >= deleteTarget) break;
                 
                 // 실제 파일 삭제
-                const fullPath = path.join(__dirname, '../..', row.file_path);
+                const fileName = path.basename(String(row.file_path || ''));
+                const fullPath = path.join(uploadDir, fileName);
                 if (fs.existsSync(fullPath)) {
                     fs.unlinkSync(fullPath);
                 }

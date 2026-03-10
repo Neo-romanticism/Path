@@ -450,6 +450,12 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_room_gold_contributed_room ON room_gold_contributed(room_id);
         `);
 
+        // ── 공개/비공개 설정 ────────────────────────────────────────────────────
+        await client.query(`
+            ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
+            CREATE INDEX IF NOT EXISTS idx_study_rooms_public ON study_rooms(is_public) WHERE is_public = TRUE;
+        `);
+
         console.log('DB 스키마 초기화 완료');
     } catch (err) {
         console.error('DB 스키마 초기화 오류:', err.message);

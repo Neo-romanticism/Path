@@ -177,26 +177,26 @@
 
     function runInlineStatement(stmt, event, element) {
         const s = stmt.trim();
-        if (!s) return;
+        if (!s) return false;
 
-        if (s === 'event.preventDefault()') { event.preventDefault(); return; }
-        if (s === 'event.stopPropagation()') { event.stopPropagation(); return; }
+        if (s === 'event.preventDefault()') { event.preventDefault(); return true; }
+        if (s === 'event.stopPropagation()') { event.stopPropagation(); return true; }
 
         const clickExpr = s.match(/^document\.getElementById\((['"])(.+?)\1\)\.click\(\)$/);
         if (clickExpr) {
             const el = document.getElementById(clickExpr[2]);
             if (el) el.click();
-            return;
+            return true;
         }
 
         const navExpr = s.match(/^window\.location\.href\s*=\s*(['"])(.+?)\1$/);
         if (navExpr) {
             window.location.href = navExpr[2];
-            return;
+            return true;
         }
 
         const fnCall = s.match(/^([A-Za-z_$][\w$.]*)\((.*)\)$/);
-        if (!fnCall) return;
+        if (!fnCall) return false;
 
         const fnPath = fnCall[1];
         const rawArgs = fnCall[2].trim();
@@ -207,15 +207,21 @@
         const fn = resolved.ctx ? resolved.ctx[resolved.fnName] : undefined;
         if (typeof fn === 'function') {
             fn.apply(resolved.ctx, args);
+            return true;
         }
+
+        return false;
     }
 
     function runInlineOnclick(expr, event, element) {
         if (!expr) return false;
         const statements = expr.split(';').map(function (x) { return x.trim(); }).filter(Boolean);
         if (!statements.length) return false;
-        statements.forEach(function (stmt) { runInlineStatement(stmt, event, element); });
-        return true;
+        let handled = false;
+        statements.forEach(function (stmt) {
+            if (runInlineStatement(stmt, event, element)) handled = true;
+        });
+        return handled;
     }
 
     function detectInlineOnclickBlocked() {

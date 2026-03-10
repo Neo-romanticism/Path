@@ -1720,10 +1720,15 @@ body.active .tab-panel {
 
 /* Tab panel scroll */
 #tab-rooms {
+    display: none;
     overflow-y: auto;
     padding: 0;
     flex-direction: column;
     align-items: stretch;
+}
+
+#tab-rooms.active {
+    display: flex;
 }
 
 /* ── List View ─────────────────────────────── */

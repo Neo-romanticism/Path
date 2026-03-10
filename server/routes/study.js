@@ -5,14 +5,12 @@ const fs = require('fs');
 const pool = require('../db');
 const { STUDY_GOLD_PER_HR } = require('../data/universities');
 const { recalculateStreak, evaluateMilestoneTitles, formatDisplayName } = require('../utils/progression');
+const { getUploadDir } = require('../utils/uploadRoot');
 
 const router = express.Router();
 const STUDY_PROOF_BONUS_GOLD = 5;
 
-const proofUploadDir = path.join(__dirname, '../../uploads/study-proofs');
-if (!fs.existsSync(proofUploadDir)) {
-    fs.mkdirSync(proofUploadDir, { recursive: true });
-}
+const proofUploadDir = getUploadDir('study-proofs');
 
 const proofStorage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, proofUploadDir),
