@@ -429,4 +429,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     bindTapAction(settingsBtn, () => openTimerSettings());
+
+    // 설정 패널 내부 버튼들
+    bindTapAction(document.querySelector('.timer-settings-close'), () => closeTimerSettings());
+    bindTapAction(document.querySelector('.ts-action-btn'), () => doTimerLogout());
+    bindTapAction(document.querySelector('.ts-send-btn'), () => submitAdminInquiry());
+    bindTapAction(document.querySelector('.cam-btn'), () => CamManager.switchCamera());
+
+    // 설정 패널 토글/셀렉트 (onchange 대체)
+    const bindChange = (id, fn) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.removeAttribute('onchange');
+        el.addEventListener('change', fn);
+    };
+    bindChange('ts-theme-toggle', () => saveTimerUiSettings());
+    bindChange('ts-study-power-save', () => saveTimerUiSettings());
+    bindChange('ts-cam-enabled', () => saveTimerCamSettings());
+    bindChange('ts-cam-visibility', () => saveTimerCamSettings());
 });
