@@ -1186,24 +1186,42 @@ const WorldScene = {
         }).join('');
     },
 
+    _hash01(seed) {
+        const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453123;
+        return x - Math.floor(x);
+    },
+
+    _getHorizontalSlot(id, index, total, options = {}) {
+        const spacing = options.spacing ?? 175;
+        const rowOffsetY = options.rowOffsetY ?? -120;
+        const jitterX = options.jitterX ?? 36;
+        const jitterY = options.jitterY ?? 28;
+        const zSpread = options.zSpread ?? 80;
+
+        const centered = index - (total - 1) * 0.5;
+        const h1 = this._hash01(id * 1.17 + 11.3);
+        const h2 = this._hash01(id * 2.37 + 23.1);
+        const h3 = this._hash01(id * 3.97 + 31.7);
+
+        const sx = this.camPos.x + centered * spacing + (h1 - 0.5) * jitterX;
+        const sy = this.camPos.y + rowOffsetY + (h2 - 0.5) * jitterY;
+        const sz = (h3 - 0.5) * zSpread;
+
+        return { sx, sy, sz, h1, h2, h3 };
+    },
+
     /**
-     * Populate / refresh the balloon layer.
-     *
-     * If a user object has `worldX` / `worldY` fields (provided by the
-     * socket-based nearby-player snapshot), those world-unit coordinates are
-     * used to place the balloon relative to the camera.  Otherwise the legacy
-     * deterministic spiral layout is used for the REST-API ranking list.
-     *
-     * Chunk-based culling: balloons whose world position is further than
-     * CHUNK_SIZE × 3 world-units from the viewer are hidden regardless of
-     * whether they are inside or outside the frustum, keeping the visible set
-     * small when 1,000 players are spread across the map.
+     * Populate / refresh the ranking layer using a horizontal, camera-relative
+     * lineup with slight deterministic randomness.
      */
     setUsers(users, me, isLight) {
         this.setDayNightMode(isLight, true);
         this._ensureMyBalloon(me);
 
-        const rankingList = (users || []).filter(u => !me || u.id !== me.id).slice(0, 3000);
+        const rankingList = (users || [])
+            .filter(u => !me || u.id !== me.id)
+            .slice(0, 120)
+            .sort((a, b) => Number(a.id) - Number(b.id));
         const keepRankingIds = new Set(rankingList.map(u => u.id));
 
         this.balloons.forEach((b, id) => {
@@ -1212,32 +1230,26 @@ const WorldScene = {
             if (!keepRankingIds.has(id)) this._removeBalloonById(id);
         });
 
-        const CULL_SCENE = CHUNK_SIZE * 3 * WORLD_SCALE;
         rankingList.forEach((user, i) => {
-            let sx, sy, sz;
-
-            if (typeof user.worldX === 'number' && typeof user.worldY === 'number') {
-                sx = worldToScene(user.worldX);
-                sy = worldToScene(user.worldY);
-                sz = Math.sin(user.id * 3.7) * 40;
-            } else {
-                const angle = i * 137.508;
-                const radius = 260 + Math.sqrt(i) * 160;
-                sx = radius * Math.cos(angle * Math.PI / 180);
-                sy = radius * Math.sin(angle * Math.PI / 180);
-                sz = Math.sin(i * 3.7) * 80;
-            }
+            const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, rankingList.length, {
+                spacing: 175,
+                rowOffsetY: -120,
+                jitterX: 34,
+                jitterY: 30,
+                zSpread: 90
+            });
 
             const skinId = user.balloon_skin || 'default';
             const auraId = user.balloon_aura || 'none';
-            const distFromCam = Math.hypot(sx - this.camPos.x, sy - this.camPos.y);
-            const visible = distFromCam <= CULL_SCENE;
 
             let b = this.balloons.get(user.id);
             if (!b) {
                 const grp = this.addBalloon(user, null, false);
                 grp.position.set(sx, sy, sz);
                 grp.userData.baseY = sy;
+                grp.userData.floatAmp = 6 + h1 * 5;
+                grp.userData.floatSpeed = 0.8 + h2 * 0.6;
+                grp.userData.floatPhase = h3 * Math.PI * 2;
                 b = this.balloons.get(user.id);
             }
             if (!b || b.isMe || b.kind === 'nearby') return;
@@ -1246,16 +1258,18 @@ const WorldScene = {
             b.isBackground = false;
             b.user = { ...b.user, ...user };
             b.group.userData.user = b.user;
-            b.group.position.set(sx, sy, sz);
-            b.group.userData.baseY = sy;
-            b.group.userData.targetX = undefined;
-            b.group.userData.targetY = undefined;
+            b.group.userData.targetX = sx;
+            b.group.userData.targetY = sy;
+            b.group.position.z += (sz - b.group.position.z) * 0.2;
+            b.group.userData.floatAmp = 6 + h1 * 5;
+            b.group.userData.floatSpeed = 0.8 + h2 * 0.6;
+            b.group.userData.floatPhase = h3 * Math.PI * 2;
             this._updateBalloonColor(b.group, skinId);
             this._updateBalloonAura(b.group, auraId, false);
 
-            b.group.visible = visible;
-            if (b.group.userData.label) b.group.userData.label.visible = visible && distFromCam < CULL_SCENE * 0.5;
-            if (b.group.userData.bubbleMesh) b.group.userData.bubbleMesh.visible = visible && distFromCam < CULL_SCENE * 0.35;
+            b.group.visible = true;
+            if (b.group.userData.label) b.group.userData.label.visible = true;
+            if (b.group.userData.bubbleMesh) b.group.userData.bubbleMesh.visible = true;
         });
     },
 
@@ -1268,7 +1282,10 @@ const WorldScene = {
         const now = Date.now();
         this._ensureMyBalloon(me);
 
-        const nearbyUsers = (players || []).filter(u => !me || u.id !== me.id);
+        const nearbyUsers = (players || [])
+            .filter(u => !me || u.id !== me.id)
+            .slice(0, 80)
+            .sort((a, b) => Number(a.id) - Number(b.id));
         const nearbyIds = new Set(nearbyUsers.map(u => u.id));
 
         this.balloons.forEach((b, id) => {
@@ -1279,23 +1296,28 @@ const WorldScene = {
             }
         });
 
-        nearbyUsers.forEach((user) => {
+        nearbyUsers.forEach((user, i) => {
             const skinId = user.balloon_skin || 'default';
             const auraId = user.balloon_aura || 'none';
-            const sx = worldToScene(user.worldX);
-            const sy = worldToScene(user.worldY);
-            const sz = Math.sin(user.id * 3.7) * 40;
+            const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, nearbyUsers.length, {
+                spacing: 180,
+                rowOffsetY: 110,
+                jitterX: 40,
+                jitterY: 34,
+                zSpread: 95
+            });
 
             let b = this.balloons.get(user.id);
             if (!b) {
                 const grp = this.addBalloon(user, null, false);
                 grp.position.set(sx, sy, sz);
                 grp.userData.baseY = sy;
+                grp.userData.floatAmp = 7 + h1 * 6;
+                grp.userData.floatSpeed = 0.9 + h2 * 0.7;
+                grp.userData.floatPhase = h3 * Math.PI * 2;
                 b = this.balloons.get(user.id);
             }
             if (!b || b.isMe) return;
-
-            const wasNearby = b.kind === 'nearby';
 
             b.kind = 'nearby';
             b.isBackground = false;
@@ -1303,16 +1325,13 @@ const WorldScene = {
             b.user = { ...b.user, ...user };
             b.group.userData.user = b.user;
 
-            // If this user was previously rendered by ranking/background source,
-            // snap to realtime position first to avoid long-distance spreading.
-            if (!wasNearby) {
-                b.group.position.set(sx, sy, sz);
-                b.group.userData.baseY = sy;
-            }
-
             b.group.userData.targetX = sx;
             b.group.userData.targetY = sy;
+            b.group.position.z += (sz - b.group.position.z) * 0.25;
             if (typeof b.group.userData.baseY !== 'number') b.group.userData.baseY = sy;
+            b.group.userData.floatAmp = 7 + h1 * 6;
+            b.group.userData.floatSpeed = 0.9 + h2 * 0.7;
+            b.group.userData.floatPhase = h3 * Math.PI * 2;
 
             this._updateBalloonColor(b.group, skinId);
             this._updateBalloonAura(b.group, auraId, false);
@@ -1329,11 +1348,8 @@ const WorldScene = {
         if (!b || b.isMe) return;
         if (b.kind !== 'nearby') return;
         b.lastSeenAt = Date.now();
-        const sx = worldToScene(worldX);
-        const sy = worldToScene(worldY);
-        // Smooth transition instead of snap.
-        b.group.userData.targetX = sx;
-        b.group.userData.targetY = sy;
+        // Horizontal layout is applied by updateWorldPlayers() from the latest
+        // nearby snapshot, so per-move world coordinates are intentionally ignored.
     },
 
     /** Remove a player balloon when they disconnect (socket player:left). */
@@ -1349,7 +1365,10 @@ const WorldScene = {
      * Background balloons are tagged and can be cleared independently.
      */
     setBackgroundUsers(users, isLight) {
-        const keepIds = new Set((users || []).map(u => u.id));
+        const list = (users || [])
+            .slice(0, 40)
+            .sort((a, b) => Number(a.id) - Number(b.id));
+        const keepIds = new Set(list.map(u => u.id));
 
         // Remove old background balloons not present in the new list.
         this.balloons.forEach((b, id) => {
@@ -1358,14 +1377,15 @@ const WorldScene = {
             }
         });
 
-        (users || []).forEach((user, i) => {
+        list.forEach((user, i) => {
             if (!user || user.id == null) return;
-
-            const angle = i * 137.508;
-            const radius = 2500 + Math.sqrt(i) * 350;
-            const sx = radius * Math.cos(angle * Math.PI / 180);
-            const sy = radius * Math.sin(angle * Math.PI / 180);
-            const sz = Math.sin(i * 3.7) * 120;
+            const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, list.length, {
+                spacing: 210,
+                rowOffsetY: -360,
+                jitterX: 55,
+                jitterY: 26,
+                zSpread: 120
+            });
 
             const skinId = user.balloon_skin || 'default';
             const auraId = user.balloon_aura || 'none';
@@ -1377,10 +1397,12 @@ const WorldScene = {
                     b.isBackground = true;
                     b.user = { ...b.user, ...user };
                     b.group.userData.user = b.user;
-                    b.group.position.set(sx, sy, sz);
-                    b.group.userData.baseY = sy;
-                    b.group.userData.targetX = undefined;
-                    b.group.userData.targetY = undefined;
+                    b.group.userData.targetX = sx;
+                    b.group.userData.targetY = sy;
+                    b.group.position.z += (sz - b.group.position.z) * 0.2;
+                    b.group.userData.floatAmp = 5 + h1 * 4;
+                    b.group.userData.floatSpeed = 0.75 + h2 * 0.45;
+                    b.group.userData.floatPhase = h3 * Math.PI * 2;
                     this._updateBalloonColor(b.group, skinId);
                     this._updateBalloonAura(b.group, auraId, false);
                     b.group.visible = true;
@@ -1389,6 +1411,9 @@ const WorldScene = {
                 const grp = this.addBalloon(user, null, false);
                 grp.position.set(sx, sy, sz);
                 grp.userData.baseY = sy;
+                grp.userData.floatAmp = 5 + h1 * 4;
+                grp.userData.floatSpeed = 0.75 + h2 * 0.45;
+                grp.userData.floatPhase = h3 * Math.PI * 2;
                 grp.visible = true;
                 const b = this.balloons.get(user.id);
                 if (b) {
@@ -2173,7 +2198,10 @@ const WorldScene = {
             }
 
             const baseY = grp.userData.baseY || 0;
-            const floatOffset = Math.sin(t * 0.9 + grp.position.x * 0.002) * (b.isMe ? 14 : 9);
+            const floatAmp = b.isMe ? 14 : (grp.userData.floatAmp || 9);
+            const floatSpeed = b.isMe ? 1 : (grp.userData.floatSpeed || 1);
+            const floatPhase = grp.userData.floatPhase || 0;
+            const floatOffset = Math.sin(t * 0.9 * floatSpeed + grp.position.x * 0.0015 + floatPhase) * floatAmp;
             grp.position.y = baseY + floatOffset;
 
             if (b.isMe && grp.userData.glowMat) {
