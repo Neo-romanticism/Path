@@ -40,6 +40,7 @@
             await this.loadMyRooms();
             this.checkJoinFromUrl();
             this.bindTabSwitch();
+            this.bindRoomUiEvents();
         },
 
         checkJoinFromUrl() {
@@ -59,6 +60,45 @@
                         UI.switchTab('rooms');
                     }
                 };
+            }
+        },
+
+        bindRoomUiEvents() {
+            const openCreateBtn = document.getElementById('rooms-open-create');
+            const openJoinBtn = document.getElementById('rooms-open-join');
+            const createCancelBtn = document.getElementById('room-create-cancel');
+            const joinCancelBtn = document.getElementById('room-join-cancel');
+            const createForm = document.getElementById('room-create-form');
+            const joinForm = document.getElementById('room-join-form');
+
+            if (openCreateBtn) {
+                openCreateBtn.removeAttribute('onclick');
+                openCreateBtn.addEventListener('click', () => this.showCreateModal());
+            }
+
+            if (openJoinBtn) {
+                openJoinBtn.removeAttribute('onclick');
+                openJoinBtn.addEventListener('click', () => this.showJoinModal());
+            }
+
+            if (createCancelBtn) {
+                createCancelBtn.removeAttribute('onclick');
+                createCancelBtn.addEventListener('click', () => this.hideCreateModal());
+            }
+
+            if (joinCancelBtn) {
+                joinCancelBtn.removeAttribute('onclick');
+                joinCancelBtn.addEventListener('click', () => this.hideJoinModal());
+            }
+
+            if (createForm) {
+                createForm.removeAttribute('onsubmit');
+                createForm.addEventListener('submit', (e) => this.submitCreateRoom(e));
+            }
+
+            if (joinForm) {
+                joinForm.removeAttribute('onsubmit');
+                joinForm.addEventListener('submit', (e) => this.submitJoinRoom(e));
             }
         },
 
@@ -300,7 +340,7 @@
             const maxMembers = parseInt(document.getElementById('room-create-max')?.value, 10) || 10;
             if (!name) { alert('방 이름을 입력해주세요.'); return; }
 
-            const submitBtn = document.querySelector('#room-create-modal button[type="submit"]');
+            const submitBtn = document.getElementById('room-create-submit');
             try {
                 this.creatingRoom = true;
                 if (submitBtn) {
