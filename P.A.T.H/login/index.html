@@ -236,7 +236,7 @@ function toggleTheme() {
             </div>
             <div class="field">
                 <label>비밀번호</label>
-                <input type="password" id="reg-pw" placeholder="4자 이상" autocomplete="new-password">
+                <input type="password" id="reg-pw" placeholder="10자 이상 (문장형 권장)" autocomplete="new-password" minlength="10" maxlength="128">
             </div>
 
             <div class="check-row">
@@ -334,6 +334,85 @@ function toggleTheme() {
             const privacyChecked = document.getElementById('reg-privacy').checked;
             const eulaChecked = document.getElementById('reg-eula').checked;
             document.getElementById('reg-submit').disabled = !(privacyChecked && eulaChecked);
+        }
+
+        const COMMON_PASSWORDS = new Set([
+            'password',
+            'password1',
+            'password123',
+            'qwerty',
+            'qwerty123',
+            'asdf1234',
+            'letmein',
+            'welcome',
+            'admin',
+            'admin123',
+            'iloveyou',
+            'abc123',
+            '00000000',
+            '11111111',
+            '123123123',
+            '12345678',
+            '123456789',
+            '1234567890',
+            '1q2w3e4r',
+            '1q2w3e4r5t',
+            'zaq12wsx',
+            'google123',
+            'korea123',
+            'changeme'
+        ]);
+
+        function normalizeForPasswordChecks(value) {
+            return String(value || '')
+                .normalize('NFKC')
+                .toLowerCase()
+                .replace(/\s+/g, '');
+        }
+
+        function hasSimpleSequentialPattern(password) {
+            const onlyAlnum = String(password || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (onlyAlnum.length < 6) return false;
+
+            const sequences = ['0123456789', 'abcdefghijklmnopqrstuvwxyz'];
+            return sequences.some((seq) => {
+                for (let i = 0; i <= seq.length - 6; i += 1) {
+                    const part = seq.slice(i, i + 6);
+                    const reversed = part.split('').reverse().join('');
+                    if (onlyAlnum.includes(part) || onlyAlnum.includes(reversed)) return true;
+                }
+                return false;
+            });
+        }
+
+        function validatePasswordStrength(password, nickname, realName) {
+            if (typeof password !== 'string') return '비밀번호 형식이 올바르지 않습니다.';
+            if (password.length < 10) return '비밀번호는 10자 이상이어야 합니다.';
+            if (password.length > 128) return '비밀번호는 128자 이하여야 합니다.';
+            if (!password.trim()) return '공백만으로는 비밀번호를 만들 수 없습니다.';
+
+            const normalizedPassword = normalizeForPasswordChecks(password);
+            if (COMMON_PASSWORDS.has(normalizedPassword)) {
+                return '너무 쉬운 비밀번호입니다. 더 긴 문장형 비밀번호를 사용해주세요.';
+            }
+            if (/(.)\1{3,}/.test(password)) {
+                return '같은 문자를 반복한 비밀번호는 사용할 수 없습니다.';
+            }
+            if (hasSimpleSequentialPattern(password)) {
+                return '연속된 문자/숫자 패턴이 포함된 비밀번호는 사용할 수 없습니다.';
+            }
+
+            const normalizedNickname = normalizeForPasswordChecks(nickname);
+            if (normalizedNickname.length >= 3 && normalizedPassword.includes(normalizedNickname)) {
+                return '닉네임이 포함된 비밀번호는 사용할 수 없습니다.';
+            }
+
+            const normalizedRealName = normalizeForPasswordChecks(realName);
+            if (normalizedRealName.length >= 3 && normalizedPassword.includes(normalizedRealName)) {
+                return '실명이 포함된 비밀번호는 사용할 수 없습니다.';
+            }
+
+            return '';
         }
 
         function toggleEula(e) {
@@ -480,6 +559,9 @@ function toggleTheme() {
             if (!real_name) { errEl.textContent = '실명을 입력해주세요.'; return; }
             if (!privacy_agreed) { errEl.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
             if (!eula_agreed) { errEl.textContent = '이용약관에 동의해주세요.'; return; }
+
+            const passwordError = validatePasswordStrength(password, nickname, real_name);
+            if (passwordError) { errEl.textContent = passwordError; return; }
 
             try {
                 const r = await fetch('/api/auth/register', {

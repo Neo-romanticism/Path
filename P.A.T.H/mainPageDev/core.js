@@ -62,7 +62,7 @@ const TimerEngine = {
     },
 
     interrupt() {
-        if (confirm("공부를 중단하시겠습니까?\n지금까지의 시간은 기록되나 골드 보상은 소멸됩니다.")) {
+        if (confirm("공부를 중단하시겠습니까?\n지금까지 공부한 시간은 인정되며, 골드는 스톱워치와 동일하게 50% 지급됩니다.")) {
             this.finish('INTERRUPTED');
         }
     },

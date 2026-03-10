@@ -1494,7 +1494,8 @@ const UI = {
             this.elements.resTitle.innerText   = '학습 중단됨';
             this.elements.resTitle.style.color = '#444';
             this.elements.resLoot.innerHTML    =
-                `<span style="font-size:2.5rem;color:var(--accent)">0G</span><br><small>중도 중단</small>`;
+                `<span style="font-size:2.5rem;color:var(--accent)">+${gold.toLocaleString()}G</span><br>` +
+                `<small>중도 중단 (경과 시간 인정 · 50% 지급)</small>`;
         } else {
             this.elements.resTitle.innerText   = '학습 실패';
             this.elements.resTitle.style.color = 'var(--accent)';

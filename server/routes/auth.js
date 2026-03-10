@@ -182,6 +182,102 @@ function validateNickname(nickname) {
     return { ok: true, value };
 }
 
+const COMMON_PASSWORDS = new Set([
+    'password',
+    'password1',
+    'password123',
+    'qwerty',
+    'qwerty123',
+    'asdf1234',
+    'letmein',
+    'welcome',
+    'admin',
+    'admin123',
+    'iloveyou',
+    'abc123',
+    '00000000',
+    '11111111',
+    '123123123',
+    '12345678',
+    '123456789',
+    '1234567890',
+    '1q2w3e4r',
+    '1q2w3e4r5t',
+    'zaq12wsx',
+    'google123',
+    'korea123',
+    'changeme',
+]);
+
+function normalizeForPasswordChecks(value) {
+    return String(value || '')
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/\s+/g, '');
+}
+
+function hasSimpleSequentialPattern(password) {
+    const onlyAlnum = String(password || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (onlyAlnum.length < 6) return false;
+
+    const sequences = [
+        '0123456789',
+        'abcdefghijklmnopqrstuvwxyz',
+    ];
+
+    return sequences.some((seq) => {
+        for (let i = 0; i <= seq.length - 6; i += 1) {
+            const part = seq.slice(i, i + 6);
+            const reversed = part.split('').reverse().join('');
+            if (onlyAlnum.includes(part) || onlyAlnum.includes(reversed)) return true;
+        }
+        return false;
+    });
+}
+
+function validatePasswordStrength({ password, nickname, realName }) {
+    if (typeof password !== 'string') {
+        return { ok: false, error: '비밀번호 형식이 올바르지 않습니다.' };
+    }
+
+    if (password.length < 10) {
+        return { ok: false, error: '비밀번호는 10자 이상이어야 합니다.' };
+    }
+
+    if (password.length > 128) {
+        return { ok: false, error: '비밀번호는 128자 이하여야 합니다.' };
+    }
+
+    if (!password.trim()) {
+        return { ok: false, error: '공백만으로는 비밀번호를 만들 수 없습니다.' };
+    }
+
+    const normalizedPassword = normalizeForPasswordChecks(password);
+    if (COMMON_PASSWORDS.has(normalizedPassword)) {
+        return { ok: false, error: '너무 쉬운 비밀번호입니다. 더 긴 문장형 비밀번호를 사용해주세요.' };
+    }
+
+    if (/(.)\1{3,}/.test(password)) {
+        return { ok: false, error: '같은 문자를 반복한 비밀번호는 사용할 수 없습니다.' };
+    }
+
+    if (hasSimpleSequentialPattern(password)) {
+        return { ok: false, error: '연속된 문자/숫자 패턴이 포함된 비밀번호는 사용할 수 없습니다.' };
+    }
+
+    const normalizedNickname = normalizeForPasswordChecks(nickname);
+    if (normalizedNickname.length >= 3 && normalizedPassword.includes(normalizedNickname)) {
+        return { ok: false, error: '닉네임이 포함된 비밀번호는 사용할 수 없습니다.' };
+    }
+
+    const normalizedRealName = normalizeForPasswordChecks(realName);
+    if (normalizedRealName.length >= 3 && normalizedPassword.includes(normalizedRealName)) {
+        return { ok: false, error: '실명이 포함된 비밀번호는 사용할 수 없습니다.' };
+    }
+
+    return { ok: true };
+}
+
 function makeOAuthState() {
     return crypto.randomBytes(24).toString('hex');
 }
@@ -274,7 +370,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (!privacy_agreed) return res.status(400).json({ error: '개인정보 수집·이용에 동의해주세요.' });
     if (!eula_agreed) return res.status(400).json({ error: '이용약관에 동의해주세요.' });
     if (nickname.length < 2 || nickname.length > 20) return res.status(400).json({ error: '닉네임은 2~20자 사이여야 합니다.' });
-    if (password.length < 8) return res.status(400).json({ error: '비밀번호는 8자 이상이어야 합니다.' });
+    const passwordValidation = validatePasswordStrength({ password, nickname, realName: real_name });
+    if (!passwordValidation.ok) return res.status(400).json({ error: passwordValidation.error });
     if (is_n_su && !prev_university) return res.status(400).json({ error: 'N수생은 전적 대학교를 입력해주세요.' });
 
     try {
@@ -396,13 +493,13 @@ router.post('/change-password', requireAuth, async (req, res) => {
     const currentPassword = typeof req.body?.current_password === 'string' ? req.body.current_password : '';
     const newPassword = typeof req.body?.new_password === 'string' ? req.body.new_password : '';
 
-    if (!newPassword || newPassword.length < 8) {
-        return res.status(400).json({ error: '새 비밀번호는 8자 이상이어야 합니다.' });
+    if (!newPassword) {
+        return res.status(400).json({ error: '새 비밀번호를 입력해주세요.' });
     }
 
     try {
         const result = await pool.query(
-            'SELECT auth_provider, password_hash FROM users WHERE id = $1',
+            'SELECT auth_provider, password_hash, nickname, real_name FROM users WHERE id = $1',
             [req.session.userId]
         );
         if (!result.rows.length) {
@@ -425,6 +522,15 @@ router.post('/change-password', requireAuth, async (req, res) => {
 
         if (currentPassword && currentPassword === newPassword) {
             return res.status(400).json({ error: '새 비밀번호가 현재 비밀번호와 동일합니다.' });
+        }
+
+        const passwordValidation = validatePasswordStrength({
+            password: newPassword,
+            nickname: row.nickname,
+            realName: row.real_name,
+        });
+        if (!passwordValidation.ok) {
+            return res.status(400).json({ error: passwordValidation.error });
         }
 
         const nextHash = await bcrypt.hash(newPassword, 10);

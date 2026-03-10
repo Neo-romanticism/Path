@@ -379,6 +379,10 @@ router.post('/complete', async (req, res) => {
             } else {
                 earnedGold = Math.floor((targetSec / 3600) * STUDY_GOLD_PER_HR * camMultiplier);
             }
+        } else if (studyResult === 'INTERRUPTED') {
+            if (studyMode === 'timer') {
+                earnedGold = Math.floor((elapsedSec / 3600) * STUDY_GOLD_PER_HR * 0.5 * camMultiplier);
+            }
         } else if (studyResult === 'FAILED') {
             earnedExp = 0;
         }
