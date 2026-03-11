@@ -6,6 +6,7 @@ import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './ball
 import { InteractableProp } from './interactableProp.js';
 import {
     WORLD_SIZE,
+    WORLD_SCALE,
     CHUNK_SIZE,
     DRAG_SENSITIVITY,
     WORLD_HALF,

@@ -466,6 +466,8 @@ body.light .theme-icon--moon { display: block; }
 }
 
 .c-hot-card {
+  display: block;
+  color: inherit;
   flex-shrink: 0;
   width: 196px;
   background: linear-gradient(140deg, rgba(212,175,55,0.12) 0%, rgba(212,175,55,0.03) 100%);

@@ -80,6 +80,14 @@ function safeExternalUrl(value) {
     }
 }
 
+function safeCommunityImageUrl(value) {
+    if (!value || typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (/^\/uploads\/community\/[a-zA-Z0-9._-]+$/.test(trimmed)) return trimmed;
+    return safeExternalUrl(trimmed);
+}
+
 app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
@@ -352,8 +360,9 @@ app.get('/community/post/:id', async (req, res) => {
         const comments = commentsResult.rows;
         const baseUrl = getSiteBaseUrl(req);
         const canonical = `${baseUrl}/community/post/${post.id}`;
-        const safeImageUrl = safeExternalUrl(post.image_url);
+        const safeImageUrl = safeCommunityImageUrl(post.image_url);
         const safeLinkUrl = safeExternalUrl(post.link_url);
+        const ogImageUrl = safeImageUrl.startsWith('/') ? `${baseUrl}${safeImageUrl}` : safeImageUrl;
         const title = `${post.title} | 입시 커뮤니티 - P.A.T.H`;
         const bodyPreview = (post.body || '').trim().replace(/\s+/g, ' ').slice(0, 150);
         const description = bodyPreview
@@ -431,46 +440,101 @@ app.get('/community/post/:id', async (req, res) => {
   <meta property="og:description" content="${escapeHtml(description)}">
   <meta property="og:url" content="${escapeHtml(canonical)}">
   <meta property="og:site_name" content="P.A.T.H">
-    ${safeImageUrl ? `<meta property="og:image" content="${escapeHtml(safeImageUrl)}">` : ''}
+    ${ogImageUrl ? `<meta property="og:image" content="${escapeHtml(ogImageUrl)}">` : ''}
   <meta property="article:published_time" content="${escapeHtml(publishedIso)}">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="${escapeHtml(post.title)}">
   <meta name="twitter:description" content="${escapeHtml(description)}">
   <link rel="canonical" href="${escapeHtml(canonical)}">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
   <script type="application/ld+json">${jsonLdSafe(postSchema)}</script>
   <style>
-    body{font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f8fc;color:#172038;max-width:780px;margin:0 auto;padding:24px 16px 60px;line-height:1.65}
-    a{color:#1d4ed8;text-decoration:none}
-    .meta{font-size:13px;color:#59657d;margin-bottom:12px}
-    .title{font-size:28px;line-height:1.35;margin:0 0 8px;font-weight:800}
-    .chip{display:inline-block;padding:2px 10px;border-radius:999px;background:#e9eef8;font-size:12px;font-weight:700;color:#2e3d5c;margin-right:8px}
-    .card{background:#fff;border:1px solid rgba(23,32,56,.1);border-radius:14px;padding:18px 20px;white-space:pre-wrap;word-break:break-word}
-    .thumb{margin:0 0 12px;border:1px solid rgba(23,32,56,.12);border-radius:12px;overflow:hidden;background:#edf2fa}
-    .thumb img{display:block;width:100%;max-height:420px;object-fit:cover}
-    .outlink{display:inline-flex;margin:14px 0 0;font-size:14px;font-weight:600}
-    .stats{display:flex;gap:14px;font-size:13px;color:#44526e;margin:16px 0 22px}
-        .topnav{margin-bottom:18px}
-        .comments{margin-top:28px}
-        .comments h2{font-size:18px;margin:0 0 10px;font-weight:800}
-        .comment-list{list-style:none;padding:0;margin:0;border-top:1px solid rgba(23,32,56,.11)}
-        .comment-item{padding:14px 2px;border-bottom:1px solid rgba(23,32,56,.08)}
-        .comment-meta{font-size:12px;color:#5a6781;margin-bottom:6px}
-        .comment-body{margin:0;font-size:14px;line-height:1.6;color:#1a2742;white-space:pre-wrap;word-break:break-word}
-        .comment-empty{padding:14px 2px;color:#5a6781;font-size:13px}
+        :root{--bg:#f2f6ff;--surface:#ffffff;--line:#dfe8ff;--text:#171f34;--muted:#6c7896;--primary:#3182f6;--primary-soft:#e9f2ff;--chip:#f3f7ff;--shadow:0 14px 40px rgba(36,86,164,.12)}
+        *{box-sizing:border-box}
+        body{margin:0;font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:radial-gradient(1200px 420px at 0 -5%,#dce9ff 0,transparent 62%),var(--bg);color:var(--text);line-height:1.62}
+        a{color:inherit;text-decoration:none}
+        .page{max-width:840px;margin:0 auto;padding:18px 14px 56px}
+        .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px}
+        .back-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 10px rgba(28,68,140,.07);font-size:13px;font-weight:700;color:#495474}
+        .share-btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;border:0;background:var(--primary);color:#fff;font-size:13px;font-weight:700;cursor:pointer}
+        .hero{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:18px 18px 14px;box-shadow:var(--shadow)}
+        .hero-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+        .chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:var(--chip);font-size:12px;font-weight:800;color:#30538f}
+        .meta{font-size:12px;color:var(--muted);font-weight:600}
+        .title{margin:0;font-size:30px;line-height:1.34;letter-spacing:-.04em;font-weight:830;word-break:break-word}
+        .author{margin-top:8px;font-size:13px;color:#5f6f92;font-weight:650}
+        .thumb{margin:14px 0 12px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#eef4ff}
+        .thumb img{display:block;width:100%;max-height:480px;object-fit:contain;background:#e9f0ff}
+        .content{margin-top:10px;padding:15px 16px;border-radius:14px;background:#f8fbff;border:1px solid #e7efff;white-space:pre-wrap;word-break:break-word;font-size:15px;color:#1d2944}
+        .outlink{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--primary-soft);color:#1f5ec2;font-size:13px;font-weight:760}
+        .stats{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+        .stat{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;background:#f3f7ff;border:1px solid #dee8ff;font-size:12px;font-weight:760;color:#40557e}
+        .comments{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 28px rgba(37,82,150,.09)}
+        .comments h2{margin:0 0 10px;font-size:18px;letter-spacing:-.03em}
+        .comment-list{list-style:none;padding:0;margin:0}
+        .comment-item{padding:11px 0;border-bottom:1px solid #edf2ff}
+        .comment-item:last-child{border-bottom:0;padding-bottom:2px}
+        .comment-meta{font-size:12px;color:#6a7999;font-weight:620;margin-bottom:4px}
+        .comment-body{margin:0;font-size:14px;color:#203050;white-space:pre-wrap;word-break:break-word}
+        .comment-empty{font-size:13px;color:#7b88a6;padding:3px 0 1px}
+        .footnote{margin-top:12px;font-size:12px;color:#7483a4;text-align:center}
+        @media (max-width:640px){
+            .page{padding:12px 10px 38px}
+            .hero{padding:14px}
+            .title{font-size:24px}
+            .thumb img{max-height:380px}
+            .comments{padding:14px}
+        }
   </style>
 </head>
 <body>
-  <div class="topnav"><a href="/community/">← 커뮤니티 목록으로</a></div>
-  <h1 class="title">${escapeHtml(post.title)}</h1>
-  <div class="meta"><span class="chip">${escapeHtml(post.category || '전체')}</span>작성자 ${escapeHtml(post.nickname || '익명')} · ${escapeHtml(new Date(post.created_at).toLocaleString('ko-KR'))}</div>
-    ${safeImageUrl ? `<div class="thumb"><img src="${escapeHtml(safeImageUrl)}" alt="첨부 이미지" loading="lazy"></div>` : ''}
-  <div class="card">${escapeHtml(post.body || '(내용 없음)')}</div>
-    ${safeLinkUrl ? `<a class="outlink" href="${escapeHtml(safeLinkUrl)}" target="_blank" rel="noopener noreferrer nofollow">🔗 첨부 링크 열기</a>` : ''}
-  <div class="stats"><span>조회 ${post.views || 0}</span><span>추천 ${post.likes || 0}</span><span>댓글 ${post.comments_count || 0}</span></div>
-    <section class="comments" aria-label="댓글 프리뷰">
+    <main class="page">
+        <div class="topbar">
+            <a class="back-btn" href="/community/">← 커뮤니티 목록</a>
+            <button class="share-btn" type="button" id="share-post-btn">공유</button>
+        </div>
+        <article class="hero">
+            <div class="hero-meta">
+                <span class="chip">${escapeHtml(post.category || '전체')}</span>
+                <span class="meta">${escapeHtml(new Date(post.created_at).toLocaleString('ko-KR'))}</span>
+            </div>
+            <h1 class="title">${escapeHtml(post.title)}</h1>
+            <p class="author">작성자 ${escapeHtml(post.nickname || '익명')}</p>
+            ${safeImageUrl ? `<div class="thumb"><img src="${escapeHtml(safeImageUrl)}" alt="첨부 이미지" loading="lazy"></div>` : ''}
+            <div class="content">${escapeHtml(post.body || '(내용 없음)')}</div>
+            ${safeLinkUrl ? `<a class="outlink" href="${escapeHtml(safeLinkUrl)}" target="_blank" rel="noopener noreferrer nofollow">🔗 첨부 링크 열기</a>` : ''}
+            <div class="stats">
+                <span class="stat">조회 ${post.views || 0}</span>
+                <span class="stat">추천 ${post.likes || 0}</span>
+                <span class="stat">댓글 ${post.comments_count || 0}</span>
+            </div>
+        </article>
+        <section class="comments" aria-label="댓글 프리뷰">
         <h2>댓글 프리뷰</h2>
         <ul class="comment-list">${commentsHtml}</ul>
     </section>
+        <p class="footnote">전체 댓글/추천/신고는 커뮤니티 앱 화면에서 이어서 이용할 수 있습니다.</p>
+    </main>
+    <script>
+        (function() {
+            const shareBtn = document.getElementById('share-post-btn');
+            if (!shareBtn) return;
+            shareBtn.addEventListener('click', async function() {
+                try {
+                    if (navigator.share) {
+                        await navigator.share({ title: ${jsonLdSafe(post.title)}, text: ${jsonLdSafe(description)}, url: window.location.href });
+                        return;
+                    }
+                    await navigator.clipboard.writeText(window.location.href);
+                    shareBtn.textContent = '링크 복사됨';
+                    setTimeout(function(){ shareBtn.textContent = '공유'; }, 1400);
+                } catch (_) {
+                    window.prompt('아래 링크를 복사해 공유하세요', window.location.href);
+                }
+            });
+        })();
+    </script>
 </body>
 </html>`;
 
