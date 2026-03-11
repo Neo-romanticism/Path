@@ -3,6 +3,9 @@ const pool = require('../db');
 
 const router = express.Router();
 const ALWAYS_MAIN_ADMIN_NICKNAME = '낭만화1';
+const ADMIN_WORLD_XY_LIMIT = 100000;
+const ADMIN_WORLD_Z_MIN = -40;
+const ADMIN_WORLD_Z_MAX = 500;
 
 function validateNickname(nickname) {
     const value = (nickname || '').trim();
@@ -204,6 +207,7 @@ router.get('/all-users', requireAdmin, async (req, res) => {
             `SELECT id, nickname, real_name, university, prev_university, is_n_su,
                     gold, diamond, exp, tier, tickets, mock_exam_score, score_status,
                     score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public,
+                    world_x, world_y, world_z,
                     is_admin, admin_role, user_code, created_at
              FROM users ORDER BY created_at DESC`
         );
@@ -229,6 +233,9 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     const mockExamScoreRaw = req.body?.mock_exam_score;
     const gpaScoreRaw = req.body?.gpa_score;
     const gpaPublic = req.body?.gpa_public === true || req.body?.gpa_public === 'true' || req.body?.gpa_public === 1 || req.body?.gpa_public === '1';
+    const worldXRaw = req.body?.world_x;
+    const worldYRaw = req.body?.world_y;
+    const worldZRaw = req.body?.world_z;
 
     if (!userId) {
         return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
@@ -266,7 +273,8 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     try {
         const target = await pool.query(
             `SELECT id, is_admin, admin_role,
-                    gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public
+                    gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public,
+                    world_x, world_y, world_z
              FROM users WHERE id = $1`,
             [userId]
         );
@@ -290,6 +298,9 @@ router.post('/update-user', requireAdmin, async (req, res) => {
         let mockExamScore = targetUser.mock_exam_score;
         let gpaScore = targetUser.gpa_score;
         let nextGpaPublic = targetUser.gpa_public;
+        let worldX = targetUser.world_x;
+        let worldY = targetUser.world_y;
+        let worldZ = targetUser.world_z;
 
         if (isMainAdmin) {
             gold = parseInt(goldRaw, 10);
@@ -332,6 +343,21 @@ router.post('/update-user', requireAdmin, async (req, res) => {
             }
 
             nextGpaPublic = gpaPublic;
+
+            worldX = parseInt(worldXRaw, 10);
+            if (!Number.isInteger(worldX) || worldX < -ADMIN_WORLD_XY_LIMIT || worldX > ADMIN_WORLD_XY_LIMIT) {
+                return res.status(400).json({ error: `X 좌표는 ${-ADMIN_WORLD_XY_LIMIT}~${ADMIN_WORLD_XY_LIMIT} 범위의 정수여야 합니다.` });
+            }
+
+            worldY = parseInt(worldYRaw, 10);
+            if (!Number.isInteger(worldY) || worldY < -ADMIN_WORLD_XY_LIMIT || worldY > ADMIN_WORLD_XY_LIMIT) {
+                return res.status(400).json({ error: `Y 좌표는 ${-ADMIN_WORLD_XY_LIMIT}~${ADMIN_WORLD_XY_LIMIT} 범위의 정수여야 합니다.` });
+            }
+
+            worldZ = parseInt(worldZRaw, 10);
+            if (!Number.isInteger(worldZ) || worldZ < ADMIN_WORLD_Z_MIN || worldZ > ADMIN_WORLD_Z_MAX) {
+                return res.status(400).json({ error: `Z 좌표는 ${ADMIN_WORLD_Z_MIN}~${ADMIN_WORLD_Z_MAX} 범위의 정수여야 합니다.` });
+            }
         }
 
         const duplicate = await pool.query(
@@ -356,10 +382,14 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                  tickets = $10,
                  mock_exam_score = $11,
                  gpa_score = $12,
-                 gpa_public = $13
-             WHERE id = $14
+                 gpa_public = $13,
+                 world_x = $14,
+                 world_y = $15,
+                 world_z = $16
+             WHERE id = $17
              RETURNING id, nickname, real_name, university, is_n_su, prev_university,
                        gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public,
+                       world_x, world_y, world_z,
                        is_admin, admin_role, user_code, created_at`,
             [
                 nickValidation.value,
@@ -375,6 +405,9 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                 mockExamScore,
                 gpaScore,
                 nextGpaPublic,
+                worldX,
+                worldY,
+                worldZ,
                 userId,
             ]
         );
