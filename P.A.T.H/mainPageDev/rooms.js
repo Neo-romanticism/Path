@@ -788,9 +788,17 @@
         },
 
         // ── Settings modal ────────────────────────────────────────────────────
-        showSettingsModal() {
+        async showSettingsModal() {
             const modal = document.getElementById('room-settings-modal');
             if (!modal) return;
+            if (this.activeRoomId) {
+                try {
+                    await this.loadRoomContext(this.activeRoomId);
+                } catch (e) {
+                    alert(e.message || '방 정보를 불러올 수 없습니다.');
+                    return;
+                }
+            }
             const room = this.myRooms.find(r => r.id === this.activeRoomId);
             const canEditSettings = this._can('edit_settings');
             const canDeleteRoom = this._can('delete_room');

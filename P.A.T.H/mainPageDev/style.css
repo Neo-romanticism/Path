@@ -3033,6 +3033,106 @@ body.active .tab-panel {
     letter-spacing: 0.5px;
 }
 
+.room-settings-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: -4px;
+}
+
+.room-settings-empty {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 10px;
+    background: var(--surface-soft);
+    border-radius: 10px;
+}
+
+.room-member-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.room-member-admin-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface-soft);
+}
+
+.room-member-admin-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.room-member-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.room-member-role {
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
+.room-member-role.role-owner {
+    background: rgba(246, 164, 0, 0.16);
+    color: #bf7a00;
+}
+
+.room-member-role.role-manager {
+    background: rgba(49, 130, 246, 0.16);
+    color: var(--accent-blue);
+}
+
+.room-member-role.role-member {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-muted);
+}
+
+.room-member-you {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.room-member-admin-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.room-mini-action {
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--surface-hover);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.room-mini-action-owner {
+    background: rgba(49, 130, 246, 0.14);
+    color: var(--accent-blue);
+}
+
+.room-mini-action-danger {
+    background: rgba(240, 68, 82, 0.14);
+    color: var(--accent-red);
+}
+
 .room-btn-full {
     width: 100%;
     justify-content: center;

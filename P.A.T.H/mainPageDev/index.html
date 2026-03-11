@@ -396,7 +396,7 @@ function toggleTheme() {
                 <div class="room-visual-floor"></div>
                 <div id="room-props-display" class="room-props-display"></div>
                 <div id="room-decor-score-chip" class="room-decor-score-chip">REALISM 0</div>
-                <button class="room-decor-open-btn" onclick="GroupRooms.showDecorModal()">
+                <button id="room-decor-open-btn" class="room-decor-open-btn" onclick="GroupRooms.showDecorModal()">
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13 3a1 1 0 00-1.4 0L5 9.6 3 11l1.4 1.4 1.4-2L12.4 4.4A1 1 0 0013 3zM2 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     방 꾸미기
                 </button>
@@ -554,6 +554,8 @@ function toggleTheme() {
                         <button id="room-edit-submit" type="button" class="room-btn-primary room-btn-full" onclick="GroupRooms.submitEditRoom()">변경 저장</button>
                     </div>
                 </div>
+
+                <div id="room-settings-member-controls" class="hidden"></div>
 
                 <!-- All members: leave / creator: delete -->
                 <div class="room-settings-danger-zone">
