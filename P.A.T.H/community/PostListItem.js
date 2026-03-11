@@ -31,6 +31,8 @@ export const CATEGORY_META = {
  * @param {string}  post.createdAt    - ISO timestamp
  * @param {boolean} post.isHot        - true if likes ≥ HOT_THRESHOLD
  * @param {boolean} post.hasImage     - true if image_url exists
+ * @param {boolean} post.canBookmark  - true if viewer is authenticated
+ * @param {boolean} post.isBookmarked - viewer bookmark state
  * @returns {HTMLElement}
  */
 export function PostListItem(post) {
@@ -58,6 +60,14 @@ export function PostListItem(post) {
          <span class="post-row__hot-badge">HOT</span>
        </span>`
     : `<span class="post-row__num">${post.displayNum}</span>`;
+
+  const bookmarkButton = post.canBookmark
+    ? `<button class="post-row__bookmark-btn${post.isBookmarked ? ' is-active' : ''}" type="button" aria-label="${post.isBookmarked ? '북마크 해제' : '북마크'}" title="${post.isBookmarked ? '북마크 해제' : '북마크'}" data-post-id="${post.id}" data-bookmarked="${post.isBookmarked ? '1' : '0'}">
+         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+           <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path>
+         </svg>
+       </button>`
+    : '';
 
   el.innerHTML = `
     <a class="post-row__link" href="/community/post/${post.id}" aria-label="${escHtml(post.title)}">
@@ -90,6 +100,7 @@ export function PostListItem(post) {
         ${likes}
       </span>
     </a>
+    ${bookmarkButton}
   `;
 
   return el;

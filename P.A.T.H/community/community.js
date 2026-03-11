@@ -357,6 +357,8 @@ async function loadNextPage() {
                 comments:     post.comments_count,
                 views:        post.views,
                 createdAt:    post.created_at,
+                canBookmark:  !!currentUser,
+                isBookmarked: !!post.is_bookmarked,
             }));
         });
         postList.appendChild(frag);
@@ -379,9 +381,57 @@ async function loadNextPage() {
 function bindPostClicks() {
   bindUserProfileTriggers(postList);
 
+    postList.querySelectorAll('.post-row__bookmark-btn:not([data-bookmark-bound])').forEach((btn) => {
+      btn.dataset.bookmarkBound = '1';
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!currentUser) {
+          showToast('로그인 후 이용할 수 있어요');
+          return;
+        }
+
+        const postId = Number(btn.dataset.postId || 0);
+        if (!postId) return;
+
+        const before = btn.dataset.bookmarked === '1';
+        const after = !before;
+
+        // 낙관적 업데이트: 즉시 UI 반영
+        applyRowBookmarkState(btn, after);
+        btn.disabled = true;
+
+        try {
+          const r = await fetch(`/api/community/posts/${postId}/bookmark`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            applyRowBookmarkState(btn, before);
+            const msg = await readApiError(r, '북마크 처리에 실패했어요');
+            if (msg) showToast(msg);
+            return;
+          }
+
+          const data = await r.json().catch(() => ({}));
+          const serverBookmarked = !!data.bookmarked;
+          applyRowBookmarkState(btn, serverBookmarked);
+          showToast(serverBookmarked ? '북마크에 저장했어요' : '북마크를 해제했어요');
+        } catch (_) {
+          applyRowBookmarkState(btn, before);
+          showToast('북마크 처리 중 오류가 발생했어요');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
     postList.querySelectorAll('.post-row:not([data-bound])').forEach((row) => {
         row.dataset.bound = '1';
         row.addEventListener('click', (e) => {
+            const bookmarkBtn = e.target.closest('.post-row__bookmark-btn');
+            if (bookmarkBtn) return;
             const userProfileBtn = e.target.closest('.js-open-user-profile');
             if (userProfileBtn) return;
 
@@ -390,6 +440,15 @@ function bindPostClicks() {
             markPostViewed(id);
         });
     });
+}
+
+function applyRowBookmarkState(buttonEl, bookmarked) {
+  const active = !!bookmarked;
+  buttonEl.dataset.bookmarked = active ? '1' : '0';
+  buttonEl.classList.toggle('is-active', active);
+  const label = active ? '북마크 해제' : '북마크';
+  buttonEl.setAttribute('aria-label', label);
+  buttonEl.title = label;
 }
 
 /* ─── 게시글 상세 모달 ───────────────────────────────────── */
@@ -426,6 +485,7 @@ function renderDetailBody(container, { post, postId, comments }) {
   const canBlockAuthor = !!currentUser && authorUserId > 0 && authorUserId !== Number(currentUser.id || 0);
   const alreadyBlocked = canBlockAuthor && currentUserBlocks.has(authorUserId);
   let isBookmarked = !!post.is_bookmarked;
+  let isLiked = !!post.is_liked;
     const cmtHtml = comments.map(c => `
       <li class="cmt-item" data-comment-id="${c.id}">
         <div class="cmt-meta">
@@ -441,6 +501,11 @@ function renderDetailBody(container, { post, postId, comments }) {
           ${canModerate ? '<button class="cmt-admin-del" type="button">삭제</button>' : ''}
         </div>
         <p class="cmt-body">${escHtml(c.body)}</p>
+        <div class="cmt-actions">
+          <button class="cmt-like-btn${c.is_liked ? ' is-active' : ''}" type="button" data-liked="${c.is_liked ? '1' : '0'}" data-comment-id="${c.id}" ${currentUser ? '' : 'disabled'}>
+            공감 <span class="cmt-like-count">${Number(c.likes_count || 0)}</span>
+          </button>
+        </div>
       </li>`).join('');
 
     container.innerHTML = `
@@ -465,7 +530,7 @@ function renderDetailBody(container, { post, postId, comments }) {
       ${post.body ? `<div class="detail-body-text">${escHtml(post.body)}</div>` : ''}
       ${safeLinkUrl ? `<a class="detail-link" href="${escHtml(safeLinkUrl)}" target="_blank" rel="noopener noreferrer nofollow">🔗 첨부 링크 열기</a>` : ''}
       <div class="detail-actions">
-        <button class="detail-like-btn" id="detail-like-btn">
+        <button class="detail-like-btn${isLiked ? ' is-active' : ''}" id="detail-like-btn">
           <svg width="13" height="13" viewBox="0 0 12 12" fill="currentColor">
             <path d="M6 1 7.5 4.5H11L8.2 6.8 9.3 10.5 6 8.3 2.7 10.5 3.8 6.8 1 4.5H4.5Z"/>
           </svg>
@@ -499,27 +564,44 @@ function renderDetailBody(container, { post, postId, comments }) {
     // 추천
     container.querySelector('#detail-like-btn').addEventListener('click', async () => {
         if (!currentUser) { showToast('로그인 후 이용할 수 있어요'); return; }
+        const btn = container.querySelector('#detail-like-btn');
+        const countSpan = container.querySelector('#like-count');
+        const prevLiked = isLiked;
+        const prevLikes = Number(countSpan?.textContent || post.likes || 0);
+        const optimisticLikes = Math.max(0, prevLikes + (prevLiked ? -1 : 1));
+
+        // 낙관적 업데이트
+        isLiked = !prevLiked;
+        if (countSpan) countSpan.textContent = optimisticLikes;
+        btn.classList.toggle('is-active', isLiked);
+
         try {
             const r = await fetch(`/api/community/posts/${postId}/like`, {
                 method: 'POST', credentials: 'include',
             });
           if (!r.ok) {
+            isLiked = prevLiked;
+            if (countSpan) countSpan.textContent = prevLikes;
+            btn.classList.toggle('is-active', isLiked);
             const errorMsg = await readApiError(r, '오류가 발생했어요');
             if (errorMsg) showToast(errorMsg);
             return;
           }
 
           const { liked, likes } = await r.json();
-          const btn = container.querySelector('#detail-like-btn');
-          btn.style.color = liked ? 'var(--accent-red)' : '';
-          btn.querySelector('svg').style.fill = liked ? 'var(--accent-red)' : '';
-          const countSpan = container.querySelector('#like-count');
+          isLiked = !!liked;
+          btn.classList.toggle('is-active', isLiked);
           if (countSpan) countSpan.textContent = likes;
           showToast(liked ? `추천 ${likes}` : '추천을 취소했어요');
           // 목록 카운트 갱신
           const likeEl = postList.querySelector(`[data-id="${postId}"] .post-row__likes`);
           if (likeEl) likeEl.lastChild.textContent = likes;
-        } catch (_) { showToast('오류가 발생했어요'); }
+        } catch (_) {
+          isLiked = prevLiked;
+          if (countSpan) countSpan.textContent = prevLikes;
+          btn.classList.toggle('is-active', isLiked);
+          showToast('오류가 발생했어요');
+        }
     });
 
     const goldLikeBtn = container.querySelector('#detail-gold-like-btn');
@@ -615,6 +697,16 @@ function renderDetailBody(container, { post, postId, comments }) {
           return;
         }
 
+        const before = isBookmarked;
+        const after = !before;
+
+        // 낙관적 업데이트
+        isBookmarked = after;
+        bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
+        bookmarkBtn.classList.toggle('is-active', isBookmarked);
+        const rowBookmarkBtn = postList.querySelector(`[data-id="${postId}"] .post-row__bookmark-btn`);
+        if (rowBookmarkBtn) applyRowBookmarkState(rowBookmarkBtn, isBookmarked);
+
         bookmarkBtn.disabled = true;
         try {
           const r = await fetch(`/api/community/posts/${postId}/bookmark`, {
@@ -622,6 +714,10 @@ function renderDetailBody(container, { post, postId, comments }) {
             credentials: 'include',
           });
           if (!r.ok) {
+            isBookmarked = before;
+            bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
+            bookmarkBtn.classList.toggle('is-active', isBookmarked);
+            if (rowBookmarkBtn) applyRowBookmarkState(rowBookmarkBtn, isBookmarked);
             const msg = await readApiError(r, '북마크 처리에 실패했어요');
             if (msg) showToast(msg);
             return;
@@ -630,8 +726,14 @@ function renderDetailBody(container, { post, postId, comments }) {
           const data = await r.json().catch(() => ({}));
           isBookmarked = !!data.bookmarked;
           bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
+          bookmarkBtn.classList.toggle('is-active', isBookmarked);
+          if (rowBookmarkBtn) applyRowBookmarkState(rowBookmarkBtn, isBookmarked);
           showToast(isBookmarked ? '북마크에 저장했어요' : '북마크를 해제했어요');
         } catch (_) {
+          isBookmarked = before;
+          bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
+          bookmarkBtn.classList.toggle('is-active', isBookmarked);
+          if (rowBookmarkBtn) applyRowBookmarkState(rowBookmarkBtn, isBookmarked);
           showToast('북마크 처리 중 오류가 발생했어요');
         } finally {
           bookmarkBtn.disabled = false;
@@ -717,7 +819,12 @@ function renderDetailBody(container, { post, postId, comments }) {
                 <span class="cmt-ip">(${escHtml(comment.ip_prefix ?? '?.?')})</span>
                 <span class="cmt-date">방금</span>
               </div>
-              <p class="cmt-body">${escHtml(comment.body)}</p>`;
+              <p class="cmt-body">${escHtml(comment.body)}</p>
+              <div class="cmt-actions">
+                <button class="cmt-like-btn" type="button" data-liked="0" data-comment-id="${comment.id}" ${currentUser ? '' : 'disabled'}>
+                  공감 <span class="cmt-like-count">0</span>
+                </button>
+              </div>`;
 
             const emptyEl = container.querySelector('.cmt-empty');
             if (emptyEl) emptyEl.remove();
@@ -746,6 +853,60 @@ function renderDetailBody(container, { post, postId, comments }) {
         e.preventDefault();
         submitComment();
       }
+    });
+
+    container.querySelectorAll('.cmt-like-btn').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!currentUser) {
+          showToast('로그인 후 이용할 수 있어요');
+          return;
+        }
+
+        const commentId = Number(btn.dataset.commentId || 0);
+        if (!commentId) return;
+
+        const countEl = btn.querySelector('.cmt-like-count');
+        const beforeLiked = btn.dataset.liked === '1';
+        const beforeCount = Number(countEl?.textContent || 0);
+        const optimisticCount = Math.max(0, beforeCount + (beforeLiked ? -1 : 1));
+
+        btn.dataset.liked = beforeLiked ? '0' : '1';
+        btn.classList.toggle('is-active', !beforeLiked);
+        if (countEl) countEl.textContent = String(optimisticCount);
+        btn.disabled = true;
+
+        try {
+          const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}/like`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            btn.dataset.liked = beforeLiked ? '1' : '0';
+            btn.classList.toggle('is-active', beforeLiked);
+            if (countEl) countEl.textContent = String(beforeCount);
+            const msg = await readApiError(r, '댓글 공감 처리에 실패했어요');
+            if (msg) showToast(msg);
+            return;
+          }
+
+          const data = await r.json().catch(() => ({}));
+          const nextLiked = !!data.liked;
+          const nextCount = Number(data.likes_count || 0);
+          btn.dataset.liked = nextLiked ? '1' : '0';
+          btn.classList.toggle('is-active', nextLiked);
+          if (countEl) countEl.textContent = String(nextCount);
+        } catch (_) {
+          btn.dataset.liked = beforeLiked ? '1' : '0';
+          btn.classList.toggle('is-active', beforeLiked);
+          if (countEl) countEl.textContent = String(beforeCount);
+          showToast('댓글 공감 처리 중 오류가 발생했어요');
+        } finally {
+          btn.disabled = false;
+        }
+      });
     });
 
       if (canModerate) {
@@ -1111,6 +1272,10 @@ function openSettingsModal() {
       likes: { offset: 0, hasMore: false, items: [] },
       bookmarks: { offset: 0, hasMore: false, items: [] },
     },
+    selections: {
+      posts: new Set(),
+      comments: new Set(),
+    },
   };
 
   themeModeSelect.value = getThemeMode();
@@ -1265,6 +1430,8 @@ async function renderSettingsActivityTab(containers, state, options = {}) {
     SETTINGS_ACTIVITY_TYPES.forEach((type) => {
       state.lists[type] = { offset: 0, hasMore: false, items: [] };
     });
+    state.selections.posts.clear();
+    state.selections.comments.clear();
   }
 
   const activeWrap = getActivityContainerByType(containers, state.activeType);
@@ -1303,6 +1470,9 @@ async function renderSettingsActivitySummary(container) {
     const receivedLikes = Number(summary.received_likes || 0);
     const likedPostsCount = Number(summary.liked_posts_count || 0);
     const bookmarksCount = Number(summary.bookmarks_count || 0);
+    const weeklyPostsCount = Number(summary.weekly_posts_count || 0);
+    const weeklyCommentsCount = Number(summary.weekly_comments_count || 0);
+    const topCategory7d = String(summary.top_category_7d || '').trim();
 
     container.innerHTML = `
       <div class="community-settings-stat-grid">
@@ -1326,6 +1496,13 @@ async function renderSettingsActivitySummary(container) {
           <p class="community-settings-stat-card__label">북마크</p>
           <strong class="community-settings-stat-card__value">${bookmarksCount.toLocaleString('ko-KR')}</strong>
         </article>
+      </div>
+      <div class="community-settings-weekly-report">
+        <p class="community-settings-weekly-report__title">주간 리포트</p>
+        <p class="community-settings-weekly-report__desc">
+          최근 7일 동안 글 ${weeklyPostsCount.toLocaleString('ko-KR')}개, 댓글 ${weeklyCommentsCount.toLocaleString('ko-KR')}개 활동했어요.
+          ${topCategory7d ? `가장 많이 쓴 카테고리는 ${escHtml(topCategory7d)}입니다.` : '이번 주 첫 활동을 시작해 보세요.'}
+        </p>
       </div>`;
   } catch (_) {
     container.innerHTML = '<p class="community-settings-loading">활동 요약을 불러오지 못했어요.</p>';
@@ -1408,8 +1585,10 @@ async function renderActivityListByType(containers, state, type, options = {}) {
       return;
     }
 
-    const listHtml = listState.items.map((item) => renderActivityItemHtml(type, item)).join('');
+    const listHtml = listState.items.map((item) => renderActivityItemHtml(type, item, state)).join('');
+    const bulkDeleteBar = renderBulkDeleteToolbar(type, state);
     container.innerHTML = `
+      ${bulkDeleteBar}
       <ul class="community-settings-activity-items">${listHtml}</ul>
       ${listState.hasMore ? `<button class="community-settings-more-btn" type="button" data-load-more="${type}">더보기</button>` : ''}`;
 
@@ -1428,10 +1607,18 @@ async function renderActivityListByType(containers, state, type, options = {}) {
   }
 }
 
-function renderActivityItemHtml(type, item) {
+function renderActivityItemHtml(type, item, state) {
+  const selectedPosts = state?.selections?.posts;
+  const selectedComments = state?.selections?.comments;
+
   if (type === 'comments') {
+    const isSelected = selectedComments instanceof Set ? selectedComments.has(Number(item.id)) : false;
     return `
       <li class="community-settings-activity-item">
+        <label class="community-settings-select-row">
+          <input class="community-settings-select-check" type="checkbox" data-select-type="comment" data-comment-id="${Number(item.id)}" ${isSelected ? 'checked' : ''}>
+          선택
+        </label>
         <a href="${getPostDetailUrl(item.post_id)}" class="community-settings-activity-link" data-post-id="${Number(item.post_id)}">
           <p class="community-settings-activity-title">[${escHtml(item.post_category || '전체')}] ${escHtml(item.post_title || '원문')}</p>
           <p class="community-settings-activity-snippet">${escHtml(truncateText(item.body || '', 90))}</p>
@@ -1446,14 +1633,29 @@ function renderActivityItemHtml(type, item) {
   const savedAt = type === 'likes' ? item.liked_at : item.bookmarked_at;
   const savedMeta = savedAt ? ` · 저장 ${fmtRelative(savedAt)}` : '';
   const showDelete = type === 'posts';
+  const isSelected = selectedPosts instanceof Set ? selectedPosts.has(Number(item.id)) : false;
   return `
     <li class="community-settings-activity-item">
+      ${showDelete ? `<label class="community-settings-select-row"><input class="community-settings-select-check" type="checkbox" data-select-type="post" data-post-id="${Number(item.id)}" ${isSelected ? 'checked' : ''}>선택</label>` : ''}
       <a href="${getPostDetailUrl(item.id)}" class="community-settings-activity-link" data-post-id="${Number(item.id)}">
         <p class="community-settings-activity-title">[${escHtml(item.category || '전체')}] ${escHtml(item.title || '')}</p>
         <p class="community-settings-activity-meta">${fmtRelative(item.created_at)}${savedMeta} · 조회 ${Number(item.views || 0)} · 댓글 ${Number(item.comments_count || 0)} · 추천 ${Number(item.likes || 0)}</p>
       </a>
       ${showDelete ? `<div class="community-settings-activity-actions"><button class="community-settings-item-delete" type="button" data-delete-type="post" data-post-id="${Number(item.id)}">삭제</button></div>` : ''}
     </li>`;
+}
+
+function renderBulkDeleteToolbar(type, state) {
+  if (type !== 'posts' && type !== 'comments') return '';
+  const selected = type === 'posts' ? state.selections.posts : state.selections.comments;
+  const selectedCount = selected.size;
+  const label = type === 'posts' ? '게시글' : '댓글';
+  return `
+    <div class="community-settings-bulk-bar" data-bulk-type="${type}">
+      <label class="community-settings-bulk-all"><input type="checkbox" data-select-all="${type}"> 전체 선택</label>
+      <span class="community-settings-bulk-count">선택 ${selectedCount}개</span>
+      <button class="community-settings-bulk-delete" type="button" data-bulk-delete="${type}" ${selectedCount === 0 ? 'disabled' : ''}>선택 ${label} 삭제</button>
+    </div>`;
 }
 
 function bindActivityItemEvents(container, containers, state, type) {
@@ -1463,6 +1665,85 @@ function bindActivityItemEvents(container, containers, state, type) {
       if (postId > 0) markPostViewed(postId);
     });
   });
+
+  container.querySelectorAll('.community-settings-select-check').forEach((inputEl) => {
+    inputEl.addEventListener('change', () => {
+      const selectType = inputEl.dataset.selectType;
+      if (selectType === 'post') {
+        const postId = Number(inputEl.dataset.postId || 0);
+        if (!postId) return;
+        if (inputEl.checked) state.selections.posts.add(postId);
+        else state.selections.posts.delete(postId);
+      }
+      if (selectType === 'comment') {
+        const commentId = Number(inputEl.dataset.commentId || 0);
+        if (!commentId) return;
+        if (inputEl.checked) state.selections.comments.add(commentId);
+        else state.selections.comments.delete(commentId);
+      }
+      refreshBulkDeleteUi(container, state, type);
+    });
+  });
+
+  const selectAllEl = container.querySelector(`[data-select-all="${type}"]`);
+  if (selectAllEl) {
+    selectAllEl.checked = isAllSelectedForType(state, type);
+    selectAllEl.addEventListener('change', () => {
+      const listState = state.lists[type];
+      const shouldSelectAll = !!selectAllEl.checked;
+      if (type === 'posts') {
+        state.selections.posts.clear();
+        if (shouldSelectAll) listState.items.forEach((it) => state.selections.posts.add(Number(it.id)));
+      }
+      if (type === 'comments') {
+        state.selections.comments.clear();
+        if (shouldSelectAll) listState.items.forEach((it) => state.selections.comments.add(Number(it.id)));
+      }
+      renderActivityListByType(containers, state, type, { reset: false });
+    });
+  }
+
+  const bulkDeleteBtn = container.querySelector(`[data-bulk-delete="${type}"]`);
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', async () => {
+      const selectedIds = type === 'posts'
+        ? Array.from(state.selections.posts)
+        : Array.from(state.selections.comments);
+      if (selectedIds.length === 0) return;
+
+      const label = type === 'posts' ? '게시글' : '댓글';
+      const confirmed = window.confirm(`선택한 ${label} ${selectedIds.length}개를 삭제할까요?`);
+      if (!confirmed) return;
+
+      bulkDeleteBtn.disabled = true;
+      bulkDeleteBtn.textContent = '삭제 중...';
+
+      const requests = selectedIds.map((id) => {
+        const endpoint = type === 'posts'
+          ? `/api/community/me/posts/${id}`
+          : `/api/community/me/comments/${id}`;
+        return fetch(endpoint, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+      });
+
+      const results = await Promise.allSettled(requests);
+      const okCount = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
+
+      if (type === 'posts') state.selections.posts.clear();
+      if (type === 'comments') state.selections.comments.clear();
+
+      if (okCount > 0) showToast(`${okCount}개 ${label}을 삭제했어요`);
+      if (okCount < selectedIds.length) showToast(`일부 ${label} 삭제에 실패했어요`);
+
+      await Promise.all([
+        renderSettingsActivityTab(containers, state, { reset: true }),
+        renderHotPosts(),
+        resetAndLoad(),
+      ]);
+    });
+  }
 
   container.querySelectorAll('.community-settings-item-delete').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
@@ -1523,6 +1804,29 @@ function bindActivityItemEvents(container, containers, state, type) {
       ]);
     });
   });
+}
+
+function isAllSelectedForType(state, type) {
+  const items = state.lists[type]?.items || [];
+  if (items.length === 0) return false;
+  if (type === 'posts') {
+    return items.every((item) => state.selections.posts.has(Number(item.id)));
+  }
+  if (type === 'comments') {
+    return items.every((item) => state.selections.comments.has(Number(item.id)));
+  }
+  return false;
+}
+
+function refreshBulkDeleteUi(container, state, type) {
+  const countEl = container.querySelector('.community-settings-bulk-count');
+  const deleteBtn = container.querySelector(`[data-bulk-delete="${type}"]`);
+  const selectAllEl = container.querySelector(`[data-select-all="${type}"]`);
+
+  const selectedCount = type === 'posts' ? state.selections.posts.size : state.selections.comments.size;
+  if (countEl) countEl.textContent = `선택 ${selectedCount}개`;
+  if (deleteBtn) deleteBtn.disabled = selectedCount === 0;
+  if (selectAllEl) selectAllEl.checked = isAllSelectedForType(state, type);
 }
 
 async function renderSettingsBlockedUsers(container) {
@@ -2368,6 +2672,7 @@ detailStyle.textContent = `
   transition:color var(--transition),border-color var(--transition);
 }
 .detail-like-btn:hover { color:var(--accent-red); border-color:rgba(255,69,58,0.3); }
+.detail-like-btn.is-active { color:var(--accent-red); border-color:rgba(255,69,58,0.35); background:rgba(255,69,58,0.12); }
 .detail-gold-like-btn {
   display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 12px;
   background:rgba(246,166,35,0.16); border-radius:var(--radius-pill); font-size:12px;
@@ -2388,6 +2693,15 @@ detailStyle.textContent = `
 .cmt-ip   { font-size:11px; color:var(--text-3); }
 .cmt-date { font-size:11px; color:var(--text-3); margin-left:auto; }
 .cmt-body { font-size:13.5px; color:var(--text-1); line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+.cmt-actions { margin-top:6px; display:flex; justify-content:flex-end; }
+.cmt-like-btn {
+  height:26px; padding:0 10px; border-radius:999px;
+  border:1px solid var(--border-mid); background:var(--surface-2);
+  color:var(--text-2); font-size:11px; font-weight:700;
+}
+.cmt-like-btn.is-active {
+  color:var(--accent-red); border-color:rgba(255,69,58,0.35); background:rgba(255,69,58,0.1);
+}
 .cmt-write { display:flex; flex-direction:column; padding-top:10px; border-top:1px solid var(--border); }
 .detail-admin-del-btn {
   display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
@@ -2404,6 +2718,7 @@ detailStyle.textContent = `
   background:rgba(48,209,88,0.12); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
   color:var(--accent-green); border:1px solid rgba(48,209,88,0.3);
 }
+.detail-bookmark-btn.is-active { background:rgba(48,209,88,0.18); border-color:rgba(48,209,88,0.45); }
 .detail-block-btn {
   display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
   background:rgba(255,69,58,0.1); border-radius:var(--radius-pill); font-size:12px; font-weight:700;

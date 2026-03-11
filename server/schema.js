@@ -391,10 +391,24 @@ async function initSchema() {
                 body       TEXT NOT NULL,
                 ip_prefix  VARCHAR(20),
                 nickname   VARCHAR(50),
+                likes_count INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
+            ALTER TABLE community_comments
+                ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0;
             CREATE INDEX IF NOT EXISTS idx_cc_post_id ON community_comments(post_id);
             CREATE INDEX IF NOT EXISTS idx_cc_post_created_at ON community_comments(post_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_cc_likes_created_at ON community_comments(post_id, likes_count DESC, created_at DESC);
+        `);
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS community_comment_likes (
+                comment_id INTEGER NOT NULL REFERENCES community_comments(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (comment_id, user_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_ccl_user_created_at ON community_comment_likes(user_id, created_at DESC);
         `);
 
         // ── 그룹 타이머 방 ─────────────────────────────────────────────────

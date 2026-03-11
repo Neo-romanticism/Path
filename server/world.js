@@ -109,6 +109,7 @@ function setup(io) {
             let savedX = worldX;
             let savedY = worldY;
             let savedZ = worldZ;
+            let shouldPersistInitialSpawn = false;
             try {
                 const res = await pool.query(
                     'SELECT world_x, world_y, world_z FROM users WHERE id = $1',
@@ -136,6 +137,9 @@ function setup(io) {
                             savedX = spawn.worldX;
                             savedY = spawn.worldY;
                             savedZ = spawn.worldZ;
+                            // Existing users without a saved world position should be
+                            // randomized once, then keep that position on future joins.
+                            shouldPersistInitialSpawn = true;
                         }
                     }
                 }
@@ -148,6 +152,14 @@ function setup(io) {
                 worldY: clamp(savedY, -WORLD_SIZE / 2, WORLD_SIZE / 2),
                 worldZ: clamp(savedZ, MIN_WORLD_Z, MAX_WORLD_Z),
             };
+
+            if (shouldPersistInitialSpawn) {
+                pool.query(
+                    'UPDATE users SET world_x = $1, world_y = $2, world_z = $3 WHERE id = $4',
+                    [Math.round(clamped.worldX), Math.round(clamped.worldY), Math.round(clamped.worldZ), userId]
+                ).catch(err => console.error('world:join initial spawn save error:', err.message));
+            }
+
             players.set(socket.id, {
                 userId,
                 nickname,

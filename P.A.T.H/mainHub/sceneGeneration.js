@@ -417,6 +417,108 @@ export const sceneGenerationMethods = {
             orbitRing.position.y = 58;
             group.add(orbitRing);
 
+            const addSignatureBuilding = () => {
+                const uni = d.university || '';
+                const signature = new THREE.Group();
+
+                const basePodGeo = new THREE.CylinderGeometry(d.rx * 7, d.rx * 9, d.rx * 6, 8);
+                const basePodMat = new THREE.MeshStandardMaterial({ color: 0xb8c6d9, roughness: 0.5, metalness: 0.3 });
+                const basePod = new THREE.Mesh(basePodGeo, basePodMat);
+                basePod.position.y = 43;
+                signature.add(basePod);
+
+                if (uni === '서울대학교') {
+                    const archGeo = new THREE.TorusGeometry(d.rx * 10, d.rx * 1.3, 10, 28, Math.PI);
+                    const archMat = new THREE.MeshStandardMaterial({ color: 0xc9d9ef, roughness: 0.35, metalness: 0.5 });
+                    const arch = new THREE.Mesh(archGeo, archMat);
+                    arch.rotation.z = Math.PI;
+                    arch.position.y = 56;
+                    signature.add(arch);
+                } else if (uni === '연세대학교') {
+                    const spireGeo = new THREE.CylinderGeometry(d.rx * 1.6, d.rx * 3.2, d.rx * 26, 8);
+                    const spireMat = new THREE.MeshStandardMaterial({ color: 0xdee7f5, roughness: 0.4, metalness: 0.45 });
+                    const spire = new THREE.Mesh(spireGeo, spireMat);
+                    spire.position.y = 57;
+                    signature.add(spire);
+                } else if (uni === '고려대학교') {
+                    const gateGeo = new THREE.BoxGeometry(d.rx * 18, d.rx * 9, d.rx * 4);
+                    const gateMat = new THREE.MeshStandardMaterial({ color: 0xd7c8ba, roughness: 0.72, metalness: 0.12 });
+                    const gate = new THREE.Mesh(gateGeo, gateMat);
+                    gate.position.y = 51;
+                    signature.add(gate);
+                } else if (uni === '카이스트') {
+                    const ringGeo = new THREE.TorusGeometry(d.rx * 7.5, d.rx * 0.9, 8, 30);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: 0x9ce9ff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.rotation.x = Math.PI / 2;
+                    ring.position.y = 56;
+                    signature.add(ring);
+                    signature.userData.pulseRing = ring;
+                } else if (uni === '포항공과대학교') {
+                    const pylonGeo = new THREE.BoxGeometry(d.rx * 3, d.rx * 28, d.rx * 3);
+                    const pylonMat = new THREE.MeshStandardMaterial({ color: 0x9ba7b7, roughness: 0.5, metalness: 0.48 });
+                    const pylon = new THREE.Mesh(pylonGeo, pylonMat);
+                    pylon.position.y = 58;
+                    signature.add(pylon);
+                } else if (uni === '성균관대학교') {
+                    const roofGeo = new THREE.ConeGeometry(d.rx * 8, d.rx * 8, 4);
+                    const roofMat = new THREE.MeshStandardMaterial({ color: 0x8e3f2c, roughness: 0.65, metalness: 0.1 });
+                    const roof = new THREE.Mesh(roofGeo, roofMat);
+                    roof.position.y = 53;
+                    signature.add(roof);
+                } else if (uni === '한양대학교') {
+                    const lionGeo = new THREE.DodecahedronGeometry(d.rx * 4.5, 0);
+                    const lionMat = new THREE.MeshStandardMaterial({ color: 0xd8c896, roughness: 0.62, metalness: 0.22 });
+                    const lion = new THREE.Mesh(lionGeo, lionMat);
+                    lion.position.y = 53;
+                    signature.add(lion);
+                } else if (uni === '중앙대학교') {
+                    const crestGeo = new THREE.OctahedronGeometry(d.rx * 4.8, 0);
+                    const crestMat = new THREE.MeshStandardMaterial({ color: 0x6fa5ff, emissive: 0x2f63c1, emissiveIntensity: 0.75, roughness: 0.32, metalness: 0.4 });
+                    const crest = new THREE.Mesh(crestGeo, crestMat);
+                    crest.position.y = 55;
+                    signature.add(crest);
+                } else if (uni === '경희대학교') {
+                    const domeGeo = new THREE.SphereGeometry(d.rx * 6.5, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+                    const domeMat = new THREE.MeshStandardMaterial({ color: 0xdbe4f8, roughness: 0.4, metalness: 0.3 });
+                    const dome = new THREE.Mesh(domeGeo, domeMat);
+                    dome.position.y = 54;
+                    signature.add(dome);
+                } else if (uni === '서강대학교') {
+                    const wingGeo = new THREE.BoxGeometry(d.rx * 16, d.rx * 1.5, d.rx * 4.5);
+                    const wingMat = new THREE.MeshStandardMaterial({ color: 0xe6edf7, roughness: 0.42, metalness: 0.28 });
+                    const wing = new THREE.Mesh(wingGeo, wingMat);
+                    wing.position.y = 52;
+                    wing.rotation.y = Math.PI * 0.12;
+                    signature.add(wing);
+                } else if (uni === '이화여자대학교') {
+                    const eccGeo = new THREE.TorusGeometry(d.rx * 6, d.rx * 1.8, 10, 20, Math.PI * 1.25);
+                    const eccMat = new THREE.MeshStandardMaterial({ color: 0xf0ced9, roughness: 0.5, metalness: 0.18 });
+                    const ecc = new THREE.Mesh(eccGeo, eccMat);
+                    ecc.rotation.set(Math.PI * 0.54, 0, Math.PI * 0.5);
+                    ecc.position.y = 53;
+                    signature.add(ecc);
+                } else if (uni === '부산대학교') {
+                    const beaconGeo = new THREE.CylinderGeometry(d.rx * 2, d.rx * 2.8, d.rx * 22, 6);
+                    const beaconMat = new THREE.MeshStandardMaterial({ color: 0xd9dde4, roughness: 0.48, metalness: 0.35 });
+                    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+                    beacon.position.y = 56;
+                    signature.add(beacon);
+                } else {
+                    const genericGeo = new THREE.CylinderGeometry(d.rx * 3, d.rx * 4.5, d.rx * 18, 7);
+                    const genericMat = new THREE.MeshStandardMaterial({ color: 0xc8d2e2, roughness: 0.45, metalness: 0.35 });
+                    const generic = new THREE.Mesh(genericGeo, genericMat);
+                    generic.position.y = 54;
+                    signature.add(generic);
+                }
+
+                signature.position.set(0, 0, 0);
+                group.add(signature);
+                group.userData.signatureBuilding = signature;
+            };
+
+            addSignatureBuilding();
+
             if (d.type === 'forest' || d.type === 'flower') {
                 for (let t = 0; t < 7; t++) {
                     const trunkGeo = new THREE.CylinderGeometry(d.rx * 1.6, d.rx * 2.2, d.rx * 11, 6);
@@ -528,6 +630,37 @@ export const sceneGenerationMethods = {
             group.userData.rimRing = rimRing;
             group.userData.beaconCore = beaconCore;
             group.userData.orbitRing = orbitRing;
+
+            const lodProxy = new THREE.Group();
+            const lodBodyGeo = new THREE.IcosahedronGeometry(d.rx * 34, 0);
+            const lodBodyMat = new THREE.MeshStandardMaterial({
+                color: theme.top,
+                roughness: 0.92,
+                metalness: 0.08,
+                transparent: true,
+                opacity: 0.92,
+            });
+            const lodBody = new THREE.Mesh(lodBodyGeo, lodBodyMat);
+            lodBody.position.y = 16;
+            lodProxy.add(lodBody);
+
+            const lodRingGeo = new THREE.TorusGeometry(d.rx * 26, d.rx * 1.6, 8, 32);
+            const lodRingMat = new THREE.MeshBasicMaterial({
+                color: theme.accent,
+                transparent: true,
+                opacity: 0.34,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+            });
+            const lodRing = new THREE.Mesh(lodRingGeo, lodRingMat);
+            lodRing.rotation.x = Math.PI / 2;
+            lodRing.position.y = 34;
+            lodProxy.add(lodRing);
+
+            lodProxy.visible = false;
+            lodProxy.userData.isLodProxy = true;
+            group.add(lodProxy);
+            group.userData.lodProxy = lodProxy;
             this.scene.add(group);
             this.skyIslands.push(group);
         });

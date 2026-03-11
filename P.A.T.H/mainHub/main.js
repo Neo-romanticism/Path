@@ -487,20 +487,32 @@ function updateHUD(user) {
     const displayName = getDisplayName(mergedUser);
     const badgeChar = document.getElementById('badge-char');
     const badgePhoto = document.getElementById('badge-photo');
+    const badgeInitial = document.getElementById('badge-initial');
     const profileImageUrl = typeof mergedUser.profile_image_url === 'string' ? mergedUser.profile_image_url.trim() : '';
+    const initialChar = (displayName || '?').charAt(0).toUpperCase();
 
-    if (badgePhoto) {
+    if (badgeInitial) {
+        badgeInitial.textContent = initialChar;
+    }
+
+    if (badgePhoto && badgeInitial) {
+        badgePhoto.onerror = () => {
+            badgePhoto.removeAttribute('src');
+            badgePhoto.classList.add('hidden');
+            badgeInitial.classList.remove('hidden');
+        };
+
         if (profileImageUrl) {
             badgePhoto.src = profileImageUrl;
             badgePhoto.classList.remove('hidden');
-            if (badgeChar) badgeChar.textContent = '';
+            badgeInitial.classList.add('hidden');
         } else {
             badgePhoto.removeAttribute('src');
             badgePhoto.classList.add('hidden');
-            if (badgeChar) badgeChar.textContent = (displayName || '?').charAt(0).toUpperCase();
+            badgeInitial.classList.remove('hidden');
         }
     } else if (badgeChar) {
-        badgeChar.textContent = (displayName || '?').charAt(0).toUpperCase();
+        badgeChar.textContent = initialChar;
     }
 
     document.getElementById('hud-univ').textContent = displayName || '-';

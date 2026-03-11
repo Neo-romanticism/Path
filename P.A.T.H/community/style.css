@@ -494,6 +494,7 @@ body.light .theme-icon--moon { display: block; }
   display: block;
   border-bottom: 1px solid var(--border);
   transition: background var(--transition);
+  position: relative;
 }
 .post-row:last-child { border-bottom: none; }
 .post-row:hover { background: var(--surface); }
@@ -630,6 +631,28 @@ body.community-hide-media-badge .post-row__media-icon {
   color: var(--accent-red);
 }
 
+.post-row__bookmark-btn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border-mid);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.post-row__bookmark-btn.is-active {
+  color: var(--accent-green);
+  border-color: rgba(48,209,88,0.35);
+  background: rgba(48,209,88,0.12);
+}
+
 /* Number column / hot badge */
 .post-row__num { display: none; }
 
@@ -654,7 +677,13 @@ body.community-hide-media-badge .post-row__media-icon {
     display: grid;
     grid-template-columns: 52px 1fr 100px 56px 48px 42px;
     align-items: center;
-    padding: 9px 16px;
+    padding: 9px 46px 9px 16px;
+  }
+
+  .post-row__bookmark-btn {
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .post-row__num {
@@ -1179,6 +1208,27 @@ body.community-compact .c-hot-card {
   font-variant-numeric: tabular-nums;
 }
 
+.community-settings-weekly-report {
+  margin-top: 8px;
+  border: 1px dashed var(--border-mid);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+.community-settings-weekly-report__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.community-settings-weekly-report__desc {
+  margin-top: 5px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
 .community-settings-activity-columns {
   display: grid;
   grid-template-columns: 1fr;
@@ -1194,6 +1244,61 @@ body.community-compact .c-hot-card {
 
 .community-settings-activity-list {
   margin-top: 6px;
+}
+
+.community-settings-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-mid);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  margin-bottom: 8px;
+}
+
+.community-settings-bulk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.community-settings-bulk-count {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.community-settings-bulk-delete {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,69,58,0.35);
+  background: rgba(255,69,58,0.1);
+  color: var(--accent-red);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.community-settings-bulk-delete:disabled {
+  opacity: 0.55;
+}
+
+.community-settings-select-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 0;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.community-settings-select-check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent-blue);
 }
 
 .community-settings-activity-actions {

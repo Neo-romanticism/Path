@@ -291,6 +291,17 @@ router.get('/posts', async (req, res) => {
         views: 'p.views DESC, p.created_at DESC',
     };
     const orderBy = orderByMap[sort] || orderByMap.latest;
+    const viewerPlaceholder = params.length + 1;
+    const limitPlaceholder = params.length + (viewerId ? 2 : 1);
+    const offsetPlaceholder = params.length + (viewerId ? 3 : 2);
+    const viewerSelect = viewerId
+        ? `EXISTS (SELECT 1 FROM community_bookmarks cb WHERE cb.post_id = p.id AND cb.user_id = $${viewerPlaceholder}) AS is_bookmarked,
+           EXISTS (SELECT 1 FROM community_likes cl WHERE cl.post_id = p.id AND cl.user_id = $${viewerPlaceholder}) AS is_liked`
+        : `FALSE AS is_bookmarked,
+           FALSE AS is_liked`;
+    const listParams = viewerId
+        ? [...params, viewerId, limit, offset]
+        : [...params, limit, offset];
 
     try {
         const [cntRes, postsRes] = await Promise.all([
@@ -303,13 +314,14 @@ router.get('/posts', async (req, res) => {
                     (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                         p.views, p.likes, p.comments_count, p.created_at,
                         p.image_url,
-                        (p.image_url IS NOT NULL AND p.image_url <> '') AS has_image
+                        (p.image_url IS NOT NULL AND p.image_url <> '') AS has_image,
+                        ${viewerSelect}
                  FROM community_posts p
                  LEFT JOIN users u ON u.id = p.user_id
                  ${whereWithAlias}
                  ORDER BY ${orderBy}
-                 LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-                [...params, limit, offset]
+                 LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`,
+                listParams
             )
         ]);
         const posts = postsRes.rows.map((row) => {
@@ -428,8 +440,15 @@ router.get('/posts/:id', async (req, res) => {
                 [id, viewerId]
             );
             post.is_bookmarked = bookmarkRes.rows.length > 0;
+
+            const likeRes = await pool.query(
+                'SELECT 1 FROM community_likes WHERE post_id = $1 AND user_id = $2',
+                [id, viewerId]
+            );
+            post.is_liked = likeRes.rows.length > 0;
         } else {
             post.is_bookmarked = false;
+            post.is_liked = false;
         }
         post.display_nickname = post.active_title
             ? formatDisplayName(post.nickname, post.active_title)
@@ -767,6 +786,8 @@ router.get('/posts/:id/comments', async (req, res) => {
 
         const result = await pool.query(
             `SELECT c.id, c.user_id, c.nickname, c.ip_prefix, c.body, c.created_at,
+                    c.likes_count,
+                    ${viewerId ? 'EXISTS (SELECT 1 FROM community_comment_likes ccl WHERE ccl.comment_id = c.id AND ccl.user_id = $2) AS is_liked,' : 'FALSE AS is_liked,'}
                     u.nickname AS user_nickname, u.active_title,
                     u.profile_image_url,
                     (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
@@ -835,7 +856,7 @@ router.post('/posts/:id/comments', requireLatestEulaIfAuthenticated, async (req,
         const result = await client.query(
             `INSERT INTO community_comments (post_id, user_id, body, ip_prefix, nickname)
              VALUES ($1, $2, $3, $4, $5)
-             RETURNING id, user_id, nickname, ip_prefix, body, created_at`,
+             RETURNING id, user_id, nickname, ip_prefix, body, likes_count, created_at`,
             [postId, authorUserId, body.trim(), ipPrefix, nickname]
         );
 
@@ -849,12 +870,79 @@ router.post('/posts/:id/comments', requireLatestEulaIfAuthenticated, async (req,
             ...result.rows[0],
             display_nickname: isVerifiedNickname ? formatDisplayName(nickname, activeTitle) : nickname,
             profile_image_url: profileImageUrl,
-            is_verified_nickname: isVerifiedNickname
+            is_verified_nickname: isVerifiedNickname,
+            is_liked: false,
         } });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('[community] POST /posts/:id/comments', err.message);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    } finally {
+        client.release();
+    }
+});
+
+/* ════════════════════════════════════════════════════════════ */
+/* POST /posts/:postId/comments/:commentId/like — 댓글 좋아요 토글 */
+/* ════════════════════════════════════════════════════════════ */
+router.post('/posts/:postId/comments/:commentId/like', requireAuth, requireLatestEula, async (req, res) => {
+    const postId = parseInt(req.params.postId, 10);
+    const commentId = parseInt(req.params.commentId, 10);
+    const userId = req.session.userId;
+    if (!postId || !commentId) return res.status(400).json({ error: '잘못된 요청입니다.' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const commentRes = await client.query(
+            'SELECT id, likes_count FROM community_comments WHERE id = $1 AND post_id = $2 FOR UPDATE',
+            [commentId, postId]
+        );
+        if (!commentRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '댓글을 찾을 수 없습니다.' });
+        }
+
+        const existing = await client.query(
+            'SELECT 1 FROM community_comment_likes WHERE comment_id = $1 AND user_id = $2',
+            [commentId, userId]
+        );
+
+        let liked;
+        if (existing.rows.length) {
+            await client.query(
+                'DELETE FROM community_comment_likes WHERE comment_id = $1 AND user_id = $2',
+                [commentId, userId]
+            );
+            await client.query(
+                'UPDATE community_comments SET likes_count = GREATEST(0, likes_count - 1) WHERE id = $1',
+                [commentId]
+            );
+            liked = false;
+        } else {
+            await client.query(
+                'INSERT INTO community_comment_likes (comment_id, user_id) VALUES ($1, $2)',
+                [commentId, userId]
+            );
+            await client.query(
+                'UPDATE community_comments SET likes_count = likes_count + 1 WHERE id = $1',
+                [commentId]
+            );
+            liked = true;
+        }
+
+        const updated = await client.query(
+            'SELECT likes_count FROM community_comments WHERE id = $1',
+            [commentId]
+        );
+
+        await client.query('COMMIT');
+        return res.json({ ok: true, liked, likes_count: Number(updated.rows[0]?.likes_count || 0) });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('[community] POST /posts/:postId/comments/:commentId/like', err.message);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     } finally {
         client.release();
     }
@@ -1028,7 +1116,16 @@ router.get('/me/summary', requireAuth, async (req, res) => {
                 (SELECT COUNT(*)::int FROM community_comments WHERE user_id = $1) AS comments_count,
                 (SELECT COALESCE(SUM(likes), 0)::int FROM community_posts WHERE user_id = $1) AS received_likes,
                 (SELECT COUNT(*)::int FROM community_likes WHERE user_id = $1) AS liked_posts_count,
-                (SELECT COUNT(*)::int FROM community_bookmarks WHERE user_id = $1) AS bookmarks_count`,
+                                (SELECT COUNT(*)::int FROM community_bookmarks WHERE user_id = $1) AS bookmarks_count,
+                                (SELECT COUNT(*)::int FROM community_posts WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days') AS weekly_posts_count,
+                                (SELECT COUNT(*)::int FROM community_comments WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days') AS weekly_comments_count,
+                                (SELECT cp.category
+                                     FROM community_posts cp
+                                    WHERE cp.user_id = $1
+                                        AND cp.created_at >= NOW() - INTERVAL '7 days'
+                                    GROUP BY cp.category
+                                    ORDER BY COUNT(*) DESC, MAX(cp.created_at) DESC
+                                    LIMIT 1) AS top_category_7d`,
             [userId]
         );
 
@@ -1040,6 +1137,9 @@ router.get('/me/summary', requireAuth, async (req, res) => {
                 received_likes: Number(row.received_likes || 0),
                 liked_posts_count: Number(row.liked_posts_count || 0),
                 bookmarks_count: Number(row.bookmarks_count || 0),
+                weekly_posts_count: Number(row.weekly_posts_count || 0),
+                weekly_comments_count: Number(row.weekly_comments_count || 0),
+                top_category_7d: row.top_category_7d || '',
             }
         });
     } catch (err) {

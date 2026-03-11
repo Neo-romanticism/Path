@@ -72,6 +72,7 @@ const WorldScene = {
     seededProps: [],
     interactableProps: [],
     friendIds: new Set(),
+    islandCinematic: null,
 
     camPos: { x: 0, y: 0 },
     camTarget: { x: 0, y: 0 },
@@ -233,73 +234,25 @@ const WorldScene = {
         this._loop();
     },
 
-    /** Build the 3D ground plane with grid pattern */
+    /** Build an invisible raycast plane (used for click-to-move only). */
     _buildGroundPlane() {
-        // Large ground disc
+        // Keep interaction plane while rendering no visible floor.
         const groundSize = WORLD_HALF * WORLD_SCALE * 2;
         const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, 1, 1);
-        const groundMat = new THREE.MeshStandardMaterial({
-            color: 0x1a2a1a,
-            roughness: 0.95,
-            metalness: 0.0,
+        const groundMat = new THREE.MeshBasicMaterial({
             transparent: true,
-            opacity: 0.85,
+            opacity: 0,
+            depthWrite: false,
+            depthTest: false,
+            colorWrite: false,
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = GROUND_Y;
-        ground.receiveShadow = true;
         this.scene.add(ground);
         this._groundMesh = ground;
-
-        // Grid helper for spatial reference
-        const gridSize = 6000;
-        const gridDivisions = 60;
-        const grid = new THREE.GridHelper(gridSize, gridDivisions, 0x1a3a5a, 0x0a1520);
-        grid.position.y = GROUND_Y + 0.5;
-        grid.material.transparent = true;
-        grid.material.opacity = 0.35;
-        this.scene.add(grid);
-        this._gridHelper = grid;
-
-        // Atmospheric floor haze to avoid a flat/empty distant horizon.
-        const hazeGeo = new THREE.CircleGeometry(groundSize * 0.78, 96);
-        const hazeMat = new THREE.ShaderMaterial({
-            uniforms: {
-                uOpacity: { value: 0.26 },
-                uColorA: { value: new THREE.Color(0x4b7db6) },
-                uColorB: { value: new THREE.Color(0xb8dcff) },
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                varying vec2 vUv;
-                uniform float uOpacity;
-                uniform vec3 uColorA;
-                uniform vec3 uColorB;
-                void main() {
-                    float d = distance(vUv, vec2(0.5));
-                    float inner = 1.0 - smoothstep(0.08, 0.55, d);
-                    float ring = smoothstep(0.76, 0.52, d) * (1.0 - smoothstep(0.76, 0.92, d));
-                    float alpha = (inner * 0.35 + ring) * uOpacity;
-                    vec3 col = mix(uColorA, uColorB, inner);
-                    gl_FragColor = vec4(col, alpha);
-                }
-            `,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-        });
-        const haze = new THREE.Mesh(hazeGeo, hazeMat);
-        haze.rotation.x = -Math.PI / 2;
-        haze.position.y = GROUND_Y + 0.9;
-        this.scene.add(haze);
-        this._groundHaze = haze;
+        this._gridHelper = null;
+        this._groundHaze = null;
     },
 
     /** Update camera position from spherical orbit parameters */
@@ -392,20 +345,6 @@ const WorldScene = {
         if (this.sunGlow?.material) {
             this.sunGlow.material.opacity = mix * 0.25;
             this.sunGlow.visible = mix > 0.01;
-        }
-
-        if (this._groundHaze?.material?.uniforms) {
-            const hazeNightA = new THREE.Color(0x4b7db6);
-            const hazeDayA = new THREE.Color(0x89c9f7);
-            const hazeNightB = new THREE.Color(0xadd8ff);
-            const hazeDayB = new THREE.Color(0xf2fbff);
-            this._groundHaze.material.uniforms.uColorA.value.copy(hazeNightA).lerp(hazeDayA, mix);
-            this._groundHaze.material.uniforms.uColorB.value.copy(hazeNightB).lerp(hazeDayB, mix);
-            this._groundHaze.material.uniforms.uOpacity.value = 0.2 + mix * 0.16;
-        }
-
-        if (this._gridHelper?.material) {
-            this._gridHelper.material.opacity = 0.28 - mix * 0.18;
         }
 
         if (this._fireflies?.material) {
@@ -1249,6 +1188,7 @@ const WorldScene = {
     },
 
     focusHome() {
+        this._cancelIslandCinematic();
         if (this.myBalloon) {
             const grp = this.myBalloon.group;
             const wPos = sceneToWorld3D(grp.position.x, grp.position.z);
@@ -1257,6 +1197,30 @@ const WorldScene = {
             this.teleportTo(0, 0);
         }
         this.orbitTargetRadius = ORBIT_DEFAULT_RADIUS;
+    },
+
+    _startIslandCinematic(island) {
+        if (!island || !this.orbitTarget || !this.camera) return;
+
+        const target = island.position.clone();
+        target.y += 48;
+        const distFactor = Math.max(1, Number(island.userData?.rx) || 1.6);
+        const targetRadius = Math.max(260, Math.min(680, 280 + distFactor * 95));
+
+        this.orbitVelTheta = 0;
+        this.orbitVelPhi = 0;
+        this.islandCinematic = {
+            active: true,
+            endsAt: Date.now() + 1100,
+            target,
+            targetRadius,
+        };
+    },
+
+    _cancelIslandCinematic() {
+        if (this.islandCinematic?.active) {
+            this.islandCinematic.active = false;
+        }
     },
 
     // ── World coordinate helpers ──────────────────────────────────────────
@@ -1498,6 +1462,7 @@ const WorldScene = {
 
         canvas.addEventListener('pointerdown', (e) => {
             if (e.target.closest?.('.glass-panel,.hud-header,.fab-rail,.pill-action-wrap')) return;
+            this._cancelIslandCinematic();
             this.lastPointer = { x: e.clientX, y: e.clientY };
             this.balloonDragDist = 0;
             pointerButton = e.button;
@@ -1738,6 +1703,7 @@ const WorldScene = {
 
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
+            this._cancelIslandCinematic();
             this.orbitTargetRadius += e.deltaY * 0.5;
             this.orbitTargetRadius = Math.max(ORBIT_MIN_RADIUS, Math.min(ORBIT_MAX_RADIUS, this.orbitTargetRadius));
         }, { passive: false });
@@ -1780,6 +1746,7 @@ const WorldScene = {
                 let island = islandHits[0].object;
                 while (island && !island.userData.name) island = island.parent;
                 if (island && island.userData.name) {
+                    this._startIslandCinematic(island);
                     this._showIslandInfo(island.userData);
                     return;
                 }
@@ -2311,8 +2278,20 @@ const WorldScene = {
         // Smooth zoom
         this.orbitRadius += (this.orbitTargetRadius - this.orbitRadius) * 0.08;
 
+        const cinematicOn = !!(this.islandCinematic?.active);
+        if (cinematicOn && this.orbitTarget) {
+            const c = this.islandCinematic;
+            this.orbitTarget.x += (c.target.x - this.orbitTarget.x) * 0.13;
+            this.orbitTarget.y += (c.target.y - this.orbitTarget.y) * 0.13;
+            this.orbitTarget.z += (c.target.z - this.orbitTarget.z) * 0.13;
+            this.orbitTargetRadius += (c.targetRadius - this.orbitTargetRadius) * 0.12;
+            if (Date.now() > c.endsAt) {
+                this.islandCinematic.active = false;
+            }
+        }
+
         // Smoothly track orbit target toward player position
-        if (this.orbitTarget && this.myBalloon) {
+        if (!cinematicOn && this.orbitTarget && this.myBalloon) {
             const grp = this.myBalloon.group;
             this.orbitTarget.x += (grp.position.x - this.orbitTarget.x) * 0.1;
             this.orbitTarget.y += (this._getBalloonBaseY() - this.orbitTarget.y) * 0.1;
@@ -2320,12 +2299,6 @@ const WorldScene = {
         }
 
         this._updateCameraFromOrbit();
-
-        // Move grid to follow player
-        if (this._gridHelper && this.myBalloon) {
-            this._gridHelper.position.x = this.myBalloon.group.position.x;
-            this._gridHelper.position.z = this.myBalloon.group.position.z;
-        }
 
         this._resolveBalloonCollisions();
 
@@ -2519,6 +2492,21 @@ const WorldScene = {
             const floatHeight = Math.sin(t * island.userData.floatSpeed + island.userData.floatPhase) * 15;
             island.position.y = island.userData.baseY + floatHeight;
 
+            if (this.camera && island.userData.lodProxy) {
+                const lodDistance = this.camera.position.distanceTo(island.position);
+                const useProxy = lodDistance > 2300;
+                island.userData.lodProxy.visible = useProxy;
+                island.children.forEach((child) => {
+                    if (child === island.userData.lodProxy) return;
+                    child.visible = !useProxy;
+                });
+
+                if (useProxy) {
+                    island.userData.lodProxy.rotation.y += 0.004;
+                    return;
+                }
+            }
+
             if (island.userData.rimRing) {
                 island.userData.rimRing.rotation.z += 0.004;
                 island.userData.rimRing.material.opacity = 0.18 + Math.sin(t * 1.2 + island.userData.floatPhase) * 0.08;
@@ -2530,6 +2518,13 @@ const WorldScene = {
             if (island.userData.orbitRing?.material) {
                 island.userData.orbitRing.rotation.z -= 0.014;
                 island.userData.orbitRing.material.opacity = 0.3 + Math.sin(t * 1.5 + island.userData.floatPhase) * 0.1;
+            }
+            if (island.userData.signatureBuilding) {
+                island.userData.signatureBuilding.rotation.y += 0.006;
+                const pulseRing = island.userData.signatureBuilding.userData?.pulseRing;
+                if (pulseRing?.material) {
+                    pulseRing.material.opacity = 0.25 + Math.sin(t * 1.7 + island.userData.floatPhase) * 0.18;
+                }
             }
             
             // 라벨 회전 (항상 카메라 방향)
