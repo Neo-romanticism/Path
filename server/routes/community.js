@@ -767,6 +767,10 @@ router.get('/posts/:id/comments', async (req, res) => {
     if (!postId) return res.status(400).json({ error: '잘못된 요청입니다.' });
 
     const viewerId = req.session?.userId ? parseInt(req.session.userId, 10) : null;
+    const sort = String(req.query.sort || 'latest').trim();
+    const orderBy = sort === 'likes'
+        ? 'c.likes_count DESC, c.created_at DESC'
+        : 'c.created_at DESC';
 
     try {
         const params = [postId];
@@ -788,14 +792,17 @@ router.get('/posts/:id/comments', async (req, res) => {
             `SELECT c.id, c.user_id, c.nickname, c.ip_prefix, c.body, c.created_at,
                     c.likes_count,
                     ${viewerId ? 'EXISTS (SELECT 1 FROM community_comment_likes ccl WHERE ccl.comment_id = c.id AND ccl.user_id = $2) AS is_liked,' : 'FALSE AS is_liked,'}
+                    ${viewerId ? 'c.user_id = $2 AS is_mine,' : 'FALSE AS is_mine,'}
+                    c.user_id IS NOT NULL AND c.user_id = p.user_id AS is_post_author,
                     u.nickname AS user_nickname, u.active_title,
                     u.profile_image_url,
                     (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
              FROM community_comments c
+             JOIN community_posts p ON p.id = c.post_id
              LEFT JOIN users u ON u.id = c.user_id
              WHERE c.post_id = $1
              ${blockedWhere}
-             ORDER BY c.created_at ASC`,
+             ORDER BY ${orderBy}`,
             params
         );
         const comments = result.rows.map((row) => ({
@@ -896,7 +903,12 @@ router.post('/posts/:postId/comments/:commentId/like', requireAuth, requireLates
         await client.query('BEGIN');
 
         const commentRes = await client.query(
-            'SELECT id, likes_count FROM community_comments WHERE id = $1 AND post_id = $2 FOR UPDATE',
+            `SELECT c.id, c.likes_count, c.user_id AS comment_user_id,
+                    p.id AS post_id, p.title AS post_title
+             FROM community_comments c
+             JOIN community_posts p ON p.id = c.post_id
+             WHERE c.id = $1 AND c.post_id = $2
+             FOR UPDATE`,
             [commentId, postId]
         );
         if (!commentRes.rows.length) {
@@ -930,6 +942,17 @@ router.post('/posts/:postId/comments/:commentId/like', requireAuth, requireLates
                 [commentId]
             );
             liked = true;
+
+            const commentOwnerId = Number(commentRes.rows[0]?.comment_user_id || 0);
+            if (commentOwnerId > 0 && commentOwnerId !== userId) {
+                const rawTitle = String(commentRes.rows[0]?.post_title || '게시글').trim();
+                const shortTitle = rawTitle.length > 28 ? `${rawTitle.slice(0, 28)}...` : rawTitle;
+                const message = `회원님의 댓글에 공감이 추가됐어요 · ${shortTitle}`;
+                await client.query(
+                    'INSERT INTO notifications (user_id, type, message) VALUES ($1, $2, $3)',
+                    [commentOwnerId, 'community_like', message]
+                );
+            }
         }
 
         const updated = await client.query(
@@ -1117,6 +1140,7 @@ router.get('/me/summary', requireAuth, async (req, res) => {
                 (SELECT COALESCE(SUM(likes), 0)::int FROM community_posts WHERE user_id = $1) AS received_likes,
                 (SELECT COUNT(*)::int FROM community_likes WHERE user_id = $1) AS liked_posts_count,
                                 (SELECT COUNT(*)::int FROM community_bookmarks WHERE user_id = $1) AS bookmarks_count,
+                (SELECT COUNT(*)::int FROM community_comment_likes WHERE user_id = $1) AS liked_comments_count,
                                 (SELECT COUNT(*)::int FROM community_posts WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days') AS weekly_posts_count,
                                 (SELECT COUNT(*)::int FROM community_comments WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '7 days') AS weekly_comments_count,
                                 (SELECT cp.category
@@ -1137,6 +1161,7 @@ router.get('/me/summary', requireAuth, async (req, res) => {
                 received_likes: Number(row.received_likes || 0),
                 liked_posts_count: Number(row.liked_posts_count || 0),
                 bookmarks_count: Number(row.bookmarks_count || 0),
+                liked_comments_count: Number(row.liked_comments_count || 0),
                 weekly_posts_count: Number(row.weekly_posts_count || 0),
                 weekly_comments_count: Number(row.weekly_comments_count || 0),
                 top_category_7d: row.top_category_7d || '',
@@ -1358,6 +1383,68 @@ router.get('/me/bookmarks', requireAuth, async (req, res) => {
         });
     } catch (err) {
         console.error('[community] GET /me/bookmarks', err.message);
+        return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+});
+
+/* ════════════════════════════════════════════════════════════ */
+/* GET /me/liked-comments — 내가 공감한 댓글 목록               */
+/* ════════════════════════════════════════════════════════════ */
+router.get('/me/liked-comments', requireAuth, async (req, res) => {
+    const userId = req.session.userId;
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const filters = parseActivityFilters(req);
+
+    try {
+        const params = [userId];
+        const conds = ['ccl.user_id = $1'];
+        appendActivityFilters(conds, params, filters, {
+            categoryColumn: 'p.category',
+            dateColumn: 'ccl.created_at',
+            textColumns: ['c.body', 'p.title'],
+        });
+        const where = `WHERE ${conds.join(' AND ')}`;
+
+        const [countRes, listRes] = await Promise.all([
+            pool.query(
+                `SELECT COUNT(*)::int AS total
+                 FROM community_comment_likes ccl
+                 JOIN community_comments c ON c.id = ccl.comment_id
+                 JOIN community_posts p ON p.id = c.post_id
+                 ${where}`,
+                params
+            ),
+            pool.query(
+                `SELECT c.id AS comment_id,
+                        c.post_id,
+                        c.body,
+                        c.created_at AS comment_created_at,
+                        c.likes_count,
+                        p.title AS post_title,
+                        p.category AS post_category,
+                        ccl.created_at AS liked_at
+                 FROM community_comment_likes ccl
+                 JOIN community_comments c ON c.id = ccl.comment_id
+                 JOIN community_posts p ON p.id = c.post_id
+                 ${where}
+                 ORDER BY ccl.created_at DESC, c.created_at DESC
+                 LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+                [...params, limit, offset]
+            )
+        ]);
+
+        const total = Number(countRes.rows[0]?.total || 0);
+        const comments = listRes.rows || [];
+        return res.json({
+            total,
+            offset,
+            limit,
+            has_more: offset + comments.length < total,
+            comments,
+        });
+    } catch (err) {
+        console.error('[community] GET /me/liked-comments', err.message);
         return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 });

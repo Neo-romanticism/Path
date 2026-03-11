@@ -331,12 +331,13 @@ app.use('/legal', express.static(path.join(projectRoot, 'P.A.T.H', 'legal'), sta
 
 app.get('/community/post/:id', async (req, res) => {
     const postId = parseInt(req.params.id, 10);
+  const targetCommentId = Math.max(0, parseInt(req.query.cmt, 10) || 0);
     if (!postId) {
         return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
     }
 
     try {
-        const [updateResult, commentsResult, otherPostsResult] = await Promise.all([
+    const [updateResult, commentsResult, targetCommentResult, otherPostsResult] = await Promise.all([
             pool.query(
                 `WITH updated AS (
                    UPDATE community_posts SET views = views + 1 WHERE id = $1
@@ -361,6 +362,18 @@ app.get('/community/post/:id', async (req, res) => {
                  LIMIT 5`,
                 [postId]
             ),
+              targetCommentId
+                ? pool.query(
+                  `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
+                      u.profile_image_url,
+                      (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
+                   FROM community_comments c
+                   LEFT JOIN users u ON u.id = c.user_id
+                   WHERE c.post_id = $1 AND c.id = $2
+                   LIMIT 1`,
+                  [postId, targetCommentId]
+                )
+                : Promise.resolve({ rows: [] }),
             pool.query(
                 `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix, p.likes, p.comments_count, p.views, p.created_at,
                         u.profile_image_url,
@@ -390,6 +403,13 @@ app.get('/community/post/:id', async (req, res) => {
             ? `${post.nickname} [${post.active_title}]`
             : (post.nickname || '익명');
         const comments = commentsResult.rows;
+        if (targetCommentResult.rows.length) {
+          const target = targetCommentResult.rows[0];
+          if (!comments.some((c) => Number(c.id) === Number(target.id))) {
+            comments.unshift(target);
+          }
+        }
+        const highlightedCommentId = targetCommentResult.rows[0]?.id || null;
         // 댓글 프로필 정규화
         comments.forEach((c) => {
             if (c.profile_image_url && /^\/uploads\/profiles\/[a-zA-Z0-9._-]+$/.test(c.profile_image_url.trim())) {
@@ -471,7 +491,7 @@ app.get('/community/post/:id', async (req, res) => {
 
         const commentsHtml = comments.length
             ? comments.map((comment) => `
-      <li class="comment-item">
+      <li class="comment-item${Number(highlightedCommentId) === Number(comment.id) ? ' comment-item--target' : ''}" id="comment-${comment.id}">
         <div class="comment-meta">
           ${renderCommentAvatar(comment)}
           <span class="cmt-nick">${escapeHtml(comment.nickname || '익명')}${comment.is_verified_nickname ? '<span class="verified-badge">✓</span>' : ''}</span>
@@ -641,6 +661,7 @@ app.get('/community/post/:id', async (req, res) => {
     .cmt-date{font-size:11px;color:var(--text-3);margin-left:auto}
     .cmt-body{font-size:13.5px;color:var(--text-1);line-height:1.55;white-space:pre-wrap;word-break:break-word}
     .comment-empty{font-size:13px;color:var(--text-3);padding:12px 0;text-align:center}
+    .comment-item--target{background:rgba(59,130,246,0.09);border-radius:10px;padding:10px 10px 12px;margin:0 -10px 2px}
 
     /* ── Other posts list (matches community main page) */
     .post-row{display:flex;padding:11px 0;border-bottom:1px solid var(--border);text-decoration:none;transition:background var(--transition)}
@@ -795,6 +816,21 @@ app.get('/community/post/:id', async (req, res) => {
           }
         });
       }
+
+      // ── 댓글 앵커 이동 (?cmt=123)
+      try {
+        var qs = new URLSearchParams(window.location.search);
+        var cmtId = parseInt(qs.get('cmt') || '0', 10);
+        if (cmtId > 0) {
+          var targetEl = document.getElementById('comment-' + cmtId);
+          if (targetEl) {
+            setTimeout(function() {
+              targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              targetEl.classList.add('comment-item--target');
+            }, 120);
+          }
+        }
+      } catch (_) {}
     })();
   </script>
 </body>

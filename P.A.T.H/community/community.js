@@ -24,7 +24,7 @@ const GOLD_LIKE_COST = 30;
 const WRITE_DRAFT_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const COMMUNITY_SETTINGS_KEY = 'path.community.settings.v1';
 const SETTINGS_ACTIVITY_PAGE_SIZE = 8;
-const SETTINGS_ACTIVITY_TYPES = ['posts', 'comments', 'likes', 'bookmarks'];
+const SETTINGS_ACTIVITY_TYPES = ['posts', 'comments', 'likes', 'bookmarks', 'commentLikes'];
 
 const DEFAULT_COMMUNITY_SETTINGS = {
   layout: 'comfortable',
@@ -476,7 +476,7 @@ function markPostViewed(postId) {
   }).catch(() => {});
 }
 
-function renderDetailBody(container, { post, postId, comments }) {
+function renderDetailBody(container, { post, postId, comments, commentSort = 'latest' }) {
     const cat     = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
     const canModerate = currentUserIsAdmin();
     const safeImageUrl = safeHttpUrl(post.image_url);
@@ -487,7 +487,7 @@ function renderDetailBody(container, { post, postId, comments }) {
   let isBookmarked = !!post.is_bookmarked;
   let isLiked = !!post.is_liked;
     const cmtHtml = comments.map(c => `
-      <li class="cmt-item" data-comment-id="${c.id}">
+      <li class="cmt-item${c.is_mine ? ' cmt-item--mine' : ''}${c.is_post_author ? ' cmt-item--author' : ''}" data-comment-id="${c.id}">
         <div class="cmt-meta">
           <span class="cmt-nick">${renderNicknameWithBadge({
             nickname: c.display_nickname || c.nickname || '익명',
@@ -496,6 +496,8 @@ function renderDetailBody(container, { post, postId, comments }) {
             profileImageUrl: c.profile_image_url,
             className: 'js-open-user-profile'
           })}</span>
+          ${c.is_mine ? '<span class="cmt-badge cmt-badge--mine">내 댓글</span>' : ''}
+          ${c.is_post_author ? '<span class="cmt-badge cmt-badge--author">작성자</span>' : ''}
           <span class="cmt-ip">(${escHtml(c.ip_prefix ?? '?.?')})</span>
           <span class="cmt-date">${fmtRelative(c.created_at)}</span>
           ${canModerate ? '<button class="cmt-admin-del" type="button">삭제</button>' : ''}
@@ -548,7 +550,13 @@ function renderDetailBody(container, { post, postId, comments }) {
         ${canModerate ? '<button class="detail-admin-del-btn" id="detail-admin-del-btn">게시글 삭제</button>' : ''}
       </div>
       <div class="detail-comments">
-        <p class="detail-cmt-head">댓글 <strong>${comments.length}</strong></p>
+        <div class="detail-cmt-head-wrap">
+          <p class="detail-cmt-head">댓글 <strong>${comments.length}</strong></p>
+          <div class="detail-cmt-sort" role="tablist" aria-label="댓글 정렬">
+            <button class="detail-cmt-sort-btn${commentSort === 'latest' ? ' is-active' : ''}" type="button" data-cmt-sort="latest" role="tab" aria-selected="${commentSort === 'latest' ? 'true' : 'false'}">최신순</button>
+            <button class="detail-cmt-sort-btn${commentSort === 'likes' ? ' is-active' : ''}" type="button" data-cmt-sort="likes" role="tab" aria-selected="${commentSort === 'likes' ? 'true' : 'false'}">공감순</button>
+          </div>
+        </div>
         <ul class="cmt-list" id="cmt-list">${cmtHtml || '<li class="cmt-empty">아직 댓글이 없어요.</li>'}</ul>
         <div class="cmt-write">
           ${currentUser ? '' : '<input id="cmt-anon-nick" class="write-input" type="text" maxlength="20" placeholder="익명 닉네임 (2~20자, 기본: 익명)" autocomplete="off">'}
@@ -853,6 +861,28 @@ function renderDetailBody(container, { post, postId, comments }) {
         e.preventDefault();
         submitComment();
       }
+    });
+
+    container.querySelectorAll('.detail-cmt-sort-btn').forEach((sortBtn) => {
+      sortBtn.addEventListener('click', async () => {
+        const nextSort = String(sortBtn.dataset.cmtSort || '').trim();
+        if (!nextSort || nextSort === commentSort) return;
+        try {
+          const r = await fetch(`/api/community/posts/${postId}/comments?sort=${encodeURIComponent(nextSort)}`, {
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            const msg = await readApiError(r, '댓글을 다시 불러오지 못했어요');
+            if (msg) showToast(msg);
+            return;
+          }
+          const data = await r.json().catch(() => ({}));
+          const nextComments = Array.isArray(data.comments) ? data.comments : [];
+          renderDetailBody(container, { post, postId, comments: nextComments, commentSort: nextSort });
+        } catch (_) {
+          showToast('댓글 정렬 변경 중 오류가 발생했어요');
+        }
+      });
     });
 
     container.querySelectorAll('.cmt-like-btn').forEach((btn) => {
@@ -1213,12 +1243,14 @@ function openSettingsModal() {
             <button class="community-settings-activity-type" type="button" data-activity-type="comments" role="tab" aria-selected="false">나의 댓글</button>
             <button class="community-settings-activity-type" type="button" data-activity-type="likes" role="tab" aria-selected="false">좋아요한 글</button>
             <button class="community-settings-activity-type" type="button" data-activity-type="bookmarks" role="tab" aria-selected="false">북마크</button>
+            <button class="community-settings-activity-type" type="button" data-activity-type="commentLikes" role="tab" aria-selected="false">공감한 댓글</button>
           </div>
           <div class="community-settings-activity-panels">
             <div id="settings-my-posts-wrap" class="community-settings-activity-list" data-activity-panel="posts"></div>
             <div id="settings-my-comments-wrap" class="community-settings-activity-list hidden" data-activity-panel="comments"></div>
             <div id="settings-my-liked-wrap" class="community-settings-activity-list hidden" data-activity-panel="likes"></div>
             <div id="settings-my-bookmarks-wrap" class="community-settings-activity-list hidden" data-activity-panel="bookmarks"></div>
+            <div id="settings-my-liked-comments-wrap" class="community-settings-activity-list hidden" data-activity-panel="commentLikes"></div>
           </div>
         </section>
 
@@ -1252,6 +1284,7 @@ function openSettingsModal() {
   const myCommentsWrap = backdrop.querySelector('#settings-my-comments-wrap');
   const myLikedWrap = backdrop.querySelector('#settings-my-liked-wrap');
   const myBookmarksWrap = backdrop.querySelector('#settings-my-bookmarks-wrap');
+  const myLikedCommentsWrap = backdrop.querySelector('#settings-my-liked-comments-wrap');
   const activityTypeBtns = Array.from(backdrop.querySelectorAll('.community-settings-activity-type'));
   const activityPanels = Array.from(backdrop.querySelectorAll('[data-activity-panel]'));
   const activityCategoryFilter = backdrop.querySelector('#settings-activity-filter-category');
@@ -1271,6 +1304,7 @@ function openSettingsModal() {
       comments: { offset: 0, hasMore: false, items: [] },
       likes: { offset: 0, hasMore: false, items: [] },
       bookmarks: { offset: 0, hasMore: false, items: [] },
+      commentLikes: { offset: 0, hasMore: false, items: [] },
     },
     selections: {
       posts: new Set(),
@@ -1305,6 +1339,7 @@ function openSettingsModal() {
         commentsWrap: myCommentsWrap,
         likedWrap: myLikedWrap,
         bookmarksWrap: myBookmarksWrap,
+        likedCommentsWrap: myLikedCommentsWrap,
       }, activityState);
     }
   };
@@ -1329,6 +1364,7 @@ function openSettingsModal() {
         commentsWrap: myCommentsWrap,
         likedWrap: myLikedWrap,
         bookmarksWrap: myBookmarksWrap,
+        likedCommentsWrap: myLikedCommentsWrap,
       }, activityState);
     });
   });
@@ -1375,6 +1411,7 @@ function openSettingsModal() {
       commentsWrap: myCommentsWrap,
       likedWrap: myLikedWrap,
       bookmarksWrap: myBookmarksWrap,
+      likedCommentsWrap: myLikedCommentsWrap,
     }, activityState, { reset: true });
   });
 
@@ -1388,6 +1425,7 @@ function openSettingsModal() {
       commentsWrap: myCommentsWrap,
       likedWrap: myLikedWrap,
       bookmarksWrap: myBookmarksWrap,
+      likedCommentsWrap: myLikedCommentsWrap,
     }, activityState, { reset: true, skipSummary: true });
   };
 
@@ -1407,7 +1445,7 @@ function openSettingsModal() {
 }
 
 async function renderSettingsActivityTab(containers, state, options = {}) {
-  if (!containers?.summaryWrap || !containers?.postsWrap || !containers?.commentsWrap || !containers?.likedWrap || !containers?.bookmarksWrap) return;
+  if (!containers?.summaryWrap || !containers?.postsWrap || !containers?.commentsWrap || !containers?.likedWrap || !containers?.bookmarksWrap || !containers?.likedCommentsWrap) return;
 
   if (!currentUser) {
     containers.summaryWrap.innerHTML = '';
@@ -1419,6 +1457,7 @@ async function renderSettingsActivityTab(containers, state, options = {}) {
     containers.commentsWrap.innerHTML = '';
     containers.likedWrap.innerHTML = '';
     containers.bookmarksWrap.innerHTML = '';
+    containers.likedCommentsWrap.innerHTML = '';
     return;
   }
 
@@ -1470,6 +1509,7 @@ async function renderSettingsActivitySummary(container) {
     const receivedLikes = Number(summary.received_likes || 0);
     const likedPostsCount = Number(summary.liked_posts_count || 0);
     const bookmarksCount = Number(summary.bookmarks_count || 0);
+    const likedCommentsCount = Number(summary.liked_comments_count || 0);
     const weeklyPostsCount = Number(summary.weekly_posts_count || 0);
     const weeklyCommentsCount = Number(summary.weekly_comments_count || 0);
     const topCategory7d = String(summary.top_category_7d || '').trim();
@@ -1496,6 +1536,10 @@ async function renderSettingsActivitySummary(container) {
           <p class="community-settings-stat-card__label">북마크</p>
           <strong class="community-settings-stat-card__value">${bookmarksCount.toLocaleString('ko-KR')}</strong>
         </article>
+        <article class="community-settings-stat-card">
+          <p class="community-settings-stat-card__label">공감한 댓글</p>
+          <strong class="community-settings-stat-card__value">${likedCommentsCount.toLocaleString('ko-KR')}</strong>
+        </article>
       </div>
       <div class="community-settings-weekly-report">
         <p class="community-settings-weekly-report__title">주간 리포트</p>
@@ -1514,6 +1558,7 @@ function getActivityContainerByType(containers, type) {
   if (type === 'comments') return containers.commentsWrap;
   if (type === 'likes') return containers.likedWrap;
   if (type === 'bookmarks') return containers.bookmarksWrap;
+  if (type === 'commentLikes') return containers.likedCommentsWrap;
   return null;
 }
 
@@ -1523,6 +1568,7 @@ function buildActivityFetchUrl(type, listState, filters) {
     comments: '/api/community/me/comments',
     likes: '/api/community/me/liked-posts',
     bookmarks: '/api/community/me/bookmarks',
+    commentLikes: '/api/community/me/liked-comments',
   };
 
   const params = new URLSearchParams({
@@ -1570,12 +1616,14 @@ async function renderActivityListByType(containers, state, type, options = {}) {
         comments: '작성한 댓글이 아직 없어요.',
         likes: '좋아요한 글이 아직 없어요.',
         bookmarks: '북마크한 글이 아직 없어요.',
+        commentLikes: '공감한 댓글이 아직 없어요.',
       };
       const emptyDescMap = {
         posts: '첫 글을 작성하고 활동을 시작해 보세요.',
         comments: '글에 댓글을 남기면 여기에 모아서 볼 수 있어요.',
         likes: '좋아요 버튼을 누른 글이 이곳에 표시됩니다.',
         bookmarks: '북마크한 글이 이곳에 표시됩니다.',
+        commentLikes: '댓글의 공감 버튼을 누르면 이곳에 표시됩니다.',
       };
       container.innerHTML = `
         <div class="community-settings-empty">
@@ -1627,6 +1675,21 @@ function renderActivityItemHtml(type, item, state) {
         <div class="community-settings-activity-actions">
           <button class="community-settings-item-delete" type="button" data-delete-type="comment" data-comment-id="${Number(item.id)}">삭제</button>
         </div>
+      </li>`;
+  }
+
+  if (type === 'commentLikes') {
+    const commentId = Number(item.comment_id || 0);
+    const commentAnchor = commentId > 0
+      ? `${getPostDetailUrl(item.post_id)}?cmt=${commentId}#comment-${commentId}`
+      : getPostDetailUrl(item.post_id);
+    return `
+      <li class="community-settings-activity-item">
+        <a href="${commentAnchor}" class="community-settings-activity-link" data-post-id="${Number(item.post_id)}">
+          <p class="community-settings-activity-title">[${escHtml(item.post_category || '전체')}] ${escHtml(item.post_title || '원문')}</p>
+          <p class="community-settings-activity-snippet">${escHtml(truncateText(item.body || '', 90))}</p>
+          <p class="community-settings-activity-meta">댓글 ${fmtRelative(item.comment_created_at)} · 공감 ${Number(item.likes_count || 0)} · 내가 공감 ${fmtRelative(item.liked_at)}</p>
+        </a>
       </li>`;
   }
 
@@ -2684,12 +2747,29 @@ detailStyle.textContent = `
 }
 .detail-comments { display:flex; flex-direction:column; gap:12px; }
 .detail-cmt-head { font-size:13px; font-weight:700; color:var(--text-2); }
+.detail-cmt-head-wrap { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.detail-cmt-sort { display:flex; align-items:center; gap:6px; }
+.detail-cmt-sort-btn {
+  height:24px; padding:0 8px; border-radius:999px; border:1px solid var(--border-mid);
+  background:var(--surface-2); color:var(--text-3); font-size:10.5px; font-weight:700;
+}
+.detail-cmt-sort-btn.is-active {
+  color:var(--accent-blue); border-color:rgba(59,130,246,0.35); background:rgba(59,130,246,0.12);
+}
 .cmt-list { display:flex; flex-direction:column; }
 .cmt-item { padding:11px 0; border-bottom:1px solid var(--border); }
 .cmt-item:last-child { border-bottom:none; }
+.cmt-item--mine { background:color-mix(in srgb, var(--accent-blue) 8%, transparent); }
+.cmt-item--author { background:color-mix(in srgb, var(--accent-green) 7%, transparent); }
 .cmt-empty { padding:24px 0; text-align:center; color:var(--text-3); font-size:13px; }
 .cmt-meta { display:flex; align-items:center; gap:5px; margin-bottom:5px; }
 .cmt-nick { font-size:12px; font-weight:600; color:var(--text-1); }
+.cmt-badge {
+  display:inline-flex; align-items:center; height:16px; padding:0 6px; border-radius:999px;
+  font-size:9.5px; font-weight:700;
+}
+.cmt-badge--mine { color:var(--accent-blue); background:rgba(59,130,246,0.14); border:1px solid rgba(59,130,246,0.28); }
+.cmt-badge--author { color:var(--accent-green); background:rgba(48,209,88,0.14); border:1px solid rgba(48,209,88,0.28); }
 .cmt-ip   { font-size:11px; color:var(--text-3); }
 .cmt-date { font-size:11px; color:var(--text-3); margin-left:auto; }
 .cmt-body { font-size:13.5px; color:var(--text-1); line-height:1.55; white-space:pre-wrap; word-break:break-word; }

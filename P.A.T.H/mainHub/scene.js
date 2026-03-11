@@ -73,6 +73,12 @@ const WorldScene = {
     interactableProps: [],
     friendIds: new Set(),
     islandCinematic: null,
+    _cameraCollisionMeshes: [],
+    _cameraCollisionFrame: -1,
+    _cameraRaycaster: null,
+    cameraCollisionProfile: 'medium',
+    _activeOccluderMaterials: new Set(),
+    _materialOriginalState: new WeakMap(),
 
     camPos: { x: 0, y: 0 },
     camTarget: { x: 0, y: 0 },
@@ -216,6 +222,7 @@ const WorldScene = {
         this._buildSkyIslands();
         this.balloonLodDistance = this._getAdaptiveBalloonLodDistance();
         this.touchTuning = this._getAdaptiveTouchTuning();
+        this._loadCameraCollisionProfileFromStorage();
 
         this.isLight = document.body.classList.contains('light');
         this.dayNightMix = this.isLight ? 1 : 0;
@@ -261,12 +268,92 @@ const WorldScene = {
         const r = this.orbitRadius;
         const theta = this.orbitTheta;
         const phi = this.orbitPhi;
-        this.camera.position.set(
+        const desiredPos = new THREE.Vector3(
             this.orbitTarget.x + r * Math.sin(phi) * Math.sin(theta),
             this.orbitTarget.y + r * Math.cos(phi),
             this.orbitTarget.z + r * Math.sin(phi) * Math.cos(theta)
         );
+        const correctedPos = this._resolveCameraObstruction(desiredPos);
+        this.camera.position.copy(correctedPos);
         this.camera.lookAt(this.orbitTarget);
+    },
+
+    _isSolidCollisionMesh(mesh) {
+        if (!mesh || !mesh.isMesh || !mesh.visible) return false;
+        const geoType = mesh.geometry?.type || '';
+        if (
+            geoType.includes('Plane') ||
+            geoType.includes('Circle') ||
+            geoType.includes('Ring') ||
+            geoType.includes('Torus')
+        ) {
+            return false;
+        }
+
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of materials) {
+            if (!m) continue;
+            const opacity = Number.isFinite(m.opacity) ? m.opacity : 1;
+            if (m.transparent && opacity < 0.72) continue;
+            if (m.depthWrite === false && m.transparent) continue;
+            return true;
+        }
+        return false;
+    },
+
+    _collectCameraCollisionMeshes() {
+        const meshes = [];
+        const pushFrom = (root) => {
+            if (!root?.traverse) return;
+            root.traverse((ch) => {
+                if (this._isSolidCollisionMesh(ch)) meshes.push(ch);
+            });
+        };
+
+        this.skyIslands.forEach((island) => pushFrom(island));
+        this.seededProps.forEach((prop) => pushFrom(prop));
+        this.interactableProps.forEach((prop) => pushFrom(prop.group));
+
+        this._cameraCollisionMeshes = meshes;
+        this._cameraCollisionFrame = this.frameCount;
+    },
+
+    _getCameraCollisionMeshes() {
+        const needsRefresh =
+            !this._cameraCollisionMeshes ||
+            this._cameraCollisionMeshes.length === 0 ||
+            this._cameraCollisionFrame < 0 ||
+            (this.frameCount - this._cameraCollisionFrame) > 90;
+
+        if (needsRefresh) this._collectCameraCollisionMeshes();
+        return this._cameraCollisionMeshes || [];
+    },
+
+    _resolveCameraObstruction(desiredPos) {
+        if (!this.orbitTarget || !desiredPos) return desiredPos;
+        const colliders = this._getCameraCollisionMeshes();
+        if (!colliders.length) return desiredPos;
+
+        const from = this.orbitTarget.clone();
+        const to = desiredPos.clone();
+        const dir = to.sub(from);
+        const dist = dir.length();
+        if (dist < 1) return desiredPos;
+        dir.normalize();
+
+        const raycaster = this._cameraRaycaster || new THREE.Raycaster();
+        this._cameraRaycaster = raycaster;
+        raycaster.set(from, dir);
+        raycaster.near = 2;
+        raycaster.far = dist;
+
+        const hits = raycaster.intersectObjects(colliders, false);
+        if (!hits.length) return desiredPos;
+
+        const pullback = 16;
+        const minDistance = Math.max(90, ORBIT_MIN_RADIUS * 0.42);
+        const safeDistance = Math.max(minDistance, hits[0].distance - pullback);
+        return from.add(dir.multiplyScalar(safeDistance));
     },
 
     setDayNightMode(isLight, animate = true) {
@@ -1680,6 +1767,64 @@ const WorldScene = {
                 }
 
                 this._clearOneHandLongPressTimer();
+                // Handle touch tap: raycast for balloon/island/prop (click event is blocked by ignoreNextClickUntil)
+                if (isTap && e.pointerType === 'touch') {
+                    const rect = canvas.getBoundingClientRect();
+                    const mouse = new THREE.Vector2(
+                        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                        -((e.clientY - rect.top) / rect.height) * 2 + 1
+                    );
+                    const rc = new THREE.Raycaster();
+                    rc.setFromCamera(mouse, this.camera);
+
+                    // Interactable props
+                    let tapHandled = false;
+                    const ipMeshes = [];
+                    this.interactableProps.forEach(ip => { ip.group.traverse(ch => { if (ch.isMesh) ipMeshes.push(ch); }); });
+                    if (!tapHandled && ipMeshes.length) {
+                        const ipHits = rc.intersectObjects(ipMeshes, false);
+                        if (ipHits.length > 0) {
+                            let obj = ipHits[0].object;
+                            while (obj && !obj.userData.propId) obj = obj.parent;
+                            if (obj && obj.userData.propId) {
+                                const prop = this.interactableProps.find(p => p.id === obj.userData.propId);
+                                if (prop) { prop.toggle(); tapHandled = true; }
+                            }
+                        }
+                    }
+
+                    // Sky islands
+                    if (!tapHandled) {
+                        const islandMeshes = [];
+                        this.skyIslands.forEach(island => { island.traverse(ch => { if (ch.isMesh) islandMeshes.push(ch); }); });
+                        const islandHits = rc.intersectObjects(islandMeshes, false);
+                        if (islandHits.length > 0) {
+                            let island = islandHits[0].object;
+                            while (island && !island.userData.name) island = island.parent;
+                            if (island && island.userData.name) {
+                                this._startIslandCinematic(island);
+                                this._showIslandInfo(island.userData);
+                                tapHandled = true;
+                            }
+                        }
+                    }
+
+                    // Balloons
+                    if (!tapHandled) {
+                        const bMeshes = [];
+                        this.balloons.forEach(b => { b.group.traverse(ch => { if (ch.isMesh) bMeshes.push(ch); }); });
+                        const bHits = rc.intersectObjects(bMeshes, false);
+                        if (bHits.length > 0) {
+                            let obj = bHits[0].object;
+                            while (obj && !obj.userData.clickable) obj = obj.parent;
+                            if (obj && obj.userData.clickable && obj.userData.user) {
+                                if (obj.userData.isMe) { if (window.openEstate) window.openEstate(); }
+                                else { if (window.openUserModal) window.openUserModal(obj.userData.user); }
+                                tapHandled = true;
+                            }
+                        }
+                    }
+                }
                 this.touchGesture = null;
                 touchFilter.moveDX = 0;
                 touchFilter.moveDY = 0;

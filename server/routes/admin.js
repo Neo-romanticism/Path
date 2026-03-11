@@ -202,7 +202,7 @@ router.get('/all-users', requireAdmin, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, nickname, real_name, university, prev_university, is_n_su,
-                    gold, exp, tier, tickets, mock_exam_score, score_status,
+                    gold, diamond, exp, tier, tickets, mock_exam_score, score_status,
                     score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public,
                     is_admin, admin_role, user_code, created_at
              FROM users ORDER BY created_at DESC`
@@ -214,12 +214,21 @@ router.get('/all-users', requireAdmin, async (req, res) => {
 });
 
 router.post('/update-user', requireAdmin, async (req, res) => {
+    const isMainAdmin = req.adminRole === 'main';
     const userId = parseInt(req.body?.user_id, 10);
     const nicknameRaw = typeof req.body?.nickname === 'string' ? req.body.nickname : '';
     const realNameRaw = typeof req.body?.real_name === 'string' ? req.body.real_name : '';
     const universityRaw = typeof req.body?.university === 'string' ? req.body.university : '';
-    const isNSu = !!req.body?.is_n_su;
+    const isNSu = req.body?.is_n_su === true || req.body?.is_n_su === 'true' || req.body?.is_n_su === 1 || req.body?.is_n_su === '1';
     const prevUniversityRaw = typeof req.body?.prev_university === 'string' ? req.body.prev_university : '';
+    const goldRaw = req.body?.gold;
+    const diamondRaw = req.body?.diamond;
+    const expRaw = req.body?.exp;
+    const tierRaw = typeof req.body?.tier === 'string' ? req.body.tier : '';
+    const ticketsRaw = req.body?.tickets;
+    const mockExamScoreRaw = req.body?.mock_exam_score;
+    const gpaScoreRaw = req.body?.gpa_score;
+    const gpaPublic = req.body?.gpa_public === true || req.body?.gpa_public === 'true' || req.body?.gpa_public === 1 || req.body?.gpa_public === '1';
 
     if (!userId) {
         return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
@@ -256,11 +265,73 @@ router.post('/update-user', requireAdmin, async (req, res) => {
 
     try {
         const target = await pool.query(
-            'SELECT id FROM users WHERE id = $1',
+            `SELECT id, is_admin, admin_role,
+                    gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public
+             FROM users WHERE id = $1`,
             [userId]
         );
         if (!target.rows.length) {
             return res.status(404).json({ error: '대상 사용자를 찾을 수 없습니다.' });
+        }
+        const targetUser = target.rows[0];
+
+        const targetRole = targetUser.admin_role === 'main' || targetUser.admin_role === 'sub'
+            ? targetUser.admin_role
+            : (targetUser.is_admin ? 'sub' : 'none');
+        if (!isMainAdmin && targetRole !== 'none') {
+            return res.status(403).json({ error: '부관리자는 관리자 계정을 수정할 수 없습니다.' });
+        }
+
+        let gold = targetUser.gold;
+        let diamond = targetUser.diamond;
+        let exp = targetUser.exp;
+        let tier = targetUser.tier;
+        let tickets = targetUser.tickets;
+        let mockExamScore = targetUser.mock_exam_score;
+        let gpaScore = targetUser.gpa_score;
+        let nextGpaPublic = targetUser.gpa_public;
+
+        if (isMainAdmin) {
+            gold = parseInt(goldRaw, 10);
+            if (!Number.isInteger(gold) || gold < 0) {
+                return res.status(400).json({ error: '골드는 0 이상의 정수여야 합니다.' });
+            }
+
+            diamond = parseInt(diamondRaw, 10);
+            if (!Number.isInteger(diamond) || diamond < 0) {
+                return res.status(400).json({ error: '다이아는 0 이상의 정수여야 합니다.' });
+            }
+
+            exp = parseInt(expRaw, 10);
+            if (!Number.isInteger(exp) || exp < 0) {
+                return res.status(400).json({ error: 'EXP는 0 이상의 정수여야 합니다.' });
+            }
+
+            tier = tierRaw.trim();
+            if (!tier || tier.length > 20) {
+                return res.status(400).json({ error: '티어는 1~20자 사이여야 합니다.' });
+            }
+
+            tickets = parseInt(ticketsRaw, 10);
+            if (!Number.isInteger(tickets) || tickets < 0) {
+                return res.status(400).json({ error: '티켓은 0 이상의 정수여야 합니다.' });
+            }
+
+            mockExamScore = parseInt(mockExamScoreRaw, 10);
+            if (!Number.isInteger(mockExamScore) || mockExamScore < 0 || mockExamScore > 600) {
+                return res.status(400).json({ error: '평가원 점수는 0~600 사이의 정수여야 합니다.' });
+            }
+
+            const gpaScoreText = gpaScoreRaw === null || gpaScoreRaw === undefined ? '' : String(gpaScoreRaw).trim();
+            gpaScore = null;
+            if (gpaScoreText) {
+                gpaScore = parseFloat(gpaScoreText);
+                if (!Number.isFinite(gpaScore) || gpaScore < 1.0 || gpaScore > 9.0) {
+                    return res.status(400).json({ error: '내신은 1.0~9.0 범위로 입력해주세요.' });
+                }
+            }
+
+            nextGpaPublic = gpaPublic;
         }
 
         const duplicate = await pool.query(
@@ -277,9 +348,18 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                  real_name = $2,
                  university = $3,
                  is_n_su = $4,
-                 prev_university = $5
-             WHERE id = $6
+                 prev_university = $5,
+                 gold = $6,
+                 diamond = $7,
+                 exp = $8,
+                 tier = $9,
+                 tickets = $10,
+                 mock_exam_score = $11,
+                 gpa_score = $12,
+                 gpa_public = $13
+             WHERE id = $14
              RETURNING id, nickname, real_name, university, is_n_su, prev_university,
+                       gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public,
                        is_admin, admin_role, user_code, created_at`,
             [
                 nickValidation.value,
@@ -287,6 +367,14 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                 university,
                 isNSu,
                 isNSu ? prevUniversity : null,
+                gold,
+                diamond,
+                exp,
+                tier,
+                tickets,
+                mockExamScore,
+                gpaScore,
+                nextGpaPublic,
                 userId,
             ]
         );
