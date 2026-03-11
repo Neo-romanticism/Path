@@ -1192,27 +1192,59 @@ const WorldScene = {
     },
 
     _getHorizontalSlot(id, index, total, options = {}) {
-        const spacing = options.spacing ?? 175;
+        const spacingX = options.spacingX ?? options.spacing ?? 175;
         const rowOffsetY = options.rowOffsetY ?? -120;
+        const rowSpacingY = options.rowSpacingY ?? 116;
+        const rowSkewX = options.rowSkewX ?? 30;
+        const depthStep = options.depthStep ?? 90;
+        const arcY = options.arcY ?? 40;
+        const wingDepth = options.wingDepth ?? 66;
+        const minCols = Math.max(1, options.minCols ?? 4);
+        const maxCols = Math.max(minCols, options.maxCols ?? 10);
         const jitterX = options.jitterX ?? 36;
         const jitterY = options.jitterY ?? 28;
         const zSpread = options.zSpread ?? 80;
 
-        const centered = index - (total - 1) * 0.5;
         const h1 = this._hash01(id * 1.17 + 11.3);
         const h2 = this._hash01(id * 2.37 + 23.1);
         const h3 = this._hash01(id * 3.97 + 31.7);
 
-        const sx = this.camPos.x + centered * spacing + (h1 - 0.5) * jitterX;
-        const sy = this.camPos.y + rowOffsetY + (h2 - 0.5) * jitterY;
-        const sz = (h3 - 0.5) * zSpread;
+        const safeTotal = Math.max(1, total | 0);
+        let cols = safeTotal;
+        if (safeTotal > minCols) {
+            const dynamicCols = Math.round(Math.sqrt(safeTotal) * 1.9);
+            cols = Math.min(Math.max(dynamicCols, minCols), Math.min(maxCols, safeTotal));
+        }
+        const rows = Math.max(1, Math.ceil(safeTotal / cols));
+        const row = Math.floor(index / cols);
+        const col = index % cols;
+
+        const colCentered = col - (cols - 1) * 0.5;
+        const rowCentered = row - (rows - 1) * 0.5;
+        const colHalf = Math.max(1, (cols - 1) * 0.5);
+        const arcT = colCentered / colHalf;
+
+        // Keep center balloons slightly higher and outer balloons deeper for a fuller composition.
+        const centerLift = (1 - Math.abs(arcT) ** 1.45) * arcY;
+        const sweepDepth = arcT * wingDepth;
+
+        const sx = this.camPos.x
+            + colCentered * spacingX
+            + rowCentered * rowSkewX
+            + (h1 - 0.5) * jitterX;
+        const sy = this.camPos.y
+            + rowOffsetY
+            - rowCentered * rowSpacingY
+            + centerLift
+            + (h2 - 0.5) * jitterY;
+        const sz = rowCentered * depthStep + sweepDepth + (h3 - 0.5) * zSpread;
 
         return { sx, sy, sz, h1, h2, h3 };
     },
 
     /**
-     * Populate / refresh the ranking layer using a horizontal, camera-relative
-     * lineup with slight deterministic randomness.
+     * Populate / refresh the ranking layer using a camera-relative
+     * curved multi-row arrangement with deterministic variance.
      */
     setUsers(users, me, isLight) {
         this.setDayNightMode(isLight, true);
@@ -1232,8 +1264,14 @@ const WorldScene = {
 
         rankingList.forEach((user, i) => {
             const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, rankingList.length, {
-                spacing: 175,
+                spacingX: 168,
                 rowOffsetY: -120,
+                rowSpacingY: 114,
+                rowSkewX: 26,
+                depthStep: 96,
+                arcY: 44,
+                wingDepth: 72,
+                maxCols: 11,
                 jitterX: 34,
                 jitterY: 30,
                 zSpread: 90
@@ -1300,8 +1338,14 @@ const WorldScene = {
             const skinId = user.balloon_skin || 'default';
             const auraId = user.balloon_aura || 'none';
             const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, nearbyUsers.length, {
-                spacing: 180,
+                spacingX: 170,
                 rowOffsetY: 110,
+                rowSpacingY: 120,
+                rowSkewX: 20,
+                depthStep: 90,
+                arcY: 34,
+                wingDepth: 58,
+                maxCols: 9,
                 jitterX: 40,
                 jitterY: 34,
                 zSpread: 95
@@ -1380,8 +1424,14 @@ const WorldScene = {
         list.forEach((user, i) => {
             if (!user || user.id == null) return;
             const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, list.length, {
-                spacing: 210,
+                spacingX: 208,
                 rowOffsetY: -360,
+                rowSpacingY: 134,
+                rowSkewX: 30,
+                depthStep: 110,
+                arcY: 56,
+                wingDepth: 86,
+                maxCols: 10,
                 jitterX: 55,
                 jitterY: 26,
                 zSpread: 120

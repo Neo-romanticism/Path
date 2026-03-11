@@ -407,6 +407,20 @@ async function initSchema() {
         `);
 
         await client.query(`
+            CREATE TABLE IF NOT EXISTS study_room_member_roles (
+                room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                role        VARCHAR(20) NOT NULL DEFAULT 'member',
+                updated_at  TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (room_id, user_id),
+                CONSTRAINT study_room_member_roles_role_check
+                    CHECK (role IN ('owner', 'manager', 'member'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_study_room_member_roles_room_role
+                ON study_room_member_roles(room_id, role);
+        `);
+
+        await client.query(`
             CREATE TABLE IF NOT EXISTS study_room_messages (
                 id          SERIAL PRIMARY KEY,
                 room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
@@ -453,7 +467,29 @@ async function initSchema() {
         // ── 공개/비공개 설정 ────────────────────────────────────────────────────
         await client.query(`
             ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
+            ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
+            ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS deleted_by INTEGER NULL REFERENCES users(id) ON DELETE SET NULL;
             CREATE INDEX IF NOT EXISTS idx_study_rooms_public ON study_rooms(is_public) WHERE is_public = TRUE;
+        `);
+
+        // ── 방 역할 백필(owner/manager/member) ─────────────────────────────────────
+        await client.query(`
+            INSERT INTO study_room_member_roles (room_id, user_id, role)
+            SELECT r.id, r.creator_id, 'owner'
+            FROM study_rooms r
+            ON CONFLICT (room_id, user_id)
+            DO UPDATE SET role = 'owner', updated_at = NOW();
+
+            INSERT INTO study_room_member_roles (room_id, user_id, role)
+            SELECT m.room_id, m.user_id, 'member'
+            FROM study_room_members m
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM study_room_member_roles rr
+                WHERE rr.room_id = m.room_id AND rr.user_id = m.user_id
+            )
+            ON CONFLICT (room_id, user_id)
+            DO NOTHING;
         `);
 
         console.log('DB 스키마 초기화 완료');
