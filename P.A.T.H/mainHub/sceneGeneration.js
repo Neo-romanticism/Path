@@ -263,28 +263,93 @@ export const sceneGenerationMethods = {
             { x: 1100, y: 200, z: -1100, rx: 1.7, name: '이화 유레카 아일랜드', university: '이화여자대학교', landmark: '이화여자대학교 · ECC·유레카 상징', type: 'dragon', admissionUrl: 'https://admission.ewha.ac.kr', admissionNote: '전형별 지원자격 및 제출서류 확인' },
             { x: -400, y: 230, z: -300, rx: 2.1, name: '금정 교정 아일랜드', university: '부산대학교', landmark: '부산대학교 · 금정캠퍼스·정문 상징', type: 'wind', admissionUrl: 'https://go.pusan.ac.kr', admissionNote: '정시/수시 모집단위와 일정 확인' },
         ];
+
+        const typeTheme = {
+            forest: { top: 0x4b8f57, cliff: 0x5d432e, accent: 0x9df8a8, glow: 0x4ecf74 },
+            crystal: { top: 0x5f90b2, cliff: 0x42546a, accent: 0x9de8ff, glow: 0x49bce5 },
+            misty: { top: 0x6f7a92, cliff: 0x4d5668, accent: 0xdbe8ff, glow: 0x9ebce6 },
+            waterfall: { top: 0x3e8368, cliff: 0x3d474f, accent: 0x90e5ff, glow: 0x48aeda },
+            flower: { top: 0x7ca76a, cliff: 0x65473a, accent: 0xffc0dc, glow: 0xff7cac },
+            rock: { top: 0x6a7a66, cliff: 0x4e4c46, accent: 0xe1d8a4, glow: 0xcfba5e },
+            star: { top: 0x45557e, cliff: 0x3d3846, accent: 0xfff19b, glow: 0xe3cd57 },
+            aurora: { top: 0x4b7d72, cliff: 0x3a4e4a, accent: 0x9dffe5, glow: 0x4fd6b5 },
+            fortress: { top: 0x7a7e85, cliff: 0x54565d, accent: 0xbfd7ff, glow: 0x7fa2d8 },
+            moon: { top: 0x6d7288, cliff: 0x484a59, accent: 0xd8deff, glow: 0x8ea6ff },
+            dragon: { top: 0x7a6448, cliff: 0x4d3423, accent: 0xffcb9d, glow: 0xff8a4f },
+            wind: { top: 0x5a887a, cliff: 0x425348, accent: 0xcaf8ff, glow: 0x74d2ef },
+            default: { top: 0x4c7a58, cliff: 0x5a4330, accent: 0xa7e3ff, glow: 0x4ca8d8 },
+        };
+
         islandData.forEach(d => {
             const group = new THREE.Group();
+            const theme = typeTheme[d.type] || typeTheme.default;
 
-            const topColor = d.type === 'crystal' ? 0x6ba3c7 : d.type === 'flower' ? 0x7dba6f
-                : d.type === 'star' ? 0x4a5a8a : d.type === 'dragon' ? 0x8a5a4a
-                    : 0x3a7d44;
-            const topGeo = new THREE.CylinderGeometry(d.rx * 90, d.rx * 80, 30, 12);
-            const topMat = new THREE.MeshStandardMaterial({ color: topColor, roughness: 0.9, metalness: 0 });
+            const topGeo = new THREE.CylinderGeometry(d.rx * 92, d.rx * 74, 34, 16);
+            const topMat = new THREE.MeshStandardMaterial({ color: theme.top, roughness: 0.88, metalness: 0.06 });
             const top = new THREE.Mesh(topGeo, topMat);
-            top.position.y = 15;
+            top.position.y = 18;
             group.add(top);
 
-            const botColor = d.type === 'crystal' ? 0x4a7a9a : d.type === 'dragon' ? 0x5a3020 : 0x6b4226;
-            const botGeo = new THREE.CylinderGeometry(d.rx * 60, d.rx * 30, 80, 10);
-            const botMat = new THREE.MeshStandardMaterial({ color: botColor, roughness: 1.0, metalness: 0 });
-            const bot = new THREE.Mesh(botGeo, botMat);
-            bot.position.y = -25;
-            group.add(bot);
+            const terraceGeo = new THREE.CylinderGeometry(d.rx * 78, d.rx * 66, 12, 14);
+            const terraceMat = new THREE.MeshStandardMaterial({ color: theme.top, roughness: 0.82, metalness: 0.08 });
+            const terrace = new THREE.Mesh(terraceGeo, terraceMat);
+            terrace.position.y = 32;
+            group.add(terrace);
 
-            const rimRingGeo = new THREE.TorusGeometry(d.rx * 62, d.rx * 2.2, 12, 48);
+            const cliffGeo = new THREE.CylinderGeometry(d.rx * 60, d.rx * 28, 108, 12);
+            const cliffMat = new THREE.MeshStandardMaterial({ color: theme.cliff, roughness: 0.96, metalness: 0.04 });
+            const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+            cliff.position.y = -30;
+            group.add(cliff);
+
+            const undersideGeo = new THREE.ConeGeometry(d.rx * 20, d.rx * 58, 9);
+            const undersideMat = new THREE.MeshStandardMaterial({ color: theme.cliff, roughness: 1.0, metalness: 0.0 });
+            const underside = new THREE.Mesh(undersideGeo, undersideMat);
+            underside.position.y = -110;
+            group.add(underside);
+
+            for (let s = 0; s < 5; s++) {
+                const shardGeo = new THREE.DodecahedronGeometry(d.rx * (4.5 + Math.random() * 2.5), 0);
+                const shardMat = new THREE.MeshStandardMaterial({ color: theme.cliff, roughness: 1.0, metalness: 0.0 });
+                const shard = new THREE.Mesh(shardGeo, shardMat);
+                const a = (s / 5) * Math.PI * 2 + Math.random() * 0.25;
+                shard.position.set(Math.cos(a) * d.rx * 22, -95 - Math.random() * 20, Math.sin(a) * d.rx * 22);
+                shard.rotation.set(Math.random(), Math.random(), Math.random());
+                group.add(shard);
+            }
+
+            const plazaGeo = new THREE.CircleGeometry(d.rx * 38, 28);
+            const plazaMat = new THREE.MeshStandardMaterial({ color: 0xdbe3f0, roughness: 0.5, metalness: 0.25 });
+            const plaza = new THREE.Mesh(plazaGeo, plazaMat);
+            plaza.rotation.x = -Math.PI / 2;
+            plaza.position.y = 40.5;
+            group.add(plaza);
+
+            const hallBodyGeo = new THREE.BoxGeometry(d.rx * 20, d.rx * 16, d.rx * 14);
+            const hallBodyMat = new THREE.MeshStandardMaterial({ color: 0xc7cedd, roughness: 0.45, metalness: 0.28 });
+            const hallBody = new THREE.Mesh(hallBodyGeo, hallBodyMat);
+            hallBody.position.y = 49;
+            group.add(hallBody);
+
+            const hallRoofGeo = new THREE.ConeGeometry(d.rx * 12, d.rx * 11, 8);
+            const hallRoofMat = new THREE.MeshStandardMaterial({ color: 0x7f8ea8, roughness: 0.5, metalness: 0.2 });
+            const hallRoof = new THREE.Mesh(hallRoofGeo, hallRoofMat);
+            hallRoof.position.y = 62;
+            group.add(hallRoof);
+
+            for (let wing = 0; wing < 4; wing++) {
+                const wingGeo = new THREE.BoxGeometry(d.rx * 7, d.rx * 10, d.rx * 5);
+                const wingMat = new THREE.MeshStandardMaterial({ color: 0xb7c2d8, roughness: 0.52, metalness: 0.22 });
+                const wingMesh = new THREE.Mesh(wingGeo, wingMat);
+                const a = (wing / 4) * Math.PI * 2 + Math.PI * 0.25;
+                wingMesh.position.set(Math.cos(a) * d.rx * 20, 46, Math.sin(a) * d.rx * 20);
+                wingMesh.rotation.y = -a;
+                group.add(wingMesh);
+            }
+
+            const rimRingGeo = new THREE.TorusGeometry(d.rx * 64, d.rx * 2.1, 12, 56);
             const rimRingMat = new THREE.MeshBasicMaterial({
-                color: 0x7fd9ff,
+                color: theme.accent,
                 transparent: true,
                 opacity: 0.24,
                 blending: THREE.AdditiveBlending,
@@ -295,6 +360,29 @@ export const sceneGenerationMethods = {
             rimRing.position.y = 24;
             group.add(rimRing);
 
+            for (let p = 0; p < 8; p++) {
+                const a = (p / 8) * Math.PI * 2;
+                const postGeo = new THREE.CylinderGeometry(d.rx * 1.0, d.rx * 1.2, d.rx * 8, 6);
+                const postMat = new THREE.MeshStandardMaterial({ color: 0x8ea0ba, roughness: 0.4, metalness: 0.65 });
+                const post = new THREE.Mesh(postGeo, postMat);
+                post.position.set(Math.cos(a) * d.rx * 46, 44, Math.sin(a) * d.rx * 46);
+                group.add(post);
+
+                const lampGeo = new THREE.SphereGeometry(d.rx * 2.0, 8, 8);
+                const lampMat = new THREE.MeshStandardMaterial({
+                    color: theme.accent,
+                    emissive: theme.glow,
+                    emissiveIntensity: 1.0,
+                    roughness: 0.25,
+                    metalness: 0.45,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const lamp = new THREE.Mesh(lampGeo, lampMat);
+                lamp.position.set(Math.cos(a) * d.rx * 46, 49, Math.sin(a) * d.rx * 46);
+                group.add(lamp);
+            }
+
             const beaconPoleGeo = new THREE.CylinderGeometry(d.rx * 2.5, d.rx * 3.2, d.rx * 44, 8);
             const beaconPoleMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.6, metalness: 0.45 });
             const beaconPole = new THREE.Mesh(beaconPoleGeo, beaconPoleMat);
@@ -303,8 +391,8 @@ export const sceneGenerationMethods = {
 
             const beaconCoreGeo = new THREE.OctahedronGeometry(d.rx * 7.5, 0);
             const beaconCoreMat = new THREE.MeshStandardMaterial({
-                color: 0x9be8ff,
-                emissive: 0x2a8fc3,
+                color: theme.accent,
+                emissive: theme.glow,
                 emissiveIntensity: 1.2,
                 roughness: 0.22,
                 metalness: 0.55,
@@ -316,21 +404,40 @@ export const sceneGenerationMethods = {
             beaconCore.rotation.set(Math.PI * 0.12, Math.PI * 0.2, 0);
             group.add(beaconCore);
 
+            const orbitRingGeo = new THREE.TorusGeometry(d.rx * 22, d.rx * 1.2, 10, 38);
+            const orbitRingMat = new THREE.MeshBasicMaterial({
+                color: theme.accent,
+                transparent: true,
+                opacity: 0.42,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const orbitRing = new THREE.Mesh(orbitRingGeo, orbitRingMat);
+            orbitRing.rotation.x = Math.PI / 2;
+            orbitRing.position.y = 58;
+            group.add(orbitRing);
+
             if (d.type === 'forest' || d.type === 'flower') {
-                for (let t = 0; t < 4; t++) {
-                    const treeGeo = new THREE.ConeGeometry(d.rx * 12, d.rx * 35, 6);
+                for (let t = 0; t < 7; t++) {
+                    const trunkGeo = new THREE.CylinderGeometry(d.rx * 1.6, d.rx * 2.2, d.rx * 11, 6);
+                    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a34, roughness: 0.9, metalness: 0.0 });
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    const angle = (t / 7) * Math.PI * 2 + Math.random() * 0.2;
+                    trunk.position.set(Math.cos(angle) * d.rx * 44, 45, Math.sin(angle) * d.rx * 44);
+                    group.add(trunk);
+
+                    const treeGeo = new THREE.ConeGeometry(d.rx * (8 + Math.random() * 3), d.rx * (24 + Math.random() * 8), 7);
                     const treeMat = new THREE.MeshStandardMaterial({
                         color: d.type === 'flower' ? 0xe8a0c0 : 0x2d6e30,
                         roughness: 0.9,
                         metalness: 0
                     });
                     const tree = new THREE.Mesh(treeGeo, treeMat);
-                    const angle = (t / 4) * Math.PI * 2;
-                    tree.position.set(Math.cos(angle) * d.rx * 40, 45, Math.sin(angle) * d.rx * 40);
+                    tree.position.set(trunk.position.x, 58, trunk.position.z);
                     group.add(tree);
                 }
             } else if (d.type === 'crystal') {
-                for (let c = 0; c < 5; c++) {
+                for (let c = 0; c < 8; c++) {
                     const crystalGeo = new THREE.OctahedronGeometry(d.rx * 8 + c * 3, 0);
                     const crystalMat = new THREE.MeshStandardMaterial({
                         color: 0x88ccff,
@@ -340,37 +447,73 @@ export const sceneGenerationMethods = {
                         opacity: 0.8
                     });
                     const crystal = new THREE.Mesh(crystalGeo, crystalMat);
-                    const angle = (c / 5) * Math.PI * 2;
-                    crystal.position.set(Math.cos(angle) * d.rx * 35, 35 + c * 8, Math.sin(angle) * d.rx * 35);
+                    const angle = (c / 8) * Math.PI * 2;
+                    crystal.position.set(Math.cos(angle) * d.rx * 34, 38 + c * 4.5, Math.sin(angle) * d.rx * 34);
                     crystal.rotation.set(Math.random(), Math.random(), Math.random());
                     group.add(crystal);
                 }
             } else if (d.type === 'waterfall') {
-                const fallGeo = new THREE.PlaneGeometry(d.rx * 20, 80);
-                const fallMat = new THREE.MeshBasicMaterial({
-                    color: 0x88ccff,
-                    transparent: true,
-                    opacity: 0.5,
-                    side: THREE.DoubleSide
-                });
-                const fall = new THREE.Mesh(fallGeo, fallMat);
-                fall.position.set(d.rx * 50, -20, 0);
-                group.add(fall);
+                for (let wf = 0; wf < 2; wf++) {
+                    const fallGeo = new THREE.PlaneGeometry(d.rx * 18, 86);
+                    const fallMat = new THREE.MeshBasicMaterial({
+                        color: 0x88ccff,
+                        transparent: true,
+                        opacity: 0.5,
+                        side: THREE.DoubleSide
+                    });
+                    const fall = new THREE.Mesh(fallGeo, fallMat);
+                    const sx = wf === 0 ? d.rx * 48 : -d.rx * 42;
+                    const sz = wf === 0 ? d.rx * 12 : -d.rx * 8;
+                    fall.position.set(sx, -16, sz);
+                    fall.rotation.y = wf === 0 ? Math.PI * 0.14 : -Math.PI * 0.17;
+                    group.add(fall);
+                }
             } else if (d.type === 'fortress') {
-                for (let tw = 0; tw < 3; tw++) {
+                for (let tw = 0; tw < 4; tw++) {
                     const towerGeo = new THREE.CylinderGeometry(d.rx * 10, d.rx * 12, d.rx * 50, 8);
                     const towerMat = new THREE.MeshStandardMaterial({ color: 0x8a8a7a, roughness: 0.8, metalness: 0.1 });
                     const tower = new THREE.Mesh(towerGeo, towerMat);
-                    const angle = (tw / 3) * Math.PI * 2;
-                    tower.position.set(Math.cos(angle) * d.rx * 50, 40, Math.sin(angle) * d.rx * 50);
+                    const angle = (tw / 4) * Math.PI * 2;
+                    tower.position.set(Math.cos(angle) * d.rx * 54, 44, Math.sin(angle) * d.rx * 54);
                     group.add(tower);
                 }
+                const wallGeo = new THREE.TorusGeometry(d.rx * 52, d.rx * 4.5, 8, 32);
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0x7f817c, roughness: 0.84, metalness: 0.1 });
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.rotation.x = Math.PI / 2;
+                wall.position.y = 41;
+                group.add(wall);
             } else if (d.type === 'wind') {
-                const poleGeo = new THREE.CylinderGeometry(d.rx * 3, d.rx * 4, d.rx * 60, 6);
-                const poleMat = new THREE.MeshStandardMaterial({ color: 0xccccbb, roughness: 0.7, metalness: 0.2 });
-                const pole = new THREE.Mesh(poleGeo, poleMat);
-                pole.position.y = 50;
-                group.add(pole);
+                for (let m = 0; m < 3; m++) {
+                    const poleGeo = new THREE.CylinderGeometry(d.rx * 2.2, d.rx * 3.1, d.rx * 44, 6);
+                    const poleMat = new THREE.MeshStandardMaterial({ color: 0xccccbb, roughness: 0.7, metalness: 0.2 });
+                    const pole = new THREE.Mesh(poleGeo, poleMat);
+                    const angle = (m / 3) * Math.PI * 2;
+                    pole.position.set(Math.cos(angle) * d.rx * 24, 55, Math.sin(angle) * d.rx * 24);
+                    group.add(pole);
+
+                    const bladeGeo = new THREE.BoxGeometry(d.rx * 2.2, d.rx * 20, d.rx * 0.8);
+                    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xeef8ff, roughness: 0.45, metalness: 0.3 });
+                    const blade = new THREE.Mesh(bladeGeo, bladeMat);
+                    blade.position.set(pole.position.x, 70, pole.position.z);
+                    blade.rotation.z = angle;
+                    group.add(blade);
+                }
+            } else if (d.type === 'star') {
+                const starGeo = new THREE.OctahedronGeometry(d.rx * 12, 0);
+                const starMat = new THREE.MeshStandardMaterial({ color: 0xffe083, emissive: 0xd8b747, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.55 });
+                const star = new THREE.Mesh(starGeo, starMat);
+                star.position.y = 76;
+                group.add(star);
+            } else if (d.type === 'aurora') {
+                for (let a = 0; a < 3; a++) {
+                    const arcGeo = new THREE.TorusGeometry(d.rx * (20 + a * 5), d.rx * 0.85, 8, 36, Math.PI * 1.35);
+                    const arcMat = new THREE.MeshBasicMaterial({ color: 0x93ffe2, transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false });
+                    const arc = new THREE.Mesh(arcGeo, arcMat);
+                    arc.rotation.set(Math.PI / 2 + a * 0.12, 0.5 + a * 0.22, 0.1 + a * 0.16);
+                    arc.position.y = 54 + a * 7;
+                    group.add(arc);
+                }
             }
 
             group.position.set(d.x, d.y, d.z);
@@ -384,6 +527,7 @@ export const sceneGenerationMethods = {
             group.userData.floatPhase = Math.random() * Math.PI * 2;
             group.userData.rimRing = rimRing;
             group.userData.beaconCore = beaconCore;
+            group.userData.orbitRing = orbitRing;
             this.scene.add(group);
             this.skyIslands.push(group);
         });

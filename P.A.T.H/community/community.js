@@ -425,6 +425,7 @@ function renderDetailBody(container, { post, postId, comments }) {
   const authorUserId = Number(post.user_id || 0);
   const canBlockAuthor = !!currentUser && authorUserId > 0 && authorUserId !== Number(currentUser.id || 0);
   const alreadyBlocked = canBlockAuthor && currentUserBlocks.has(authorUserId);
+  let isBookmarked = !!post.is_bookmarked;
     const cmtHtml = comments.map(c => `
       <li class="cmt-item" data-comment-id="${c.id}">
         <div class="cmt-meta">
@@ -477,6 +478,7 @@ function renderDetailBody(container, { post, postId, comments }) {
           보유 골드 ${Number(currentUser?.gold || 0).toLocaleString()}G
         </span>
         ${currentUser ? '<button class="detail-report-btn" id="detail-report-btn">게시물 신고</button>' : ''}
+        ${currentUser ? `<button class="detail-bookmark-btn" id="detail-bookmark-btn">${isBookmarked ? '북마크 해제' : '북마크'}</button>` : ''}
         ${canBlockAuthor ? `<button class="detail-block-btn" id="detail-block-btn">${alreadyBlocked ? '차단 해제' : '작성자 차단'}</button>` : ''}
         ${canModerate ? '<button class="detail-admin-del-btn" id="detail-admin-del-btn">게시글 삭제</button>' : ''}
       </div>
@@ -601,6 +603,38 @@ function renderDetailBody(container, { post, postId, comments }) {
           showToast('신고 처리 중 오류가 발생했어요');
         } finally {
           reportBtn.disabled = false;
+        }
+      });
+    }
+
+    const bookmarkBtn = container.querySelector('#detail-bookmark-btn');
+    if (bookmarkBtn) {
+      bookmarkBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+          showToast('로그인 후 이용할 수 있어요');
+          return;
+        }
+
+        bookmarkBtn.disabled = true;
+        try {
+          const r = await fetch(`/api/community/posts/${postId}/bookmark`, {
+            method: 'POST',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            const msg = await readApiError(r, '북마크 처리에 실패했어요');
+            if (msg) showToast(msg);
+            return;
+          }
+
+          const data = await r.json().catch(() => ({}));
+          isBookmarked = !!data.bookmarked;
+          bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
+          showToast(isBookmarked ? '북마크에 저장했어요' : '북마크를 해제했어요');
+        } catch (_) {
+          showToast('북마크 처리 중 오류가 발생했어요');
+        } finally {
+          bookmarkBtn.disabled = false;
         }
       });
     }
@@ -996,20 +1030,34 @@ function openSettingsModal() {
             <p class="community-settings-item__title">내 커뮤니티 활동</p>
             <button id="settings-activity-refresh" class="community-settings-action-btn" type="button">새로고침</button>
           </div>
+          <div class="community-settings-activity-filters">
+            <select id="settings-activity-filter-category" class="write-input community-settings-select">
+              <option value="">전체 카테고리</option>
+              <option value="정보">정보</option>
+              <option value="질문">질문</option>
+              <option value="잡담">잡담</option>
+              <option value="념글">베스트</option>
+            </select>
+            <select id="settings-activity-filter-days" class="write-input community-settings-select">
+              <option value="0">전체 기간</option>
+              <option value="7">최근 7일</option>
+              <option value="30">최근 30일</option>
+              <option value="90">최근 90일</option>
+            </select>
+            <input id="settings-activity-filter-q" class="write-input" type="search" maxlength="100" placeholder="제목/내용 검색">
+          </div>
           <div id="settings-activity-summary" class="community-settings-activity-summary"></div>
-          <div class="community-settings-activity-columns">
-            <section>
-              <div class="community-settings-list-head">
-                <h3>나의 글</h3>
-              </div>
-              <div id="settings-my-posts-wrap" class="community-settings-activity-list"></div>
-            </section>
-            <section>
-              <div class="community-settings-list-head">
-                <h3>나의 댓글</h3>
-              </div>
-              <div id="settings-my-comments-wrap" class="community-settings-activity-list"></div>
-            </section>
+          <div class="community-settings-activity-types" role="tablist" aria-label="활동 목록 탭">
+            <button class="community-settings-activity-type is-active" type="button" data-activity-type="posts" role="tab" aria-selected="true">나의 글</button>
+            <button class="community-settings-activity-type" type="button" data-activity-type="comments" role="tab" aria-selected="false">나의 댓글</button>
+            <button class="community-settings-activity-type" type="button" data-activity-type="likes" role="tab" aria-selected="false">좋아요한 글</button>
+            <button class="community-settings-activity-type" type="button" data-activity-type="bookmarks" role="tab" aria-selected="false">북마크</button>
+          </div>
+          <div class="community-settings-activity-panels">
+            <div id="settings-my-posts-wrap" class="community-settings-activity-list" data-activity-panel="posts"></div>
+            <div id="settings-my-comments-wrap" class="community-settings-activity-list hidden" data-activity-panel="comments"></div>
+            <div id="settings-my-liked-wrap" class="community-settings-activity-list hidden" data-activity-panel="likes"></div>
+            <div id="settings-my-bookmarks-wrap" class="community-settings-activity-list hidden" data-activity-panel="bookmarks"></div>
           </div>
         </section>
 
@@ -1041,15 +1089,28 @@ function openSettingsModal() {
   const activitySummaryWrap = backdrop.querySelector('#settings-activity-summary');
   const myPostsWrap = backdrop.querySelector('#settings-my-posts-wrap');
   const myCommentsWrap = backdrop.querySelector('#settings-my-comments-wrap');
+  const myLikedWrap = backdrop.querySelector('#settings-my-liked-wrap');
+  const myBookmarksWrap = backdrop.querySelector('#settings-my-bookmarks-wrap');
+  const activityTypeBtns = Array.from(backdrop.querySelectorAll('.community-settings-activity-type'));
+  const activityPanels = Array.from(backdrop.querySelectorAll('[data-activity-panel]'));
+  const activityCategoryFilter = backdrop.querySelector('#settings-activity-filter-category');
+  const activityDaysFilter = backdrop.querySelector('#settings-activity-filter-days');
+  const activitySearchFilter = backdrop.querySelector('#settings-activity-filter-q');
   const activityRefreshBtn = backdrop.querySelector('#settings-activity-refresh');
   const activityState = {
     loading: false,
-    postOffset: 0,
-    commentOffset: 0,
-    postHasMore: false,
-    commentHasMore: false,
-    myPosts: [],
-    myComments: [],
+    activeType: 'posts',
+    filters: {
+      category: '',
+      days: 0,
+      q: '',
+    },
+    lists: {
+      posts: { offset: 0, hasMore: false, items: [] },
+      comments: { offset: 0, hasMore: false, items: [] },
+      likes: { offset: 0, hasMore: false, items: [] },
+      bookmarks: { offset: 0, hasMore: false, items: [] },
+    },
   };
 
   themeModeSelect.value = getThemeMode();
@@ -1077,9 +1138,35 @@ function openSettingsModal() {
         summaryWrap: activitySummaryWrap,
         postsWrap: myPostsWrap,
         commentsWrap: myCommentsWrap,
+        likedWrap: myLikedWrap,
+        bookmarksWrap: myBookmarksWrap,
       }, activityState);
     }
   };
+
+  activityTypeBtns.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const nextType = String(btn.dataset.activityType || '').trim();
+      if (!SETTINGS_ACTIVITY_TYPES.includes(nextType)) return;
+      if (activityState.activeType === nextType) return;
+      activityState.activeType = nextType;
+      activityTypeBtns.forEach((tabBtn) => {
+        const active = tabBtn.dataset.activityType === nextType;
+        tabBtn.classList.toggle('is-active', active);
+        tabBtn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      activityPanels.forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.activityPanel !== nextType);
+      });
+      await renderSettingsActivityTab({
+        summaryWrap: activitySummaryWrap,
+        postsWrap: myPostsWrap,
+        commentsWrap: myCommentsWrap,
+        likedWrap: myLikedWrap,
+        bookmarksWrap: myBookmarksWrap,
+      }, activityState);
+    });
+  });
 
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => updateTab(btn.dataset.tab));
@@ -1121,7 +1208,30 @@ function openSettingsModal() {
       summaryWrap: activitySummaryWrap,
       postsWrap: myPostsWrap,
       commentsWrap: myCommentsWrap,
+      likedWrap: myLikedWrap,
+      bookmarksWrap: myBookmarksWrap,
     }, activityState, { reset: true });
+  });
+
+  const onActivityFilterChange = async () => {
+    activityState.filters.category = String(activityCategoryFilter?.value || '');
+    activityState.filters.days = Number(activityDaysFilter?.value || 0);
+    activityState.filters.q = String(activitySearchFilter?.value || '').trim();
+    await renderSettingsActivityTab({
+      summaryWrap: activitySummaryWrap,
+      postsWrap: myPostsWrap,
+      commentsWrap: myCommentsWrap,
+      likedWrap: myLikedWrap,
+      bookmarksWrap: myBookmarksWrap,
+    }, activityState, { reset: true, skipSummary: true });
+  };
+
+  let activitySearchTimer;
+  activityCategoryFilter?.addEventListener('change', onActivityFilterChange);
+  activityDaysFilter?.addEventListener('change', onActivityFilterChange);
+  activitySearchFilter?.addEventListener('input', () => {
+    clearTimeout(activitySearchTimer);
+    activitySearchTimer = setTimeout(onActivityFilterChange, 260);
   });
 
   backdrop.querySelector('#settings-close-btn')?.addEventListener('click', close);
@@ -1132,7 +1242,7 @@ function openSettingsModal() {
 }
 
 async function renderSettingsActivityTab(containers, state, options = {}) {
-  if (!containers?.summaryWrap || !containers?.postsWrap || !containers?.commentsWrap) return;
+  if (!containers?.summaryWrap || !containers?.postsWrap || !containers?.commentsWrap || !containers?.likedWrap || !containers?.bookmarksWrap) return;
 
   if (!currentUser) {
     containers.summaryWrap.innerHTML = '';
@@ -1142,31 +1252,37 @@ async function renderSettingsActivityTab(containers, state, options = {}) {
         <p class="community-settings-empty__desc">내가 쓴 글과 댓글을 한 번에 관리할 수 있습니다.</p>
       </div>`;
     containers.commentsWrap.innerHTML = '';
+    containers.likedWrap.innerHTML = '';
+    containers.bookmarksWrap.innerHTML = '';
     return;
   }
 
   if (state.loading) return;
   state.loading = true;
 
-  const shouldReset = !!options.reset || (state.postOffset === 0 && state.commentOffset === 0 && state.myPosts.length === 0 && state.myComments.length === 0);
+  const shouldReset = !!options.reset;
   if (shouldReset) {
-    state.postOffset = 0;
-    state.commentOffset = 0;
-    state.postHasMore = false;
-    state.commentHasMore = false;
-    state.myPosts = [];
-    state.myComments = [];
+    SETTINGS_ACTIVITY_TYPES.forEach((type) => {
+      state.lists[type] = { offset: 0, hasMore: false, items: [] };
+    });
+  }
+
+  const activeWrap = getActivityContainerByType(containers, state.activeType);
+  if (activeWrap && state.lists[state.activeType].items.length === 0) {
+    activeWrap.innerHTML = '<p class="community-settings-loading">활동 목록을 불러오는 중...</p>';
+  }
+
+  if (!options.skipSummary) {
     containers.summaryWrap.innerHTML = '<p class="community-settings-loading">활동 요약을 불러오는 중...</p>';
-    containers.postsWrap.innerHTML = '<p class="community-settings-loading">내 글을 불러오는 중...</p>';
-    containers.commentsWrap.innerHTML = '<p class="community-settings-loading">내 댓글을 불러오는 중...</p>';
   }
 
   try {
-    await Promise.all([
-      renderSettingsActivitySummary(containers.summaryWrap),
-      renderSettingsMyPosts(containers.postsWrap, state, { reset: shouldReset }),
-      renderSettingsMyComments(containers.commentsWrap, state, { reset: shouldReset }),
-    ]);
+    const tasks = [];
+    if (!options.skipSummary) {
+      tasks.push(renderSettingsActivitySummary(containers.summaryWrap));
+    }
+    tasks.push(renderActivityListByType(containers, state, state.activeType, { reset: shouldReset }));
+    await Promise.all(tasks);
   } finally {
     state.loading = false;
   }
@@ -1185,6 +1301,8 @@ async function renderSettingsActivitySummary(container) {
     const postsCount = Number(summary.posts_count || 0);
     const commentsCount = Number(summary.comments_count || 0);
     const receivedLikes = Number(summary.received_likes || 0);
+    const likedPostsCount = Number(summary.liked_posts_count || 0);
+    const bookmarksCount = Number(summary.bookmarks_count || 0);
 
     container.innerHTML = `
       <div class="community-settings-stat-grid">
@@ -1200,141 +1318,211 @@ async function renderSettingsActivitySummary(container) {
           <p class="community-settings-stat-card__label">받은 추천</p>
           <strong class="community-settings-stat-card__value">${receivedLikes.toLocaleString('ko-KR')}</strong>
         </article>
+        <article class="community-settings-stat-card">
+          <p class="community-settings-stat-card__label">좋아요한 글</p>
+          <strong class="community-settings-stat-card__value">${likedPostsCount.toLocaleString('ko-KR')}</strong>
+        </article>
+        <article class="community-settings-stat-card">
+          <p class="community-settings-stat-card__label">북마크</p>
+          <strong class="community-settings-stat-card__value">${bookmarksCount.toLocaleString('ko-KR')}</strong>
+        </article>
       </div>`;
   } catch (_) {
     container.innerHTML = '<p class="community-settings-loading">활동 요약을 불러오지 못했어요.</p>';
   }
 }
 
-async function renderSettingsMyPosts(container, state, options = {}) {
+function getActivityContainerByType(containers, type) {
+  if (type === 'posts') return containers.postsWrap;
+  if (type === 'comments') return containers.commentsWrap;
+  if (type === 'likes') return containers.likedWrap;
+  if (type === 'bookmarks') return containers.bookmarksWrap;
+  return null;
+}
+
+function buildActivityFetchUrl(type, listState, filters) {
+  const baseMap = {
+    posts: '/api/community/me/posts',
+    comments: '/api/community/me/comments',
+    likes: '/api/community/me/liked-posts',
+    bookmarks: '/api/community/me/bookmarks',
+  };
+
+  const params = new URLSearchParams({
+    limit: String(SETTINGS_ACTIVITY_PAGE_SIZE),
+    offset: String(listState.offset),
+  });
+
+  if (filters.category) params.set('category', filters.category);
+  if (Number(filters.days) > 0) params.set('days', String(Number(filters.days)));
+  if (filters.q) params.set('q', filters.q);
+
+  return `${baseMap[type]}?${params.toString()}`;
+}
+
+async function renderActivityListByType(containers, state, type, options = {}) {
+  const container = getActivityContainerByType(containers, type);
+  if (!container) return;
+
+  const listState = state.lists[type];
   const reset = !!options.reset;
   if (reset) {
-    state.myPosts = [];
-    state.postOffset = 0;
+    listState.items = [];
+    listState.offset = 0;
+    listState.hasMore = false;
   }
 
   try {
-    const response = await fetch(
-      `/api/community/me/posts?limit=${SETTINGS_ACTIVITY_PAGE_SIZE}&offset=${state.postOffset}`,
-      { credentials: 'include' }
-    );
+    const response = await fetch(buildActivityFetchUrl(type, listState, state.filters), { credentials: 'include' });
     if (!response.ok) {
-      container.innerHTML = '<p class="community-settings-loading">내 글 목록을 불러오지 못했어요.</p>';
+      container.innerHTML = '<p class="community-settings-loading">활동 목록을 불러오지 못했어요.</p>';
       return;
     }
 
     const data = await response.json();
-    const posts = Array.isArray(data.posts) ? data.posts : [];
-    state.myPosts = reset ? posts : [...state.myPosts, ...posts];
-    state.postOffset = state.myPosts.length;
-    state.postHasMore = !!data.has_more;
+    const fetchedItems = Array.isArray(data.posts)
+      ? data.posts
+      : (Array.isArray(data.comments) ? data.comments : []);
+    listState.items = reset ? fetchedItems : [...listState.items, ...fetchedItems];
+    listState.offset = listState.items.length;
+    listState.hasMore = !!data.has_more;
 
-    if (state.myPosts.length === 0) {
+    if (listState.items.length === 0) {
+      const emptyTitleMap = {
+        posts: '작성한 글이 아직 없어요.',
+        comments: '작성한 댓글이 아직 없어요.',
+        likes: '좋아요한 글이 아직 없어요.',
+        bookmarks: '북마크한 글이 아직 없어요.',
+      };
+      const emptyDescMap = {
+        posts: '첫 글을 작성하고 활동을 시작해 보세요.',
+        comments: '글에 댓글을 남기면 여기에 모아서 볼 수 있어요.',
+        likes: '좋아요 버튼을 누른 글이 이곳에 표시됩니다.',
+        bookmarks: '북마크한 글이 이곳에 표시됩니다.',
+      };
       container.innerHTML = `
         <div class="community-settings-empty">
-          <p class="community-settings-empty__title">작성한 글이 아직 없어요.</p>
-          <p class="community-settings-empty__desc">첫 글을 작성하고 활동을 시작해 보세요.</p>
+          <p class="community-settings-empty__title">${emptyTitleMap[type]}</p>
+          <p class="community-settings-empty__desc">${emptyDescMap[type]}</p>
         </div>`;
       return;
     }
 
+    const listHtml = listState.items.map((item) => renderActivityItemHtml(type, item)).join('');
     container.innerHTML = `
-      <ul class="community-settings-activity-items">
-        ${state.myPosts.map((post) => `
-          <li class="community-settings-activity-item">
-            <a href="${getPostDetailUrl(post.id)}" class="community-settings-activity-link" data-post-id="${Number(post.id)}">
-              <p class="community-settings-activity-title">[${escHtml(post.category || '전체')}] ${escHtml(post.title || '')}</p>
-              <p class="community-settings-activity-meta">${fmtRelative(post.created_at)} · 조회 ${Number(post.views || 0)} · 댓글 ${Number(post.comments_count || 0)} · 추천 ${Number(post.likes || 0)}</p>
-            </a>
-          </li>
-        `).join('')}
-      </ul>
-      ${state.postHasMore ? '<button class="community-settings-more-btn" type="button" data-load-more="posts">나의 글 더보기</button>' : ''}`;
+      <ul class="community-settings-activity-items">${listHtml}</ul>
+      ${listState.hasMore ? `<button class="community-settings-more-btn" type="button" data-load-more="${type}">더보기</button>` : ''}`;
 
-    container.querySelectorAll('.community-settings-activity-link').forEach((linkEl) => {
-      linkEl.addEventListener('click', (e) => {
-        const postId = Number(linkEl.dataset.postId || 0);
-        if (postId > 0) markPostViewed(postId);
-      });
-    });
+    bindActivityItemEvents(container, containers, state, type);
 
-    const loadMoreBtn = container.querySelector('[data-load-more="posts"]');
+    const loadMoreBtn = container.querySelector(`[data-load-more="${type}"]`);
     if (loadMoreBtn) {
       loadMoreBtn.addEventListener('click', async () => {
         loadMoreBtn.disabled = true;
         loadMoreBtn.textContent = '불러오는 중...';
-        await renderSettingsMyPosts(container, state, { reset: false });
+        await renderActivityListByType(containers, state, type, { reset: false });
       });
     }
   } catch (_) {
-    container.innerHTML = '<p class="community-settings-loading">내 글 목록을 불러오지 못했어요.</p>';
+    container.innerHTML = '<p class="community-settings-loading">활동 목록을 불러오지 못했어요.</p>';
   }
 }
 
-async function renderSettingsMyComments(container, state, options = {}) {
-  const reset = !!options.reset;
-  if (reset) {
-    state.myComments = [];
-    state.commentOffset = 0;
+function renderActivityItemHtml(type, item) {
+  if (type === 'comments') {
+    return `
+      <li class="community-settings-activity-item">
+        <a href="${getPostDetailUrl(item.post_id)}" class="community-settings-activity-link" data-post-id="${Number(item.post_id)}">
+          <p class="community-settings-activity-title">[${escHtml(item.post_category || '전체')}] ${escHtml(item.post_title || '원문')}</p>
+          <p class="community-settings-activity-snippet">${escHtml(truncateText(item.body || '', 90))}</p>
+          <p class="community-settings-activity-meta">${fmtRelative(item.created_at)}</p>
+        </a>
+        <div class="community-settings-activity-actions">
+          <button class="community-settings-item-delete" type="button" data-delete-type="comment" data-comment-id="${Number(item.id)}">삭제</button>
+        </div>
+      </li>`;
   }
 
-  try {
-    const response = await fetch(
-      `/api/community/me/comments?limit=${SETTINGS_ACTIVITY_PAGE_SIZE}&offset=${state.commentOffset}`,
-      { credentials: 'include' }
-    );
-    if (!response.ok) {
-      container.innerHTML = '<p class="community-settings-loading">내 댓글 목록을 불러오지 못했어요.</p>';
-      return;
-    }
+  const savedAt = type === 'likes' ? item.liked_at : item.bookmarked_at;
+  const savedMeta = savedAt ? ` · 저장 ${fmtRelative(savedAt)}` : '';
+  const showDelete = type === 'posts';
+  return `
+    <li class="community-settings-activity-item">
+      <a href="${getPostDetailUrl(item.id)}" class="community-settings-activity-link" data-post-id="${Number(item.id)}">
+        <p class="community-settings-activity-title">[${escHtml(item.category || '전체')}] ${escHtml(item.title || '')}</p>
+        <p class="community-settings-activity-meta">${fmtRelative(item.created_at)}${savedMeta} · 조회 ${Number(item.views || 0)} · 댓글 ${Number(item.comments_count || 0)} · 추천 ${Number(item.likes || 0)}</p>
+      </a>
+      ${showDelete ? `<div class="community-settings-activity-actions"><button class="community-settings-item-delete" type="button" data-delete-type="post" data-post-id="${Number(item.id)}">삭제</button></div>` : ''}
+    </li>`;
+}
 
-    const data = await response.json();
-    const comments = Array.isArray(data.comments) ? data.comments : [];
-    state.myComments = reset ? comments : [...state.myComments, ...comments];
-    state.commentOffset = state.myComments.length;
-    state.commentHasMore = !!data.has_more;
-
-    if (state.myComments.length === 0) {
-      container.innerHTML = `
-        <div class="community-settings-empty">
-          <p class="community-settings-empty__title">작성한 댓글이 아직 없어요.</p>
-          <p class="community-settings-empty__desc">글에 댓글을 남기면 여기에 모아서 볼 수 있어요.</p>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = `
-      <ul class="community-settings-activity-items">
-        ${state.myComments.map((comment) => `
-          <li class="community-settings-activity-item">
-            <a href="${getPostDetailUrl(comment.post_id)}" class="community-settings-activity-link" data-post-id="${Number(comment.post_id)}">
-              <p class="community-settings-activity-title">[${escHtml(comment.post_category || '전체')}] ${escHtml(comment.post_title || '원문')}</p>
-              <p class="community-settings-activity-snippet">${escHtml(truncateText(comment.body || '', 90))}</p>
-              <p class="community-settings-activity-meta">${fmtRelative(comment.created_at)}</p>
-            </a>
-          </li>
-        `).join('')}
-      </ul>
-      ${state.commentHasMore ? '<button class="community-settings-more-btn" type="button" data-load-more="comments">나의 댓글 더보기</button>' : ''}`;
-
-    container.querySelectorAll('.community-settings-activity-link').forEach((linkEl) => {
-      linkEl.addEventListener('click', (e) => {
-        const postId = Number(linkEl.dataset.postId || 0);
-        if (postId > 0) markPostViewed(postId);
-      });
+function bindActivityItemEvents(container, containers, state, type) {
+  container.querySelectorAll('.community-settings-activity-link').forEach((linkEl) => {
+    linkEl.addEventListener('click', () => {
+      const postId = Number(linkEl.dataset.postId || 0);
+      if (postId > 0) markPostViewed(postId);
     });
+  });
 
-    const loadMoreBtn = container.querySelector('[data-load-more="comments"]');
-    if (loadMoreBtn) {
-      loadMoreBtn.addEventListener('click', async () => {
-        loadMoreBtn.disabled = true;
-        loadMoreBtn.textContent = '불러오는 중...';
-        await renderSettingsMyComments(container, state, { reset: false });
-      });
-    }
-  } catch (_) {
-    container.innerHTML = '<p class="community-settings-loading">내 댓글 목록을 불러오지 못했어요.</p>';
-  }
+  container.querySelectorAll('.community-settings-item-delete').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const deleteType = btn.dataset.deleteType;
+      if (deleteType === 'post') {
+        const postId = Number(btn.dataset.postId || 0);
+        if (!postId) return;
+        const ok = window.confirm('내 게시글을 삭제할까요?');
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch(`/api/community/me/posts/${postId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            const msg = await readApiError(r, '게시글 삭제에 실패했어요');
+            if (msg) showToast(msg);
+            btn.disabled = false;
+            return;
+          }
+          showToast('게시글을 삭제했어요');
+        } catch (_) {
+          showToast('게시글 삭제 중 오류가 발생했어요');
+        }
+      }
+
+      if (deleteType === 'comment') {
+        const commentId = Number(btn.dataset.commentId || 0);
+        if (!commentId) return;
+        const ok = window.confirm('내 댓글을 삭제할까요?');
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          const r = await fetch(`/api/community/me/comments/${commentId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            const msg = await readApiError(r, '댓글 삭제에 실패했어요');
+            if (msg) showToast(msg);
+            btn.disabled = false;
+            return;
+          }
+          showToast('댓글을 삭제했어요');
+        } catch (_) {
+          showToast('댓글 삭제 중 오류가 발생했어요');
+        }
+      }
+
+      await Promise.all([
+        renderSettingsActivityTab(containers, state, { reset: true }),
+        renderHotPosts(),
+        resetAndLoad(),
+      ]);
+    });
+  });
 }
 
 async function renderSettingsBlockedUsers(container) {
@@ -2210,6 +2398,11 @@ detailStyle.textContent = `
   display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
   background:rgba(59,130,246,0.12); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
   color:var(--accent-blue); border:1px solid rgba(59,130,246,0.3);
+}
+.detail-bookmark-btn {
+  display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;
+  background:rgba(48,209,88,0.12); border-radius:var(--radius-pill); font-size:12px; font-weight:700;
+  color:var(--accent-green); border:1px solid rgba(48,209,88,0.3);
 }
 .detail-block-btn {
   display:inline-flex; align-items:center; justify-content:center; height:32px; padding:0 14px;

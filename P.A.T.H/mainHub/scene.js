@@ -1528,6 +1528,7 @@ const WorldScene = {
                     touchFilter.moveDX = 0;
                     touchFilter.moveDY = 0;
                     touchFilter.altitudeDY = 0;
+                    this._clearTouchIntent();
                     this.oneHandCruise.pointerId = e.pointerId;
                     this.oneHandCruise.anchorX = e.clientX;
                     this.oneHandCruise.anchorY = e.clientY;
@@ -1541,6 +1542,8 @@ const WorldScene = {
                     const longPressMs = Number.isFinite(tune2.longPressMs) ? tune2.longPressMs : 320;
                     touchFilter.moveDX = 0;
                     touchFilter.moveDY = 0;
+                    touchFilter.altitudeDY = 0;
+                    this._clearTouchIntent();
                     this.springActive = false;
                     this._showTravelHint(true, '화면 드래그 이동 · 길게 누르면 원핸드 순항');
                     this._clearOneHandLongPressTimer();
@@ -1605,7 +1608,7 @@ const WorldScene = {
                     const altitudeSmoothAlpha = Number.isFinite(tune.altitudeSmoothAlpha) ? tune.altitudeSmoothAlpha : 0.34;
                     touchFilter.altitudeDY += (rawDY - touchFilter.altitudeDY) * altitudeSmoothAlpha;
                     const dz = (-touchFilter.altitudeDY) * altitudeSwipeGain;
-                    this._applyPlayerWorldDelta(0, 0, dz);
+                    this._setTouchIntent(0, 0, dz);
                     return;
                 }
 
@@ -1630,7 +1633,7 @@ const WorldScene = {
                 touchFilter.moveDY += (rawDY - touchFilter.moveDY) * touchSmoothAlpha;
                 const dragMoveScale = Number.isFinite(tune.dragMoveScale) ? tune.dragMoveScale : 0.0023;
                 const moveScale = this.orbitRadius * dragMoveScale;
-                this._applyPlayerWorldDelta(
+                this._setTouchIntent(
                     (right.x * touchFilter.moveDX + forward.x * (-touchFilter.moveDY)) * moveScale / WORLD_SCALE,
                     (right.z * touchFilter.moveDX + forward.z * (-touchFilter.moveDY)) * moveScale / WORLD_SCALE,
                     0
@@ -1716,6 +1719,7 @@ const WorldScene = {
                 touchFilter.moveDX = 0;
                 touchFilter.moveDY = 0;
                 touchFilter.altitudeDY = 0;
+                this._clearTouchIntent();
                 this.ignoreNextClickUntil = Date.now() + 260;
             }
             if (this.isDraggingBalloon) {
@@ -1971,6 +1975,18 @@ const WorldScene = {
         this.oneHandCruise.pointerId = null;
     },
 
+    _setTouchIntent(dx = 0, dy = 0, dz = 0) {
+        this.movementEase.touchIntentX = Number(dx) || 0;
+        this.movementEase.touchIntentY = Number(dy) || 0;
+        this.movementEase.touchIntentZ = Number(dz) || 0;
+    },
+
+    _clearTouchIntent() {
+        this.movementEase.touchIntentX = 0;
+        this.movementEase.touchIntentY = 0;
+        this.movementEase.touchIntentZ = 0;
+    },
+
     _startOneHandCruise(pointerId, x, y) {
         const forward = new THREE.Vector3();
         this.camera.getWorldDirection(forward);
@@ -1984,6 +2000,7 @@ const WorldScene = {
         this.oneHandCruise.dirY = Number.isFinite(forward.z) ? forward.z : 1;
         const tune = this.touchTuning || {};
         this.oneHandCruise.speed = Number.isFinite(tune.cruiseStartSpeed) ? tune.cruiseStartSpeed : 0.6;
+        this._clearTouchIntent();
         this._showTravelHint(true, '원핸드 순항 모드: 드래그 조향 · 탭 해제');
     },
 
@@ -2065,8 +2082,34 @@ const WorldScene = {
             dx += cruiseDelta.dx;
             dy += cruiseDelta.dy;
 
-            if (dx !== 0 || dy !== 0 || dz !== 0) {
-                this._applyPlayerWorldDelta(dx, dy, dz);
+            dx += this.movementEase.touchIntentX;
+            dy += this.movementEase.touchIntentY;
+            dz += this.movementEase.touchIntentZ;
+
+            const tune = this.touchTuning || {};
+            const accel = Number.isFinite(tune.moveEaseAccel) ? tune.moveEaseAccel : 0.34;
+            const damping = Number.isFinite(tune.moveEaseDamping) ? tune.moveEaseDamping : 0.7;
+            const intentDecay = Number.isFinite(tune.touchIntentDecay) ? tune.touchIntentDecay : 0.45;
+            const minVelocityCutoff = Number.isFinite(tune.minVelocityCutoff) ? tune.minVelocityCutoff : 0.02;
+
+            this.movementEase.velX += (dx - this.movementEase.velX) * accel;
+            this.movementEase.velY += (dy - this.movementEase.velY) * accel;
+            this.movementEase.velZ += (dz - this.movementEase.velZ) * accel;
+
+            if (Math.abs(dx) < 0.001) this.movementEase.velX *= damping;
+            if (Math.abs(dy) < 0.001) this.movementEase.velY *= damping;
+            if (Math.abs(dz) < 0.001) this.movementEase.velZ *= damping;
+
+            if (Math.abs(this.movementEase.velX) < minVelocityCutoff) this.movementEase.velX = 0;
+            if (Math.abs(this.movementEase.velY) < minVelocityCutoff) this.movementEase.velY = 0;
+            if (Math.abs(this.movementEase.velZ) < minVelocityCutoff) this.movementEase.velZ = 0;
+
+            this.movementEase.touchIntentX *= intentDecay;
+            this.movementEase.touchIntentY *= intentDecay;
+            this.movementEase.touchIntentZ *= intentDecay;
+
+            if (this.movementEase.velX !== 0 || this.movementEase.velY !== 0 || this.movementEase.velZ !== 0) {
+                this._applyPlayerWorldDelta(this.movementEase.velX, this.movementEase.velY, this.movementEase.velZ);
             }
         }, 50);
     },
@@ -2172,6 +2215,16 @@ const WorldScene = {
         let dragMoveScale = isMobileLike ? 0.0027 : 0.0023;
         let twoFingerRotateSpeed = ORBIT_ROTATE_SPEED * (isMobileLike ? 0.62 : 0.55);
         let twoFingerTiltSpeed = ORBIT_ROTATE_SPEED * (isMobileLike ? 0.42 : 0.38);
+        let touchDeadzonePx = isMobileLike ? 1.8 : 1.4;
+        let touchSmoothAlpha = isMobileLike ? 0.34 : 0.38;
+        let altitudeSmoothAlpha = isMobileLike ? 0.3 : 0.34;
+        let rotationDeadzonePx = isMobileLike ? 2.2 : 1.8;
+        let rotationSmoothAlpha = isMobileLike ? 0.27 : 0.3;
+        let rotationImpulseClampPx = isMobileLike ? 11 : 14;
+        let maxOrbitVel = isMobileLike ? 0.072 : 0.085;
+        let moveEaseAccel = isMobileLike ? 0.3 : 0.34;
+        let moveEaseDamping = isMobileLike ? 0.68 : 0.7;
+        let touchIntentDecay = isMobileLike ? 0.5 : 0.45;
         let cruiseResponsePx = isMobileLike ? 105 : 120;
         let cruiseStartSpeed = isMobileLike ? 0.62 : 0.6;
 
@@ -2182,13 +2235,18 @@ const WorldScene = {
             altitudeSwipeGain *= 1.08;
             twoFingerRotateSpeed *= 1.06;
             twoFingerTiltSpeed *= 1.06;
+            touchDeadzonePx += 0.2;
+            rotationDeadzonePx += 0.25;
             cruiseResponsePx = Math.max(88, cruiseResponsePx - 8);
+            moveEaseAccel = Math.max(0.26, moveEaseAccel - 0.02);
         }
 
         if (shortSide <= 430) {
             dragMoveScale *= 1.12;
             altitudeSwipeGain *= 1.1;
             longPressMs = Math.max(240, longPressMs - 25);
+            maxOrbitVel = Math.min(maxOrbitVel, 0.068);
+            touchIntentDecay = Math.min(0.55, touchIntentDecay + 0.03);
         }
 
         return {
@@ -2197,10 +2255,21 @@ const WorldScene = {
             tapPx: Math.round(tapPx),
             tapMaxMs: 240,
             cancelLongPressPx: Math.round(cancelLongPressPx),
+            touchDeadzonePx,
+            touchSmoothAlpha,
+            altitudeSmoothAlpha,
             altitudeSwipeGain,
             dragMoveScale,
             twoFingerRotateSpeed,
             twoFingerTiltSpeed,
+            rotationDeadzonePx,
+            rotationSmoothAlpha,
+            rotationImpulseClampPx,
+            maxOrbitVel,
+            moveEaseAccel,
+            moveEaseDamping,
+            touchIntentDecay,
+            minVelocityCutoff: 0.02,
             cruiseMinSpeed: 0.22,
             cruiseResponsePx,
             cruiseStartSpeed,
@@ -2457,6 +2526,10 @@ const WorldScene = {
             if (island.userData.beaconCore?.material) {
                 island.userData.beaconCore.rotation.y += 0.01;
                 island.userData.beaconCore.material.emissiveIntensity = 0.85 + Math.sin(t * 1.8 + island.userData.floatPhase) * 0.35;
+            }
+            if (island.userData.orbitRing?.material) {
+                island.userData.orbitRing.rotation.z -= 0.014;
+                island.userData.orbitRing.material.opacity = 0.3 + Math.sin(t * 1.5 + island.userData.floatPhase) * 0.1;
             }
             
             // 라벨 회전 (항상 카메라 방향)
