@@ -2545,7 +2545,7 @@ body.active .tab-panel {
 }
 
 .lb-row-active {
-    /* Already studying indicator */
+    background: rgba(0, 196, 113, 0.08);
 }
 
 .lb-rank {
@@ -3862,4 +3862,234 @@ body:not(.light) .room-toggle-slider {
     color: var(--text-muted);
     margin: 4px 0 0;
     line-height: 1.4;
+}
+
+/* ============================================================
+   Main Page Redesign: Toss-like clean card system
+   Keeps existing JS hooks unchanged.
+   ============================================================ */
+
+body.path-interface {
+    background:
+        radial-gradient(1100px 560px at -10% -20%, rgba(49, 130, 246, 0.14) 0%, rgba(49, 130, 246, 0) 65%),
+        radial-gradient(900px 520px at 110% -20%, rgba(0, 196, 113, 0.08) 0%, rgba(0, 196, 113, 0) 70%),
+        linear-gradient(180deg, #f3f5f9 0%, #eef1f6 100%);
+    color: #191f28;
+}
+
+body.path-interface:not(.light) {
+    background:
+        radial-gradient(1100px 560px at -10% -20%, rgba(82, 151, 255, 0.16) 0%, rgba(82, 151, 255, 0) 65%),
+        radial-gradient(900px 520px at 110% -20%, rgba(0, 196, 113, 0.08) 0%, rgba(0, 196, 113, 0) 70%),
+        linear-gradient(180deg, #11161f 0%, #0b0f15 100%);
+}
+
+.status-bar {
+    border-radius: 22px;
+    border: 1px solid rgba(44, 52, 69, 0.08);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    padding: 14px 18px;
+}
+
+.focus-container {
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 14px;
+}
+
+.page-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-radius: 18px;
+    padding: 5px;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(44, 52, 69, 0.08);
+}
+
+.page-tab-btn {
+    min-height: 46px;
+    font-weight: 700;
+    border-radius: 14px;
+    font-size: 13px;
+}
+
+.page-tab-btn.active {
+    color: #1b64da;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(27, 100, 218, 0.14);
+}
+
+.tab-panel {
+    border-radius: 26px;
+    padding: 22px;
+    border: 1px solid rgba(44, 52, 69, 0.08);
+    box-shadow: 0 16px 36px rgba(13, 25, 44, 0.08);
+    backdrop-filter: blur(14px);
+}
+
+#tab-study {
+    gap: 14px;
+}
+
+.subject-control,
+.setup-group,
+.mode-group,
+.control-group {
+    width: 100%;
+    border: 1px solid rgba(44, 52, 69, 0.08);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.subject-control {
+    padding: 12px;
+}
+
+.mode-group {
+    margin-bottom: 0;
+    padding: 5px;
+}
+
+.mode-btn {
+    flex: 1;
+    min-height: 42px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.mode-btn.active {
+    background: #ffffff;
+    color: #1b64da;
+    box-shadow: 0 4px 12px rgba(27, 100, 218, 0.12);
+}
+
+.setup-group {
+    margin-top: 0;
+    padding: 14px 10px;
+}
+
+.time-input {
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.timer-display {
+    position: relative;
+    width: 100%;
+    border-radius: 22px;
+    border: 1px solid rgba(44, 52, 69, 0.08);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.9) 0%, rgba(243, 247, 255, 0.84) 100%);
+    box-shadow: 0 12px 24px rgba(13, 25, 44, 0.08);
+    padding: 12px 16px;
+    text-align: center;
+    margin: 0;
+}
+
+.timer-display::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    pointer-events: none;
+    background: linear-gradient(120deg, rgba(49, 130, 246, 0.08), rgba(49, 130, 246, 0));
+}
+
+.control-group {
+    margin-top: 0;
+    padding: 12px;
+}
+
+.cmd-btn {
+    width: 100%;
+    min-width: 0;
+    border-radius: 14px;
+    min-height: 54px;
+}
+
+@media (min-width: 1024px) and (max-width: 1366px) and (orientation: landscape) {
+    .status-bar,
+    .focus-container,
+    .footer-info {
+        width: min(1220px, 100%);
+    }
+
+    #tab-study.active {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        grid-template-areas:
+            'subject timer'
+            'mode timer'
+            'setup controls';
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    #tab-study .subject-control {
+        grid-area: subject;
+    }
+
+    #tab-study .mode-group {
+        grid-area: mode;
+    }
+
+    #tab-study #setup-area {
+        grid-area: setup;
+    }
+
+    #tab-study #main-timer {
+        grid-area: timer;
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(4.2rem, 7.4vw, 7.2rem);
+    }
+
+    #tab-study .control-group {
+        grid-area: controls;
+        display: flex;
+        align-items: center;
+    }
+
+    #tab-study .cmd-btn {
+        min-height: 58px;
+    }
+
+    #tab-study .study-plan-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 980px) {
+    .page-tabs {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tab-panel {
+        padding: 16px;
+        border-radius: 20px;
+    }
+
+    .subject-control,
+    .setup-group,
+    .mode-group,
+    .control-group,
+    .timer-display {
+        border-radius: 16px;
+    }
+}
+
+@media (max-width: 620px) {
+    .page-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .page-tab-btn {
+        min-height: 42px;
+        font-size: 12px;
+    }
 }

@@ -477,6 +477,56 @@
         };
     })();
 
+    // 계정 보안 모달 함수
+    window.openAccountSecurityModal = function () {
+        var modal = document.getElementById('modal-account-security');
+        if (!modal) return;
+        var user = window.currentUser;
+        var codeEl = document.getElementById('account-user-code');
+        if (codeEl) codeEl.textContent = (user && user.user_code) || '-';
+        var msgEl = document.getElementById('account-security-msg');
+        if (msgEl) msgEl.textContent = '';
+        ['pw-current', 'pw-next', 'pw-next-confirm'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        modal.classList.remove('hidden');
+    };
+    window.closeModal = window.closeModal || function (id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    };
+    window.submitPasswordChange = function () {
+        var cur = (document.getElementById('pw-current') || {}).value || '';
+        var nxt = (document.getElementById('pw-next') || {}).value || '';
+        var nxtC = (document.getElementById('pw-next-confirm') || {}).value || '';
+        var msgEl = document.getElementById('account-security-msg');
+        if (!nxt) { if (msgEl) msgEl.textContent = '새 비밀번호를 입력해주세요.'; return; }
+        if (nxt.length < 10) { if (msgEl) msgEl.textContent = '새 비밀번호는 10자 이상이어야 합니다.'; return; }
+        if (nxt !== nxtC) { if (msgEl) msgEl.textContent = '새 비밀번호가 일치하지 않습니다.'; return; }
+        if (msgEl) msgEl.textContent = '변경 중...';
+        fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ current_password: cur, new_password: nxt })
+        })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+            if (msgEl) msgEl.textContent = res.data.message || res.data.error || (res.ok ? '완료' : '오류');
+            if (res.ok) {
+                setTimeout(function () { window.closeModal('modal-account-security'); }, 1200);
+            }
+        })
+        .catch(function () { if (msgEl) msgEl.textContent = '오류가 발생했습니다.'; });
+    };
+    window.copyMyUserCode = function () {
+        var user = window.currentUser;
+        var code = (user && user.user_code) || (document.getElementById('account-user-code') || {}).textContent || '';
+        if (!code || code === '-') return;
+        navigator.clipboard && navigator.clipboard.writeText(code).catch(function () {});
+    };
+
     // 프로필 버튼 직접 바인딩 (nav.js div onclick 미탐지 대비)
     document.addEventListener('DOMContentLoaded', function () {
         var btn = document.getElementById('tutorial-profile');

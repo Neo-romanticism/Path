@@ -241,8 +241,9 @@ async function renderHotPosts() {
 function HotCard(post) {
     const cat = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
     const li  = document.createElement('li');
+    const postUrl = getPostDetailUrl(post.id);
     li.innerHTML = `
-      <div class="c-hot-card" role="button" tabindex="0" data-post-id="${post.id}">
+      <a class="c-hot-card" href="${postUrl}" data-post-id="${post.id}">
         <div class="c-hot-card__cat ${cat.cls}">${cat.label}</div>
         <p class="c-hot-card__title">${escHtml(post.title)}</p>
         <div class="c-hot-card__footer">
@@ -266,9 +267,8 @@ function HotCard(post) {
             </span>
           </span>
         </div>
-      </div>`;
+      </a>`;
     bindUserProfileTriggers(li);
-    li.querySelector('.c-hot-card').addEventListener('click', () => openPostDetail(post.id));
     return li;
 }
 
@@ -375,70 +375,42 @@ async function loadNextPage() {
 function bindPostClicks() {
   bindUserProfileTriggers(postList);
 
-    postList.querySelectorAll('.post-row:not([data-bound])').forEach(row => {
+    postList.querySelectorAll('.post-row:not([data-bound])').forEach((row) => {
         row.dataset.bound = '1';
-        row.addEventListener('click', e => {
-            e.preventDefault();
-            const id = parseInt(row.dataset.id);
-            if (id) openPostDetail(id);
+        row.addEventListener('click', (e) => {
+            const userProfileBtn = e.target.closest('.js-open-user-profile');
+            if (userProfileBtn) return;
+
+            const id = parseInt(row.dataset.id, 10);
+            if (!id) return;
+            markPostViewed(id);
         });
     });
 }
 
 /* ─── 게시글 상세 모달 ───────────────────────────────────── */
 async function openPostDetail(postId) {
-    // 조회수 증가 (fire-and-forget)
-    fetch(`/api/community/posts/${postId}/view`, {
-        method: 'POST', credentials: 'include',
-    }).catch(() => {});
+    const id = Number(postId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    markPostViewed(id);
+    window.location.assign(getPostDetailUrl(id));
+}
 
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    backdrop.innerHTML = `
-      <div class="write-modal post-detail-modal" role="dialog" aria-modal="true" style="max-width:640px">
-        <div class="write-modal-handle"></div>
-        <div class="write-modal-header">
-          <button class="write-modal-close" aria-label="닫기" id="detail-close">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.2">
-              <line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/>
-            </svg>
-          </button>
-        </div>
-        <div class="write-modal-body" id="detail-body">
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="skel" style="height:20px;width:70%"></div>
-            <div class="skel" style="height:14px;width:40%"></div>
-            <div class="skel" style="height:100px;width:100%"></div>
-          </div>
-        </div>
-      </div>`;
+function getPostDetailUrl(postId) {
+  const id = Number(postId);
+  if (!Number.isInteger(id) || id <= 0) return '/community/';
+  return `/community/post/${id}`;
+}
 
-    document.body.appendChild(backdrop);
-    requestAnimationFrame(() => backdrop.classList.add('visible'));
+function markPostViewed(postId) {
+  const id = Number(postId);
+  if (!Number.isInteger(id) || id <= 0) return;
 
-    const closeDetail = () => {
-        backdrop.classList.remove('visible');
-        backdrop.addEventListener('transitionend', () => backdrop.remove(), { once: true });
-    };
-    backdrop.querySelector('#detail-close').addEventListener('click', closeDetail);
-    backdrop.addEventListener('click', e => { if (e.target === backdrop) closeDetail(); });
-
-    try {
-        // 게시글 + 댓글 병렬 로드
-        const [postRes, cmtRes] = await Promise.all([
-            fetch(`/api/community/posts/${postId}`, { credentials: 'include' }),
-            fetch(`/api/community/posts/${postId}/comments`, { credentials: 'include' }),
-        ]);
-
-        if (!postRes.ok) throw new Error('not found');
-        const { post } = await postRes.json();
-        const cmts = cmtRes.ok ? (await cmtRes.json()).comments : [];
-
-        renderDetailBody(backdrop.querySelector('#detail-body'), { post, postId, comments: cmts });
-    } catch (_) {
-        backdrop.querySelector('#detail-body').innerHTML =
-            `<p style="color:var(--text-2);text-align:center;padding:32px">게시글을 불러올 수 없어요.</p>`;
-    }
+  fetch(`/api/community/posts/${id}/view`, {
+    method: 'POST',
+    credentials: 'include',
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function renderDetailBody(container, { post, postId, comments }) {

@@ -326,11 +326,12 @@ app.get('/community/post/:id', async (req, res) => {
     }
 
     try {
-        const [postResult, commentsResult] = await Promise.all([
+        const [updateResult, commentsResult] = await Promise.all([
             pool.query(
-                `SELECT id, category, title, body, image_url, link_url, nickname, views, likes, comments_count, created_at
-                 FROM community_posts
-                 WHERE id = $1`,
+                `UPDATE community_posts
+                 SET views = views + 1
+                 WHERE id = $1
+                 RETURNING id, category, title, body, image_url, link_url, nickname, views, likes, comments_count, created_at`,
                 [postId]
             ),
             pool.query(
@@ -343,11 +344,11 @@ app.get('/community/post/:id', async (req, res) => {
             )
         ]);
 
-        if (!postResult.rows.length) {
+        if (!updateResult.rows.length) {
             return res.status(404).type('text/html').send('<h1>게시글을 찾을 수 없습니다.</h1>');
         }
 
-        const post = postResult.rows[0];
+        const post = updateResult.rows[0];
         const comments = commentsResult.rows;
         const baseUrl = getSiteBaseUrl(req);
         const canonical = `${baseUrl}/community/post/${post.id}`;

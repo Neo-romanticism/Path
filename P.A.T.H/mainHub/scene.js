@@ -3,6 +3,21 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './balloonModel.js';
+import { InteractableProp } from './interactableProp.js';
+import {
+    WORLD_SIZE,
+    CHUNK_SIZE,
+    DRAG_SENSITIVITY,
+    WORLD_HALF,
+    REMOTE_POS_LERP,
+    REMOTE_STALE_REMOVE_MS,
+    BALLOON_COLLISION_REPEL,
+    BALLOON_COLLISION_DAMP,
+    BALLOON_COLLISION_MAX_PUSH,
+    AURA_COLORS,
+    worldToScene,
+    sceneToWorld
+} from './sceneConstants.js';
 
 // main.js is a classic script (non-module), so expose THREE for shared preview rendering.
 if (typeof window !== 'undefined' && !window.THREE) {
@@ -12,35 +27,8 @@ if (typeof window !== 'undefined' && !window.createShopBalloonModel) {
     window.createShopBalloonModel = (scale = 0.8, skinId = 'default') => create3DBalloon(scale, skinId, false);
 }
 
-// ── World constants ──────────────────────────────────────────────────────────
-// The game world is 200,000 × 200,000 world-units.  A WORLD_SCALE factor maps
-// world-units to Three.js scene-units so the renderer stays in a comfortable
-// numeric range while the coordinate system feels large-scale to players.
-const WORLD_SIZE        = 200000;  // total world width/height (world-units)
-const WORLD_SCALE       = 0.15;    // scene-units per world-unit  (200,000 → 30,000 scene-units)
-const CHUNK_SIZE        = 4000;    // spatial-partition chunk edge (world-units)
-const DRAG_SENSITIVITY  = 0.55;    // 0..1 – lower = less sensitive mouse/touch drag
-const WORLD_HALF        = WORLD_SIZE / 2;   // convenience: max |world coord|
-const REMOTE_POS_LERP   = 0.12;    // lerp factor for remote player position interpolation
-const REMOTE_STALE_REMOVE_MS = 12000; // grace period before removing unseen remote balloons
-
-const AURA_COLORS = {
-    none: null,
-    sun: 0xffc44d,
-    frost: 0x7fd9ff,
-    forest: 0x67d57a,
-    cosmic: 0x9e8dff,
-    royal: 0xe08bff
-};
-
-function worldToScene(value) {
-    return -value * WORLD_SCALE;
-}
-
-function sceneToWorld(value) {
-    return -value / WORLD_SCALE;
-}
-
+// Central world runtime. Rendering/input/network sync are intentionally grouped
+// here, while reusable primitives are moved to dedicated modules.
 const WorldScene = {
     scene: null,
     camera: null,
@@ -260,6 +248,7 @@ const WorldScene = {
         });
     },
 
+    // Environment builders (night sky, clouds, islands, ambient props)
     _buildStars() {
         const N = 3000;
         const positions = new Float32Array(N * 3);
@@ -1191,6 +1180,70 @@ const WorldScene = {
         return x - Math.floor(x);
     },
 
+    _getBalloonCollisionRadius(balloonState) {
+        if (!balloonState) return 92;
+        if (balloonState.isMe) return 128;
+        if (balloonState.kind === 'background') return 88;
+        if (balloonState.kind === 'nearby') return 98;
+        return 94;
+    },
+
+    _resolveBalloonCollisions() {
+        const entries = [];
+        this.balloons.forEach((b) => {
+            const grp = b?.group;
+            if (!grp || !grp.visible) return;
+            entries.push(b);
+            if (!Number.isFinite(grp.userData.pushVX)) grp.userData.pushVX = 0;
+            if (!Number.isFinite(grp.userData.pushVZ)) grp.userData.pushVZ = 0;
+        });
+
+        for (let i = 0; i < entries.length; i++) {
+            const a = entries[i];
+            const ga = a.group;
+            const ar = this._getBalloonCollisionRadius(a);
+
+            for (let j = i + 1; j < entries.length; j++) {
+                const b = entries[j];
+                const gb = b.group;
+                const br = this._getBalloonCollisionRadius(b);
+                const minDist = ar + br;
+
+                const dx = gb.position.x - ga.position.x;
+                const dz = gb.position.z - ga.position.z;
+                const distSq = dx * dx + dz * dz;
+                if (distSq >= minDist * minDist) continue;
+
+                const dist = Math.max(0.001, Math.sqrt(distSq));
+                const nx = dx / dist;
+                const nz = dz / dist;
+                const overlap = minDist - dist;
+                const impulse = Math.min(BALLOON_COLLISION_MAX_PUSH, overlap * BALLOON_COLLISION_REPEL);
+
+                const aStatic = !!a.isMe;
+                const bStatic = !!b.isMe;
+
+                if (aStatic && bStatic) continue;
+
+                if (aStatic || bStatic) {
+                    if (aStatic) {
+                        gb.userData.pushVX += nx * impulse;
+                        gb.userData.pushVZ += nz * impulse;
+                    } else {
+                        ga.userData.pushVX -= nx * impulse;
+                        ga.userData.pushVZ -= nz * impulse;
+                    }
+                } else {
+                    const half = impulse * 0.5;
+                    ga.userData.pushVX -= nx * half;
+                    ga.userData.pushVZ -= nz * half;
+                    gb.userData.pushVX += nx * half;
+                    gb.userData.pushVZ += nz * half;
+                }
+            }
+        }
+    },
+
     _getHorizontalSlot(id, index, total, options = {}) {
         const spacingX = options.spacingX ?? options.spacing ?? 175;
         const rowOffsetY = options.rowOffsetY ?? -120;
@@ -1246,6 +1299,7 @@ const WorldScene = {
      * Populate / refresh the ranking layer using a camera-relative
      * curved multi-row arrangement with deterministic variance.
      */
+    // Player sync pipeline: ranking data -> balloons -> target transforms.
     setUsers(users, me, isLight) {
         this.setDayNightMode(isLight, true);
         this._ensureMyBalloon(me);
@@ -1843,6 +1897,7 @@ const WorldScene = {
         this.composer.addPass(bloom);
     },
 
+    // Input router for drag/click/hover/wheel gestures on the scene canvas.
     _setupInput() {
         const canvas = this.renderer.domElement;
 
@@ -2192,6 +2247,7 @@ const WorldScene = {
         this.composer.setSize(W, H);
     },
 
+    // Per-frame simulation + render entry point.
     _loop() {
         requestAnimationFrame(() => this._loop());
         this.frameCount++;
@@ -2222,6 +2278,8 @@ const WorldScene = {
 
         const speed = Math.sqrt(this.velX * this.velX + this.velY * this.velY);
 
+        this._resolveBalloonCollisions();
+
         this.balloons.forEach((b) => {
             const grp = b.group;
             grp.quaternion.copy(this.camera.quaternion);
@@ -2245,6 +2303,18 @@ const WorldScene = {
             if (!b.isMe && grp.userData.targetX !== undefined) {
                 grp.position.x  += (grp.userData.targetX - grp.position.x)  * REMOTE_POS_LERP;
                 grp.userData.baseY += (grp.userData.targetY - grp.userData.baseY) * REMOTE_POS_LERP;
+            }
+
+            if (!b.isMe) {
+                const pushVX = Number.isFinite(grp.userData.pushVX) ? grp.userData.pushVX : 0;
+                const pushVZ = Number.isFinite(grp.userData.pushVZ) ? grp.userData.pushVZ : 0;
+                grp.position.x += pushVX;
+                grp.position.z += pushVZ;
+                if (grp.userData.targetX !== undefined) {
+                    grp.userData.targetX += pushVX * 0.7;
+                }
+                grp.userData.pushVX = pushVX * BALLOON_COLLISION_DAMP;
+                grp.userData.pushVZ = pushVZ * BALLOON_COLLISION_DAMP;
             }
 
             const baseY = grp.userData.baseY || 0;
@@ -2407,299 +2477,6 @@ const WorldScene = {
         this.composer.render();
     }
 };
-
-// ── InteractableProp ─────────────────────────────────────────────────────────
-/**
- * A clickable world object (sky-island portal, building, etc.) that can be
- * activated / deactivated by any player.  State changes are broadcast via
- * socket.io so all connected clients see the same result.
- *
- * Visual feedback:
- *  - Inactive : standard green/brown floating island
- *  - Active   : golden glow + rotating glow ring + label
- */
-class InteractableProp {
-    /**
-     * @param {string}      id         Unique prop identifier (stable across sessions)
-     * @param {string}      name       Display name
-     * @param {number}      x          Scene X
-     * @param {number}      y          Scene Y (base, before float)
-     * @param {number}      z          Scene Z
-     * @param {number}      rx         Radius multiplier
-     * @param {THREE.Scene} scene      Three.js scene
-     * @param {Function}    onTrigger  Called with (id, activated) when this client toggles
-     */
-    constructor(id, name, x, y, z, rx, scene, onTrigger) {
-        this.id        = id;
-        this.name      = name;
-        this.activated = false;
-        this.onTrigger = onTrigger;
-
-        this.group = new THREE.Group();
-        this.group.userData.propId     = id;
-        this.group.userData.name       = name;
-        this.group.userData.baseY      = y;
-        this.group.userData.floatSpeed = 0.35;
-        this.group.userData.floatPhase = 0;
-
-        // Top cap (grass / portal surface)
-        const topGeo = new THREE.CylinderGeometry(rx * 90, rx * 80, 30, 14);
-        this._topMat = new THREE.MeshStandardMaterial({ color: 0x3a7d44, roughness: 0.9, metalness: 0 });
-        const top = new THREE.Mesh(topGeo, this._topMat);
-        top.position.y = 15;
-        top.userData.propId = id;
-        this.group.add(top);
-
-        // Stone base
-        const botGeo = new THREE.CylinderGeometry(rx * 60, rx * 30, 80, 10);
-        const botMat = new THREE.MeshStandardMaterial({ color: 0x6b4226, roughness: 1.0, metalness: 0 });
-        const bot = new THREE.Mesh(botGeo, botMat);
-        bot.position.y = -25;
-        bot.userData.propId = id;
-        this.group.add(bot);
-
-        // Castle structure
-        this._buildCastle(rx);
-
-        // Activation glow ring
-        const ringGeo = new THREE.TorusGeometry(rx * 85, 8, 8, 32);
-        this._glowMat = new THREE.MeshBasicMaterial({
-            color: 0xD4AF37, transparent: true, opacity: 0, depthWrite: false,
-        });
-        this._glowRing = new THREE.Mesh(ringGeo, this._glowMat);
-        this._glowRing.rotation.x = Math.PI / 2;
-        this._glowRing.position.y = 32;
-        this.group.add(this._glowRing);
-
-        // Name label (canvas texture, always faces camera)
-        const labelCanvas = this._makeLabel(name);
-        const labelTex    = new THREE.CanvasTexture(labelCanvas);
-        const labelGeo    = new THREE.PlaneGeometry(160, 44);
-        const labelMat    = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false });
-        this._labelMesh   = new THREE.Mesh(labelGeo, labelMat);
-        this._labelMesh.position.y = 80;
-        this.group.add(this._labelMesh);
-
-        this.group.position.set(x, y, z);
-        scene.add(this.group);
-    }
-
-    _buildCastle(rx) {
-        // Castle stone material
-        const stoneMat = new THREE.MeshStandardMaterial({
-            color: 0x8b8b8b,
-            roughness: 0.95,
-            metalness: 0.05
-        });
-
-        // Main castle tower
-        const towerGeo = new THREE.CylinderGeometry(rx * 25, rx * 28, 70, 8);
-        const tower = new THREE.Mesh(towerGeo, stoneMat);
-        tower.position.set(0, 55, 0);
-        this.group.add(tower);
-
-        // Tower top (cone roof)
-        const roofGeo = new THREE.ConeGeometry(rx * 32, 35, 8);
-        const roofMat = new THREE.MeshStandardMaterial({
-            color: 0x8b4513,
-            roughness: 0.9,
-            metalness: 0
-        });
-        const roof = new THREE.Mesh(roofGeo, roofMat);
-        roof.position.set(0, 107, 0);
-        this.group.add(roof);
-
-        // Battlements (crenellations) around tower top
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const bx = Math.cos(angle) * rx * 27;
-            const bz = Math.sin(angle) * rx * 27;
-            const battlementGeo = new THREE.BoxGeometry(rx * 8, 10, rx * 8);
-            const battlement = new THREE.Mesh(battlementGeo, stoneMat);
-            battlement.position.set(bx, 95, bz);
-            this.group.add(battlement);
-        }
-
-        // Side towers (4 smaller towers around main)
-        const towerPositions = [
-            { x: rx * 50, z: rx * 50 },
-            { x: -rx * 50, z: rx * 50 },
-            { x: rx * 50, z: -rx * 50 },
-            { x: -rx * 50, z: -rx * 50 }
-        ];
-
-        towerPositions.forEach(pos => {
-            const sideTowerGeo = new THREE.CylinderGeometry(rx * 15, rx * 17, 50, 6);
-            const sideTower = new THREE.Mesh(sideTowerGeo, stoneMat);
-            sideTower.position.set(pos.x, 40, pos.z);
-            this.group.add(sideTower);
-
-            // Small roof on side tower
-            const sideRoofGeo = new THREE.ConeGeometry(rx * 20, 25, 6);
-            const sideRoof = new THREE.Mesh(sideRoofGeo, roofMat);
-            sideRoof.position.set(pos.x, 77, pos.z);
-            this.group.add(sideRoof);
-        });
-
-        // Castle walls connecting the towers
-        const wallMat = new THREE.MeshStandardMaterial({
-            color: 0x7a7a7a,
-            roughness: 0.95,
-            metalness: 0.05
-        });
-
-        // Front and back walls
-        const wallGeoX = new THREE.BoxGeometry(rx * 100, 35, rx * 8);
-        const frontWall = new THREE.Mesh(wallGeoX, wallMat);
-        frontWall.position.set(0, 32.5, rx * 50);
-        this.group.add(frontWall);
-
-        const backWall = new THREE.Mesh(wallGeoX, wallMat);
-        backWall.position.set(0, 32.5, -rx * 50);
-        this.group.add(backWall);
-
-        // Left and right walls
-        const wallGeoZ = new THREE.BoxGeometry(rx * 8, 35, rx * 100);
-        const leftWall = new THREE.Mesh(wallGeoZ, wallMat);
-        leftWall.position.set(-rx * 50, 32.5, 0);
-        this.group.add(leftWall);
-
-        const rightWall = new THREE.Mesh(wallGeoZ, wallMat);
-        rightWall.position.set(rx * 50, 32.5, 0);
-        this.group.add(rightWall);
-
-        // Gate entrance
-        const gateGeo = new THREE.BoxGeometry(rx * 20, 25, rx * 10);
-        const gateMat = new THREE.MeshStandardMaterial({
-            color: 0x4a2f1a,
-            roughness: 0.9,
-            metalness: 0
-        });
-        const gate = new THREE.Mesh(gateGeo, gateMat);
-        gate.position.set(0, 27.5, rx * 50);
-        this.group.add(gate);
-
-        // Windows on main tower
-        const windowMat = new THREE.MeshBasicMaterial({ color: 0x4a4a1a });
-        for (let i = 0; i < 6; i++) {
-            const angle = (i / 6) * Math.PI * 2;
-            const wx = Math.cos(angle) * rx * 26;
-            const wz = Math.sin(angle) * rx * 26;
-            const windowGeo = new THREE.BoxGeometry(rx * 6, 8, 2);
-            const window = new THREE.Mesh(windowGeo, windowMat);
-            window.position.set(wx, 60, wz);
-            window.lookAt(0, 60, 0);
-            this.group.add(window);
-        }
-
-        // Flags on towers
-        const flagMat = new THREE.MeshStandardMaterial({
-            color: 0xcc0000,
-            roughness: 0.8,
-            metalness: 0.1,
-            side: THREE.DoubleSide
-        });
-        const flagGeo = new THREE.PlaneGeometry(rx * 15, rx * 10);
-        const mainFlag = new THREE.Mesh(flagGeo, flagMat);
-        mainFlag.position.set(0, 125, 0);
-        this.group.add(mainFlag);
-    }
-
-    _makeLabel(text) {
-        const c   = document.createElement('canvas');
-        c.width   = 320;
-        c.height  = 88;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = 'rgba(10,12,24,0.82)';
-        ctx.beginPath();
-        ctx.roundRect(4, 4, 312, 80, 14);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(49,130,246,0.55)';
-        ctx.lineWidth   = 2;
-        ctx.stroke();
-        ctx.fillStyle   = '#3182F6';
-        ctx.font        = 'bold 26px "Pretendard Variable",sans-serif';
-        ctx.textAlign   = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, 160, 44);
-        return c;
-    }
-
-    /** Toggle activation state and fire the onTrigger callback. */
-    toggle() {
-        this.setActivated(!this.activated);
-        if (this.onTrigger) this.onTrigger(this.id, this.activated);
-        this._showPropInfo();
-    }
-
-    /** Apply a remote activation-state change (no callback fired). */
-    setActivated(activated) {
-        this.activated = !!activated;
-        if (this.activated) {
-            this._topMat.color.set(0xD4AF37);
-            this._glowMat.opacity = 0.7;
-        } else {
-            this._topMat.color.set(0x3a7d44);
-            this._glowMat.opacity = 0;
-        }
-    }
-
-    /** Per-frame update: float animation + glow pulse + label faces camera. */
-    update(t, camera) {
-        const floatH = Math.sin(t * this.group.userData.floatSpeed + this.group.userData.floatPhase) * 14;
-        this.group.position.y = this.group.userData.baseY + floatH;
-        this.group.rotation.y += 0.0008;
-        if (this._labelMesh) this._labelMesh.quaternion.copy(camera.quaternion);
-        if (this.activated && this._glowMat) {
-            this._glowMat.opacity = 0.4 + 0.35 * Math.sin(t * 3.5);
-        }
-    }
-
-    _showPropInfo() {
-        let el = document.getElementById('island-info');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'island-info';
-            el.style.cssText = [
-                'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);',
-                'background:var(--surface-color,#1B2130);border:1.5px solid rgba(49,130,246,0.35);',
-                'border-radius:20px;padding:28px 36px;z-index:1000;',
-                "font-family:'Pretendard Variable',sans-serif;",
-                'backdrop-filter:blur(24px);min-width:320px;text-align:center;',
-                'box-shadow:0 8px 40px rgba(0,0,0,0.6);',
-            ].join('');
-            document.body.appendChild(el);
-        }
-        const statusText  = this.activated ? '✨ 활성화됨 – 근처 모든 플레이어에게 실시간 반영됩니다' : '💤 비활성화됨';
-        const statusColor = this.activated ? '#00C471' : 'var(--text-secondary,#7E94B8)';
-        el.innerHTML = `
-            <div style="font-size:32px;margin-bottom:12px;">🏝️</div>
-            <div style="font-size:22px;color:var(--accent,#3182F6);font-weight:800;margin-bottom:8px;letter-spacing:-0.3px;">${this.name}</div>
-            <div style="font-size:13px;color:${statusColor};margin-bottom:16px;">${statusText}</div>
-            <div style="font-size:12px;color:var(--text-secondary,#7E94B8);line-height:1.65;margin-bottom:18px;">
-                클릭으로 활성화하면 근처의 모든 플레이어에게 실시간으로 반영됩니다.
-            </div>
-            <button id="island-info-close" style="
-                background:rgba(49,130,246,0.12);border:1.5px solid rgba(49,130,246,0.35);
-                color:#3182F6;padding:10px 28px;border-radius:999px;
-                font-size:13px;font-weight:700;cursor:pointer;
-                font-family:'Pretendard Variable',sans-serif;">닫기</button>
-        `;
-        const _closeBtn2 = el.querySelector('#island-info-close');
-        if (_closeBtn2) {
-            const _rm = () => { if (el.parentElement) el.remove(); };
-            _closeBtn2.addEventListener('click', _rm);
-            _closeBtn2.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') { e.preventDefault(); _rm(); } }, { passive: false });
-        }
-        setTimeout(() => {
-            if (el && el.parentElement) {
-                el.style.opacity = '0';
-                el.style.transition = 'opacity 0.3s';
-                setTimeout(() => { if (el.parentElement) el.remove(); }, 300);
-            }
-        }, 4500);
-    }
-}
 
 window.WorldScene = WorldScene;
 window._worldSceneReady = true;

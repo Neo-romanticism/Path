@@ -82,6 +82,62 @@ async function ensureRoomChatSchema() {
     roomChatSchemaReady = true;
 }
 
+const ROOM_ROLE = Object.freeze({
+    OWNER: 'owner',
+    MANAGER: 'manager',
+    MEMBER: 'member',
+});
+
+const ROOM_PERMISSION = Object.freeze({
+    EDIT_SETTINGS: 'edit_settings',
+    MANAGE_MEMBERS: 'manage_members',
+    MANAGE_DECOR: 'manage_decor',
+    DELETE_ROOM: 'delete_room',
+    ASSIGN_ROLES: 'assign_roles',
+});
+
+const ROOM_ROLE_PERMISSIONS = Object.freeze({
+    [ROOM_ROLE.OWNER]: {
+        [ROOM_PERMISSION.EDIT_SETTINGS]: true,
+        [ROOM_PERMISSION.MANAGE_MEMBERS]: true,
+        [ROOM_PERMISSION.MANAGE_DECOR]: true,
+        [ROOM_PERMISSION.DELETE_ROOM]: true,
+        [ROOM_PERMISSION.ASSIGN_ROLES]: true,
+    },
+    [ROOM_ROLE.MANAGER]: {
+        [ROOM_PERMISSION.EDIT_SETTINGS]: true,
+        [ROOM_PERMISSION.MANAGE_MEMBERS]: true,
+        [ROOM_PERMISSION.MANAGE_DECOR]: true,
+        [ROOM_PERMISSION.DELETE_ROOM]: false,
+        [ROOM_PERMISSION.ASSIGN_ROLES]: false,
+    },
+    [ROOM_ROLE.MEMBER]: {
+        [ROOM_PERMISSION.EDIT_SETTINGS]: false,
+        [ROOM_PERMISSION.MANAGE_MEMBERS]: false,
+        [ROOM_PERMISSION.MANAGE_DECOR]: false,
+        [ROOM_PERMISSION.DELETE_ROOM]: false,
+        [ROOM_PERMISSION.ASSIGN_ROLES]: false,
+    },
+});
+
+function hasRoomPermission(role, permission) {
+    return Boolean(ROOM_ROLE_PERMISSIONS[role] && ROOM_ROLE_PERMISSIONS[role][permission]);
+}
+
+async function getRoomRole(clientOrPool, roomId, userId) {
+    const roleRes = await clientOrPool.query(
+        `SELECT COALESCE(rr.role,
+                        CASE WHEN r.creator_id = m.user_id THEN 'owner' ELSE 'member' END) AS role
+         FROM study_room_members m
+         JOIN study_rooms r ON r.id = m.room_id
+         LEFT JOIN study_room_member_roles rr ON rr.room_id = m.room_id AND rr.user_id = m.user_id
+         WHERE m.room_id = $1 AND m.user_id = $2 AND r.is_active = TRUE`,
+        [roomId, userId]
+    );
+
+    return roleRes.rows[0]?.role || null;
+}
+
 // GET /api/rooms/my — list rooms I have joined
 router.get('/my', roomsReadLimiter, requireAuth, async (req, res) => {
     try {
@@ -184,6 +240,14 @@ router.post('/', roomsWriteLimiter, requireAuth, async (req, res) => {
                     [room.id, req.session.userId]
                 );
 
+                await client.query(
+                    `INSERT INTO study_room_member_roles (room_id, user_id, role)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (room_id, user_id)
+                     DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`,
+                    [room.id, req.session.userId, ROOM_ROLE.OWNER]
+                );
+
                 await client.query('COMMIT');
                 return res.json({ ok: true, room });
             } catch (err) {
@@ -257,12 +321,15 @@ router.get('/:id', roomsReadLimiter, requireAuth, async (req, res) => {
             ),
             pool.query(
                 `SELECT u.id, u.nickname, u.active_title, u.is_studying,
+                        COALESCE(rr.role, CASE WHEN r.creator_id = u.id THEN 'owner' ELSE 'member' END) AS role,
                         COALESCE(SUM(CASE WHEN sr.created_at >= CURRENT_DATE THEN sr.duration_sec ELSE 0 END), 0) AS today_sec
                  FROM study_room_members m
+                 JOIN study_rooms r ON r.id = m.room_id
                  JOIN users u ON u.id = m.user_id
+                 LEFT JOIN study_room_member_roles rr ON rr.room_id = m.room_id AND rr.user_id = m.user_id
                  LEFT JOIN study_records sr ON sr.user_id = u.id AND sr.result = 'SUCCESS'
                  WHERE m.room_id = $1
-                 GROUP BY u.id, u.nickname, u.active_title, u.is_studying
+                 GROUP BY u.id, u.nickname, u.active_title, u.is_studying, rr.role, r.creator_id
                  ORDER BY today_sec DESC`,
                 [roomId]
             )
@@ -273,6 +340,22 @@ router.get('/:id', roomsReadLimiter, requireAuth, async (req, res) => {
         res.json({ room: roomRes.rows[0], members: membersRes.rows });
     } catch (err) {
         console.error('rooms/:id GET error:', err);
+        res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+// GET /api/rooms/:id/permissions — role + permission matrix for current user
+router.get('/:id/permissions', roomsReadLimiter, requireAuth, async (req, res) => {
+    const roomId = parseInt(req.params.id, 10);
+    if (!roomId) return res.status(400).json({ error: '잘못된 요청' });
+
+    try {
+        const role = await getRoomRole(pool, roomId, req.session.userId);
+        if (!role) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+
+        res.json({ role, permissions: ROOM_ROLE_PERMISSIONS[role] || ROOM_ROLE_PERMISSIONS[ROOM_ROLE.MEMBER] });
+    } catch (err) {
+        console.error('rooms/:id/permissions error:', err);
         res.status(500).json({ error: '서버 오류' });
     }
 });
@@ -304,6 +387,13 @@ router.post('/join/:code', roomsWriteLimiter, requireAuth, async (req, res) => {
             [room.id, req.session.userId]
         );
 
+        await pool.query(
+            `INSERT INTO study_room_member_roles (room_id, user_id, role)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (room_id, user_id) DO NOTHING`,
+            [room.id, req.session.userId, ROOM_ROLE.MEMBER]
+        );
+
         res.json({ ok: true, room_id: room.id, room_name: room.name });
     } catch (err) {
         console.error('rooms/join error:', err);
@@ -317,10 +407,16 @@ router.delete('/:id/leave', roomsWriteLimiter, requireAuth, async (req, res) => 
     if (!roomId) return res.status(400).json({ error: '잘못된 요청' });
 
     try {
-        await pool.query(
-            `DELETE FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
-            [roomId, req.session.userId]
-        );
+        await Promise.all([
+            pool.query(
+                `DELETE FROM study_room_member_roles WHERE room_id = $1 AND user_id = $2`,
+                [roomId, req.session.userId]
+            ),
+            pool.query(
+                `DELETE FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
+                [roomId, req.session.userId]
+            ),
+        ]);
         res.json({ ok: true });
     } catch (err) {
         console.error('rooms/:id/leave error:', err);
@@ -340,15 +436,18 @@ router.patch('/:id', roomsWriteLimiter, requireAuth, async (req, res) => {
     if (!name) return res.status(400).json({ error: '방 이름을 입력해주세요.' });
 
     try {
+        const role = await getRoomRole(pool, roomId, req.session.userId);
+        if (!role) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+        if (!hasRoomPermission(role, ROOM_PERMISSION.EDIT_SETTINGS)) {
+            return res.status(403).json({ error: '방 설정 수정 권한이 없습니다.' });
+        }
+
         const check = await pool.query(
-            `SELECT creator_id,
-                    (SELECT COUNT(*) FROM study_room_members WHERE room_id = $1) AS member_count
+            `SELECT (SELECT COUNT(*) FROM study_room_members WHERE room_id = $1) AS member_count
              FROM study_rooms WHERE id = $1 AND is_active = TRUE`,
             [roomId]
         );
         if (!check.rows.length) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
-        if (check.rows[0].creator_id !== req.session.userId)
-            return res.status(403).json({ error: '방장만 수정할 수 있습니다.' });
         if (maxMembers < parseInt(check.rows[0].member_count, 10))
             return res.status(400).json({ error: '현재 멤버 수보다 최대 인원을 작게 설정할 수 없습니다.' });
 
@@ -364,25 +463,140 @@ router.patch('/:id', roomsWriteLimiter, requireAuth, async (req, res) => {
     }
 });
 
+// PATCH /api/rooms/:id/members/:userId/role — assign member role (owner only)
+router.patch('/:id/members/:userId/role', roomsWriteLimiter, requireAuth, async (req, res) => {
+    const roomId = parseInt(req.params.id, 10);
+    const targetUserId = parseInt(req.params.userId, 10);
+    const targetRole = String(req.body.role || '').trim().toLowerCase();
+    const allowedTargetRoles = new Set([ROOM_ROLE.MANAGER, ROOM_ROLE.MEMBER]);
+
+    if (!roomId || !targetUserId) return res.status(400).json({ error: '잘못된 요청' });
+    if (!allowedTargetRoles.has(targetRole)) {
+        return res.status(400).json({ error: '설정 가능한 역할은 manager/member 입니다.' });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const roomRes = await client.query(
+            `SELECT id, creator_id FROM study_rooms WHERE id = $1 AND is_active = TRUE`,
+            [roomId]
+        );
+        if (!roomRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
+        }
+
+        const myRole = await getRoomRole(client, roomId, req.session.userId);
+        if (!myRole) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+        }
+        if (!hasRoomPermission(myRole, ROOM_PERMISSION.ASSIGN_ROLES)) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: '역할 변경 권한이 없습니다.' });
+        }
+        if (targetUserId === req.session.userId) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '본인 역할은 변경할 수 없습니다.' });
+        }
+        if (targetUserId === roomRes.rows[0].creator_id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '방장 역할은 변경할 수 없습니다.' });
+        }
+
+        const targetMemberRes = await client.query(
+            `SELECT 1 FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
+            [roomId, targetUserId]
+        );
+        if (!targetMemberRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '대상 사용자가 방 멤버가 아닙니다.' });
+        }
+
+        await client.query(
+            `INSERT INTO study_room_member_roles (room_id, user_id, role)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (room_id, user_id)
+             DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`,
+            [roomId, targetUserId, targetRole]
+        );
+
+        await client.query('COMMIT');
+        res.json({ ok: true, room_id: roomId, user_id: targetUserId, role: targetRole });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK').catch(() => {});
+        console.error('rooms/:id/members/:userId/role PATCH error:', err);
+        res.status(500).json({ error: '서버 오류' });
+    } finally {
+        if (client) client.release();
+    }
+});
+
 // DELETE /api/rooms/:id — delete room (creator only, soft-delete)
 router.delete('/:id', roomsWriteLimiter, requireAuth, async (req, res) => {
     const roomId = parseInt(req.params.id, 10);
+    const hardDelete = req.query.hard === 'true' || req.query.hard === true;
+    const confirmName = String(req.body.confirm_name || '').trim();
     if (!roomId) return res.status(400).json({ error: '잘못된 요청' });
 
+    let client;
     try {
-        const check = await pool.query(
-            `SELECT creator_id FROM study_rooms WHERE id = $1 AND is_active = TRUE`,
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const roomRes = await client.query(
+            `SELECT id, name FROM study_rooms WHERE id = $1 AND is_active = TRUE FOR UPDATE`,
             [roomId]
         );
-        if (!check.rows.length) return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
-        if (check.rows[0].creator_id !== req.session.userId)
-            return res.status(403).json({ error: '방장만 삭제할 수 있습니다.' });
+        if (!roomRes.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: '방을 찾을 수 없습니다.' });
+        }
 
-        await pool.query(`UPDATE study_rooms SET is_active = FALSE WHERE id = $1`, [roomId]);
-        res.json({ ok: true });
+        const role = await getRoomRole(client, roomId, req.session.userId);
+        if (!role) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+        }
+        if (!hasRoomPermission(role, ROOM_PERMISSION.DELETE_ROOM)) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ error: '방 삭제 권한이 없습니다.' });
+        }
+
+        const roomName = roomRes.rows[0].name;
+        if (hardDelete) {
+            if (!confirmName || confirmName !== roomName) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ error: '하드 삭제는 confirm_name에 정확한 방 이름이 필요합니다.' });
+            }
+
+            await client.query(`DELETE FROM study_rooms WHERE id = $1`, [roomId]);
+            await client.query('COMMIT');
+            return res.json({ ok: true, deleted: 'hard' });
+        }
+
+        await client.query(
+            `UPDATE study_rooms
+             SET is_active = FALSE,
+                 deleted_at = NOW(),
+                 deleted_by = $2
+             WHERE id = $1`,
+            [roomId, req.session.userId]
+        );
+        await client.query(`DELETE FROM study_room_member_roles WHERE room_id = $1`, [roomId]);
+        await client.query(`DELETE FROM study_room_members WHERE room_id = $1`, [roomId]);
+
+        await client.query('COMMIT');
+        res.json({ ok: true, deleted: 'soft' });
     } catch (err) {
+        if (client) await client.query('ROLLBACK').catch(() => {});
         console.error('rooms DELETE error:', err);
         res.status(500).json({ error: '서버 오류' });
+    } finally {
+        if (client) client.release();
     }
 });
 
@@ -643,11 +857,11 @@ router.post('/:id/decor/equip', roomsWriteLimiter, requireAuth, async (req, res)
     const { wallpaper, props } = req.body;
 
     try {
-        const memberCheck = await pool.query(
-            `SELECT 1 FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
-            [roomId, req.session.userId]
-        );
-        if (!memberCheck.rows.length) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+        const role = await getRoomRole(pool, roomId, req.session.userId);
+        if (!role) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
+        if (!hasRoomPermission(role, ROOM_PERMISSION.MANAGE_DECOR)) {
+            return res.status(403).json({ error: '방 꾸미기 적용 권한이 없습니다.' });
+        }
 
         // Build set of owned item keys (default wallpaper always available)
         const ownedRes = await pool.query(
