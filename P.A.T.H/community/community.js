@@ -75,9 +75,6 @@ const searchInput    = document.getElementById('search-input');
 const searchClear    = document.getElementById('search-clear');
 const settingsToggle = document.getElementById('settings-toggle');
 const writeFab       = document.getElementById('write-fab');
-const writeHeaderBtn = document.getElementById('write-header-btn');
-const quickComposeBtn = document.getElementById('quick-compose-btn');
-const composeStatusText = document.getElementById('compose-status-text');
 const themeToggleBtn = document.getElementById('theme-toggle');
 const adContainer = document.querySelector('.c-ad-container');
 const sortChips = Array.from(document.querySelectorAll('.c-sort-chip'));
@@ -169,7 +166,6 @@ async function init() {
     } catch (_) { /* 무시 */ }
 
     updateWriteControls();
-    renderComposeStatus();
 
     await Promise.all([renderHotPosts(), resetAndLoad()]);
 }
@@ -196,7 +192,6 @@ function onCatChange(key) {
         btn.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     updateWriteControls();
-    renderComposeStatus();
     renderHotPosts();
     resetAndLoad();
 }
@@ -205,7 +200,7 @@ function onCatChange(key) {
     const blocked = currentCat === '념글';
     const title = blocked ? '베스트 게시판에는 직접 글을 작성할 수 없어요' : '글쓰기';
 
-    [writeFab, writeHeaderBtn, quickComposeBtn].forEach((btn) => {
+    [writeFab].forEach((btn) => {
       if (!btn) return;
       btn.disabled = blocked;
       btn.title = title;
@@ -213,18 +208,6 @@ function onCatChange(key) {
       btn.style.cursor = blocked ? 'not-allowed' : '';
     });
   }
-
-function renderComposeStatus() {
-  if (!composeStatusText) return;
-  if (currentCat === '념글') {
-    composeStatusText.textContent = '베스트는 추천으로 자동 승격됩니다. 정보/Q&A/잡담에서 먼저 작성해 보세요.';
-    return;
-  }
-
-  composeStatusText.textContent = currentUser
-    ? '지금 닉네임으로 바로 글과 댓글을 작성할 수 있어요.'
-    : '비로그인 익명 글쓰기와 댓글 참여를 지원합니다.';
-}
 
 /* ─── 베스트 게시글 ─────────────────────────────────────── */
 async function renderHotPosts() {
@@ -862,8 +845,6 @@ function bindEvents() {
 
     // 글쓰기
     writeFab?.addEventListener('click', handleWriteClick);
-    writeHeaderBtn?.addEventListener('click', handleWriteClick);
-    quickComposeBtn?.addEventListener('click', handleWriteClick);
 
     // 정렬
     sortChips.forEach((chip) => {

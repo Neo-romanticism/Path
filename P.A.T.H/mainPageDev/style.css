@@ -1003,11 +1003,14 @@ body:not(.light) .plan-toggle-btn.open {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    width: min(100%, 560px);
 }
 
 .input-unit {
     position: relative;
-    width: min(240px, 38vw);
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 240px;
 }
 
 .time-input {
@@ -4138,6 +4141,14 @@ body.path-interface:not(.light) {
 
     #tab-study #setup-area {
         grid-area: setup;
+    }
+
+    #tab-study #setup-area .time-inputs-row {
+        width: 100%;
+    }
+
+    #tab-study #setup-area .input-unit {
+        max-width: none;
     }
 
     #tab-study #main-timer {
