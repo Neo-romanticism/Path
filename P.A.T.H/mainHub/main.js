@@ -32,7 +32,8 @@ const UI_SETTINGS_KEY = 'path_ui_settings';
 const DEFAULT_UI_SETTINGS = {
     showMinimap: false,
     showKeyboardGuide: true,
-    showCoordinates: true
+    showCoordinates: true,
+    cameraCollisionProfile: 'medium'
 };
 const ONBOARDING_PENDING_KEY = 'path_onboarding_pending';
 const ONBOARDING_DONE_PREFIX = 'path_onboarding_done_user_';
@@ -87,10 +88,12 @@ function applyUiSettings(settings) {
     const minimapToggle = document.getElementById('minimap-toggle');
     const keyboardToggle = document.getElementById('keyboard-guide-toggle');
     const coordinatesToggle = document.getElementById('coordinates-toggle');
+    const cameraCollisionSelect = document.getElementById('camera-collision-select');
 
     if (minimapToggle) minimapToggle.checked = !!settings.showMinimap;
     if (keyboardToggle) keyboardToggle.checked = !!settings.showKeyboardGuide;
     if (coordinatesToggle) coordinatesToggle.checked = !!settings.showCoordinates;
+    if (cameraCollisionSelect) cameraCollisionSelect.value = settings.cameraCollisionProfile || 'medium';
 
     const keyboardGuide = document.getElementById('keyboard-guide');
     if (keyboardGuide) keyboardGuide.classList.toggle('hidden', !settings.showKeyboardGuide);
@@ -99,6 +102,10 @@ function applyUiSettings(settings) {
     if (coordinates) coordinates.classList.toggle('hidden', !settings.showCoordinates);
 
     setMinimapVisible(!!settings.showMinimap);
+
+    if (window.WorldScene?.setCameraCollisionProfile) {
+        window.WorldScene.setCameraCollisionProfile(settings.cameraCollisionProfile || 'medium');
+    }
 }
 
 function loadUiSettings() {
@@ -113,7 +120,8 @@ function saveUiSettings() {
     const next = {
         showMinimap: !!document.getElementById('minimap-toggle')?.checked,
         showKeyboardGuide: !!document.getElementById('keyboard-guide-toggle')?.checked,
-        showCoordinates: !!document.getElementById('coordinates-toggle')?.checked
+        showCoordinates: !!document.getElementById('coordinates-toggle')?.checked,
+        cameraCollisionProfile: document.getElementById('camera-collision-select')?.value || 'medium'
     };
     localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(next));
     applyUiSettings(next);

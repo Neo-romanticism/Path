@@ -469,10 +469,70 @@
             pending: [],
             users: [],
             reports: [],
+            adminRole: 'none',
             loading: false,
             autoRefreshId: null,
             activeTab: 'pending'
         };
+
+        function canEditSensitiveFields() {
+            return state.adminRole === 'main';
+        }
+
+        function validateUserEditInput(payload) {
+            const nickname = String(payload.nickname || '').trim();
+            if (nickname.length < 2 || nickname.length > 20) {
+                return '닉네임은 2~20자 사이여야 합니다.';
+            }
+            if (!/^[a-zA-Z0-9가-힣_]+$/.test(nickname)) {
+                return '닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.';
+            }
+
+            const realName = String(payload.real_name || '').trim();
+            if (!realName) return '실명을 입력해주세요.';
+            if (realName.length > 50) return '실명은 50자 이하여야 합니다.';
+
+            const university = String(payload.university || '').trim();
+            if (!university) return '대학교를 입력해주세요.';
+            if (university.length > 100) return '대학교명은 100자 이하여야 합니다.';
+
+            const prevUniversity = String(payload.prev_university || '').trim();
+            if (payload.is_n_su && !prevUniversity) {
+                return 'N수생은 전적 대학교를 입력해주세요.';
+            }
+            if (prevUniversity.length > 100) return '전적 대학교명은 100자 이하여야 합니다.';
+
+            if (!canEditSensitiveFields()) return '';
+
+            const gold = Number.parseInt(payload.gold, 10);
+            if (!Number.isInteger(gold) || gold < 0) return '골드는 0 이상의 정수여야 합니다.';
+
+            const diamond = Number.parseInt(payload.diamond, 10);
+            if (!Number.isInteger(diamond) || diamond < 0) return '다이아는 0 이상의 정수여야 합니다.';
+
+            const exp = Number.parseInt(payload.exp, 10);
+            if (!Number.isInteger(exp) || exp < 0) return 'EXP는 0 이상의 정수여야 합니다.';
+
+            const tier = String(payload.tier || '').trim();
+            if (!tier || tier.length > 20) return '티어는 1~20자 사이여야 합니다.';
+
+            const tickets = Number.parseInt(payload.tickets, 10);
+            if (!Number.isInteger(tickets) || tickets < 0) return '티켓은 0 이상의 정수여야 합니다.';
+
+            const mockExam = Number.parseInt(payload.mock_exam_score, 10);
+            if (!Number.isInteger(mockExam) || mockExam < 0 || mockExam > 600) {
+                return '평가원 점수는 0~600 범위여야 합니다.';
+            }
+
+            const gpaText = String(payload.gpa_score || '').trim();
+            if (gpaText) {
+                const gpa = Number.parseFloat(gpaText);
+                if (!Number.isFinite(gpa) || gpa < 1 || gpa > 9) {
+                    return '내신은 1.0~9.0 범위로 입력해주세요.';
+                }
+            }
+            return '';
+        }
 
         function esc(value) {
             const div = document.createElement('div');
@@ -695,7 +755,11 @@
         function renderUsers() {
             const listEl = document.getElementById('user-list');
             const filtered = getFilteredUsers();
-            document.getElementById('users-result-meta').textContent = `검색 결과 ${filtered.length}명 / 전체 ${state.users.length}명`;
+            const roleLabel = state.adminRole === 'main' ? '주관리자' : (state.adminRole === 'sub' ? '부관리자' : '권한없음');
+            const roleGuide = canEditSensitiveFields()
+                ? '경제/점수/내신 필드 수정 가능'
+                : '부관리자 모드: 기본 프로필 필드만 수정 가능';
+            document.getElementById('users-result-meta').textContent = `검색 결과 ${filtered.length}명 / 전체 ${state.users.length}명 · 현재 권한: ${roleLabel} (${roleGuide})`;
 
             if (!filtered.length) {
                 listEl.innerHTML = '<div class="empty">조건에 맞는 사용자가 없습니다.</div>';
@@ -716,6 +780,7 @@
                 const safeTicketsValue = Number.isFinite(Number(u.tickets)) ? Number(u.tickets) : 0;
                 const safeMockExamValue = Number.isFinite(Number(u.mock_exam_score)) ? Number(u.mock_exam_score) : 0;
                 const safeGpaValue = u.gpa_score === null || u.gpa_score === undefined ? '' : Number(u.gpa_score);
+                const sensitiveDisabled = canEditSensitiveFields() ? '' : 'disabled title="주관리자만 수정 가능"';
                 return `
                     <article class="card">
                         <div class="card-head">
@@ -746,13 +811,13 @@
                                 <input class="field" id="edit-real-name-${u.id}" type="text" value="${safeRealNameValue}" placeholder="실명">
                                 <input class="field" id="edit-university-${u.id}" type="text" value="${safeUniversityValue}" placeholder="대학교">
                                 <input class="field" id="edit-prev-university-${u.id}" type="text" value="${safePrevUniversityValue}" placeholder="전적 대학교 (N수생만)">
-                                <input class="field" id="edit-gold-${u.id}" type="number" min="0" step="1" value="${safeGoldValue}" placeholder="골드">
-                                <input class="field" id="edit-diamond-${u.id}" type="number" min="0" step="1" value="${safeDiamondValue}" placeholder="다이아">
-                                <input class="field" id="edit-exp-${u.id}" type="number" min="0" step="1" value="${safeExpValue}" placeholder="EXP">
-                                <input class="field" id="edit-tier-${u.id}" type="text" value="${safeTierValue}" placeholder="티어">
-                                <input class="field" id="edit-tickets-${u.id}" type="number" min="0" step="1" value="${safeTicketsValue}" placeholder="티켓">
-                                <input class="field" id="edit-mock-exam-${u.id}" type="number" min="0" max="600" step="1" value="${safeMockExamValue}" placeholder="평가원 점수 0~600">
-                                <input class="field" id="edit-gpa-score-${u.id}" type="number" min="1" max="9" step="0.01" value="${safeGpaValue}" placeholder="내신 1.0~9.0 (비우면 제거)">
+                                <input class="field" id="edit-gold-${u.id}" type="number" min="0" step="1" value="${safeGoldValue}" placeholder="골드" ${sensitiveDisabled}>
+                                <input class="field" id="edit-diamond-${u.id}" type="number" min="0" step="1" value="${safeDiamondValue}" placeholder="다이아" ${sensitiveDisabled}>
+                                <input class="field" id="edit-exp-${u.id}" type="number" min="0" step="1" value="${safeExpValue}" placeholder="EXP" ${sensitiveDisabled}>
+                                <input class="field" id="edit-tier-${u.id}" type="text" value="${safeTierValue}" placeholder="티어" ${sensitiveDisabled}>
+                                <input class="field" id="edit-tickets-${u.id}" type="number" min="0" step="1" value="${safeTicketsValue}" placeholder="티켓" ${sensitiveDisabled}>
+                                <input class="field" id="edit-mock-exam-${u.id}" type="number" min="0" max="600" step="1" value="${safeMockExamValue}" placeholder="평가원 점수 0~600" ${sensitiveDisabled}>
+                                <input class="field" id="edit-gpa-score-${u.id}" type="number" min="1" max="9" step="0.01" value="${safeGpaValue}" placeholder="내신 1.0~9.0 (비우면 제거)" ${sensitiveDisabled}>
                             </div>
                             <div class="action-row">
                                 <label class="auto-refresh">
@@ -760,7 +825,7 @@
                                     N수생
                                 </label>
                                 <label class="auto-refresh">
-                                    <input id="edit-gpa-public-${u.id}" type="checkbox" ${u.gpa_public ? 'checked' : ''}>
+                                    <input id="edit-gpa-public-${u.id}" type="checkbox" ${u.gpa_public ? 'checked' : ''} ${sensitiveDisabled}>
                                     내신 공개
                                 </label>
                                 <button class="btn primary" type="button" onclick="saveUserEdit(${u.id}, this)">저장</button>
@@ -810,19 +875,31 @@
         }
 
         async function saveUserEdit(userId, button) {
-            const nickname = document.getElementById(`edit-nickname-${userId}`)?.value || '';
-            const real_name = document.getElementById(`edit-real-name-${userId}`)?.value || '';
-            const university = document.getElementById(`edit-university-${userId}`)?.value || '';
-            const prev_university = document.getElementById(`edit-prev-university-${userId}`)?.value || '';
-            const is_n_su = !!document.getElementById(`edit-is-nsu-${userId}`)?.checked;
-            const gold = document.getElementById(`edit-gold-${userId}`)?.value || '0';
-            const diamond = document.getElementById(`edit-diamond-${userId}`)?.value || '0';
-            const exp = document.getElementById(`edit-exp-${userId}`)?.value || '0';
-            const tier = document.getElementById(`edit-tier-${userId}`)?.value || '';
-            const tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
-            const mock_exam_score = document.getElementById(`edit-mock-exam-${userId}`)?.value || '0';
-            const gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
-            const gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
+            const payload = {
+                user_id: userId,
+                nickname: document.getElementById(`edit-nickname-${userId}`)?.value || '',
+                real_name: document.getElementById(`edit-real-name-${userId}`)?.value || '',
+                university: document.getElementById(`edit-university-${userId}`)?.value || '',
+                prev_university: document.getElementById(`edit-prev-university-${userId}`)?.value || '',
+                is_n_su: !!document.getElementById(`edit-is-nsu-${userId}`)?.checked,
+            };
+
+            if (canEditSensitiveFields()) {
+                payload.gold = document.getElementById(`edit-gold-${userId}`)?.value || '0';
+                payload.diamond = document.getElementById(`edit-diamond-${userId}`)?.value || '0';
+                payload.exp = document.getElementById(`edit-exp-${userId}`)?.value || '0';
+                payload.tier = document.getElementById(`edit-tier-${userId}`)?.value || '';
+                payload.tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
+                payload.mock_exam_score = document.getElementById(`edit-mock-exam-${userId}`)?.value || '0';
+                payload.gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
+                payload.gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
+            }
+
+            const validationMessage = validateUserEditInput(payload);
+            if (validationMessage) {
+                setNotice(validationMessage, 'error');
+                return;
+            }
 
             if (!window.confirm(`유저 ${userId} 정보를 수정하시겠습니까?`)) return;
 
@@ -830,28 +907,18 @@
                 await apiFetch('/api/admin/update-user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        nickname,
-                        real_name,
-                        university,
-                        is_n_su,
-                        prev_university,
-                        gold,
-                        diamond,
-                        exp,
-                        tier,
-                        tickets,
-                        mock_exam_score,
-                        gpa_score,
-                        gpa_public
-                    })
+                    body: JSON.stringify(payload)
                 });
                 setNotice(`유저 ${userId} 정보 수정 완료`, 'ok');
                 await refreshAll(false);
             }).catch((error) => {
                 setNotice(error.message, 'error');
             });
+        }
+
+        async function loadAdminMeta() {
+            const data = await apiFetch('/api/admin');
+            state.adminRole = data.admin_role || 'none';
         }
 
         async function loadPending() {
@@ -883,7 +950,7 @@
             setNotice('', 'ok');
 
             try {
-                await Promise.all([loadPending(), loadUsers(), loadReports()]);
+                await Promise.all([loadAdminMeta(), loadPending(), loadUsers(), loadReports()]);
                 updateStats();
                 setLastUpdated();
                 if (showMessage) setNotice('데이터를 최신 상태로 반영했습니다.', 'ok');

@@ -332,14 +332,29 @@ const WorldScene = {
     _resolveCameraObstruction(desiredPos) {
         if (!this.orbitTarget || !desiredPos) return desiredPos;
         const colliders = this._getCameraCollisionMeshes();
-        if (!colliders.length) return desiredPos;
+        if (!colliders.length) {
+            this._setNearWallFadeTarget(1);
+            this._clearOccluderFades();
+            return desiredPos;
+        }
 
         const from = this.orbitTarget.clone();
         const to = desiredPos.clone();
         const dir = to.sub(from);
         const dist = dir.length();
-        if (dist < 1) return desiredPos;
+        if (dist < 1) {
+            this._setNearWallFadeTarget(1);
+            this._clearOccluderFades();
+            return desiredPos;
+        }
         dir.normalize();
+
+        const profile = this.cameraCollisionProfile || 'medium';
+        const params = profile === 'weak'
+            ? { pullback: 10, minDistanceRatio: 0.34, occluderFade: 0.3, nearFadeMin: 0.8 }
+            : profile === 'strong'
+                ? { pullback: 24, minDistanceRatio: 0.48, occluderFade: 0.18, nearFadeMin: 0.55 }
+                : { pullback: 16, minDistanceRatio: 0.42, occluderFade: 0.24, nearFadeMin: 0.68 };
 
         const raycaster = this._cameraRaycaster || new THREE.Raycaster();
         this._cameraRaycaster = raycaster;
@@ -348,7 +363,130 @@ const WorldScene = {
         raycaster.far = dist;
 
         const hits = raycaster.intersectObjects(colliders, false);
-        if (!hits.length) return desiredPos;
+        if (!hits.length) {
+            this._setNearWallFadeTarget(1);
+            this._clearOccluderFades();
+            return desiredPos;
+        }
+
+        this._updateOccluderFade(hits, dist, params.occluderFade);
+
+        const minDistance = Math.max(90, ORBIT_MIN_RADIUS * params.minDistanceRatio);
+        const safeDistance = Math.max(minDistance, hits[0].distance - params.pullback);
+
+        const nearRatio = Math.max(0, Math.min(1, safeDistance / Math.max(1, dist)));
+        const nearFadeAlpha = params.nearFadeMin + (1 - params.nearFadeMin) * nearRatio;
+        this._setNearWallFadeTarget(nearFadeAlpha);
+
+        return from.add(dir.multiplyScalar(safeDistance));
+    },
+
+    _loadCameraCollisionProfileFromStorage() {
+        let profile = 'medium';
+        try {
+            const raw = localStorage.getItem('path_ui_settings');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                profile = parsed?.cameraCollisionProfile || 'medium';
+            }
+        } catch (_) {
+            profile = 'medium';
+        }
+        this.setCameraCollisionProfile(profile);
+    },
+
+    setCameraCollisionProfile(profile) {
+        const next = (profile === 'weak' || profile === 'strong') ? profile : 'medium';
+        this.cameraCollisionProfile = next;
+    },
+
+    _rememberMaterialState(material) {
+        if (!material || this._materialOriginalState.has(material)) return;
+        this._materialOriginalState.set(material, {
+            transparent: !!material.transparent,
+            opacity: Number.isFinite(material.opacity) ? material.opacity : 1,
+            depthWrite: material.depthWrite !== false,
+        });
+    },
+
+    _setMaterialOccluderFade(material, alpha) {
+        if (!material) return;
+        this._rememberMaterialState(material);
+        material.transparent = true;
+        material.depthWrite = false;
+        material.opacity = Math.min(material.opacity ?? 1, alpha);
+        this._activeOccluderMaterials.add(material);
+    },
+
+    _clearOccluderFades() {
+        if (!this._activeOccluderMaterials?.size) return;
+        this._activeOccluderMaterials.forEach((material) => {
+            const original = this._materialOriginalState.get(material);
+            if (!original) return;
+            material.transparent = original.transparent;
+            material.opacity = original.opacity;
+            material.depthWrite = original.depthWrite;
+        });
+        this._activeOccluderMaterials.clear();
+    },
+
+    _updateOccluderFade(hits, fullDistance, alpha) {
+        this._clearOccluderFades();
+        if (!hits?.length) return;
+
+        const fadeHits = hits.filter((hit) => hit.distance < fullDistance - 4).slice(0, 4);
+        fadeHits.forEach((hit) => {
+            const obj = hit.object;
+            if (!obj?.material) return;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach((m) => this._setMaterialOccluderFade(m, alpha));
+        });
+    },
+
+    _setNearWallFadeTarget(alpha) {
+        const a = Math.max(0.3, Math.min(1, Number(alpha) || 1));
+        this._playerNearWallFadeTarget = a;
+        if (!Number.isFinite(this._playerNearWallFade)) this._playerNearWallFade = 1;
+    },
+
+    _applyPlayerNearWallFade() {
+        if (!this.myBalloon?.group) return;
+        if (!Number.isFinite(this._playerNearWallFade)) this._playerNearWallFade = 1;
+        if (!Number.isFinite(this._playerNearWallFadeTarget)) this._playerNearWallFadeTarget = 1;
+
+        this._playerNearWallFade += (this._playerNearWallFadeTarget - this._playerNearWallFade) * 0.18;
+        const fade = Math.max(0.3, Math.min(1, this._playerNearWallFade));
+
+        const model = this.myBalloon.group.userData?.balloon3D;
+        if (!model?.traverse) return;
+
+        model.traverse((ch) => {
+            if (!ch?.isMesh || !ch.material) return;
+            const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+            mats.forEach((m) => {
+                if (!m) return;
+                this._rememberMaterialState(m);
+                const base = this._materialOriginalState.get(m)?.opacity ?? 1;
+                m.transparent = true;
+                m.opacity = Math.max(0.22, base * fade);
+            });
+        });
+    },
+
+    _restorePlayerNearWallFade() {
+        const model = this.myBalloon?.group?.userData?.balloon3D;
+        if (!model?.traverse) return;
+        model.traverse((ch) => {
+            if (!ch?.isMesh || !ch.material) return;
+            const mats = Array.isArray(ch.material) ? ch.material : [ch.material];
+            mats.forEach((m) => {
+                const original = this._materialOriginalState.get(m);
+                if (!original) return;
+                m.transparent = original.transparent;
+                m.opacity = original.opacity;
+                m.depthWrite = original.depthWrite;
+            });
+        });
 
         const pullback = 16;
         const minDistance = Math.max(90, ORBIT_MIN_RADIUS * 0.42);
@@ -2397,6 +2535,7 @@ const WorldScene = {
         this.renderer.setSize(W, H);
         this.composer.setSize(W, H);
         this._updateCameraFromOrbit();
+        this._applyPlayerNearWallFade();
     },
 
     // Per-frame simulation + render entry point.
@@ -2690,6 +2829,12 @@ const WorldScene = {
 
         // Animate seed-based interactable props.
         this.interactableProps.forEach(prop => prop.update(t, this.camera));
+
+        if (!this.myBalloon) {
+            this._clearOccluderFades();
+            this._restorePlayerNearWallFade();
+            this._setNearWallFadeTarget(1);
+        }
 
         this.composer.render();
     }
