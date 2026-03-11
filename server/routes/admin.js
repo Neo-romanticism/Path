@@ -6,6 +6,13 @@ const ALWAYS_MAIN_ADMIN_NICKNAME = '낭만화1';
 const ADMIN_WORLD_XY_LIMIT = 100000;
 const ADMIN_WORLD_Z_MIN = -40;
 const ADMIN_WORLD_Z_MAX = 500;
+const ADMIN_RANDOM_SPAWN_RANGE_XY = 5800;
+
+function randomInt(min, max) {
+    const lo = Math.ceil(min);
+    const hi = Math.floor(max);
+    return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+}
 
 function validateNickname(nickname) {
     const value = (nickname || '').trim();
@@ -81,6 +88,7 @@ router.get('/', requireAdmin, (req, res) => {
             'GET /api/admin/roles',
             'GET /api/admin/community-reports',
             'POST /api/admin/update-user',
+            'POST /api/admin/teleport-random-user (main only)',
             'POST /api/admin/set-role (main only)',
             'POST /api/admin/approve-score',
             'POST /api/admin/reject-score',
@@ -415,6 +423,38 @@ router.post('/update-user', requireAdmin, async (req, res) => {
         return res.json({ ok: true, user: result.rows[0] });
     } catch (err) {
         console.error('admin update-user error:', err.message);
+        return res.status(500).json({ error: '서버 오류' });
+    }
+});
+
+router.post('/teleport-random-user', requireMainAdmin, async (req, res) => {
+    const userId = parseInt(req.body?.user_id, 10);
+    if (!userId) {
+        return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
+    }
+
+    const worldX = randomInt(-ADMIN_RANDOM_SPAWN_RANGE_XY, ADMIN_RANDOM_SPAWN_RANGE_XY);
+    const worldY = randomInt(-ADMIN_RANDOM_SPAWN_RANGE_XY, ADMIN_RANDOM_SPAWN_RANGE_XY);
+    const worldZ = randomInt(ADMIN_WORLD_Z_MIN, ADMIN_WORLD_Z_MAX);
+
+    try {
+        const result = await pool.query(
+            `UPDATE users
+             SET world_x = $1,
+                 world_y = $2,
+                 world_z = $3
+             WHERE id = $4
+             RETURNING id, nickname, world_x, world_y, world_z`,
+            [worldX, worldY, worldZ, userId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ error: '대상 사용자를 찾을 수 없습니다.' });
+        }
+
+        return res.json({ ok: true, user: result.rows[0] });
+    } catch (err) {
+        console.error('admin teleport-random-user error:', err.message);
         return res.status(500).json({ error: '서버 오류' });
     }
 });

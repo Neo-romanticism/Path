@@ -850,6 +850,7 @@
                                     <input id="edit-gpa-public-${u.id}" type="checkbox" ${u.gpa_public ? 'checked' : ''} ${sensitiveDisabled}>
                                     내신 공개
                                 </label>
+                                <button class="btn" type="button" onclick="teleportRandomUser(${u.id}, this)" ${sensitiveDisabled}>랜덤 소환</button>
                                 <button class="btn primary" type="button" onclick="saveUserEdit(${u.id}, this)">저장</button>
                                 <button class="btn" type="button" onclick="resetUserEdit(${u.id})">초기화</button>
                             </div>
@@ -941,6 +942,35 @@
                     body: JSON.stringify(payload)
                 });
                 setNotice(`유저 ${userId} 정보 수정 완료`, 'ok');
+                await refreshAll(false);
+            }).catch((error) => {
+                setNotice(error.message, 'error');
+            });
+        }
+
+        async function teleportRandomUser(userId, button) {
+            if (!canEditSensitiveFields()) {
+                setNotice('주관리자만 랜덤 소환을 사용할 수 있습니다.', 'error');
+                return;
+            }
+            if (!window.confirm(`유저 ${userId}를 랜덤 위치로 소환하시겠습니까?`)) return;
+
+            await withActionLock(button, async () => {
+                const data = await apiFetch('/api/admin/teleport-random-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId })
+                });
+
+                const moved = data?.user;
+                if (moved) {
+                    setNotice(
+                        `유저 ${userId} 랜덤 소환 완료 (X ${moved.world_x}, Y ${moved.world_y}, Z ${moved.world_z})`,
+                        'ok'
+                    );
+                } else {
+                    setNotice(`유저 ${userId} 랜덤 소환 완료`, 'ok');
+                }
                 await refreshAll(false);
             }).catch((error) => {
                 setNotice(error.message, 'error');
@@ -1166,6 +1196,7 @@
 
         window.reviewReport = reviewReport;
         window.saveUserEdit = saveUserEdit;
+        window.teleportRandomUser = teleportRandomUser;
         window.resetUserEdit = resetUserEdit;
     </script>
 </body>
