@@ -212,34 +212,24 @@ const WorldScene = {
         this._loop();
     },
 
-    /** Build the 3D ground plane with grid pattern */
+    /** Build a subtle sky-bottom haze layer (no hard ground/grid) */
     _buildGroundPlane() {
-        // Large ground disc
+        // A very soft haze disc keeps depth cues without showing a floor.
         const groundSize = WORLD_HALF * WORLD_SCALE * 2;
         const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, 1, 1);
         const groundMat = new THREE.MeshStandardMaterial({
-            color: 0x1a2a1a,
-            roughness: 0.95,
+            color: 0x8ec8ec,
+            roughness: 1.0,
             metalness: 0.0,
             transparent: true,
-            opacity: 0.85,
+            opacity: 0.12,
+            depthWrite: false,
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = GROUND_Y;
-        ground.receiveShadow = true;
         this.scene.add(ground);
         this._groundMesh = ground;
-
-        // Grid helper for spatial reference
-        const gridSize = 6000;
-        const gridDivisions = 60;
-        const grid = new THREE.GridHelper(gridSize, gridDivisions, 0x1a3a5a, 0x0a1520);
-        grid.position.y = GROUND_Y + 0.5;
-        grid.material.transparent = true;
-        grid.material.opacity = 0.35;
-        this.scene.add(grid);
-        this._gridHelper = grid;
     },
 
     /** Update camera position from spherical orbit parameters */
@@ -268,10 +258,10 @@ const WorldScene = {
     _applyDayNightBlend(mix) {
         if (!this.scene) return;
 
-        const nightBg = new THREE.Color(0x050814);
-        const dayBg = new THREE.Color(0x87ceeb);
-        const fogNight = new THREE.Color(0x060814);
-        const fogDay = new THREE.Color(0xb0d8f0);
+        const nightBg = new THREE.Color(0x040a1c);
+        const dayBg = new THREE.Color(0x9fd8ff);
+        const fogNight = new THREE.Color(0x091327);
+        const fogDay = new THREE.Color(0xc9e8ff);
 
         if (!this.scene.background || !this.scene.background.isColor) {
             this.scene.background = nightBg.clone();
@@ -279,7 +269,7 @@ const WorldScene = {
         this.scene.background.copy(nightBg).lerp(dayBg, mix);
 
         const fogColor = fogNight.clone().lerp(fogDay, mix);
-        const fogDensity = 0.00012 * (1 - mix) + 0.00004 * mix;
+        const fogDensity = 0.00014 * (1 - mix) + 0.00007 * mix;
         if (!this.scene.fog || !this.scene.fog.isFogExp2) {
             this.scene.fog = new THREE.FogExp2(fogColor, fogDensity);
         } else {
@@ -304,6 +294,13 @@ const WorldScene = {
 
         if (this.fillLight) {
             this.fillLight.intensity = 0.34 - mix * 0.16;
+        }
+
+        if (this._groundMesh?.material) {
+            const nightGround = new THREE.Color(0x334d78);
+            const dayGround = new THREE.Color(0xbfe5ff);
+            this._groundMesh.material.color.copy(nightGround).lerp(dayGround, mix);
+            this._groundMesh.material.opacity = 0.08 + mix * 0.06;
         }
 
         if (this.starMaterial) {
@@ -468,13 +465,6 @@ const WorldScene = {
         group.userData.balloon = balloonMesh;
 
         group.add(balloon3D);
-
-        const shadowGeo = new THREE.CircleGeometry(isMe ? 55 : 35, 24);
-        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false });
-        const shadow = new THREE.Mesh(shadowGeo, shadowMat);
-        shadow.rotation.x = -Math.PI / 2;
-        shadow.position.y = -80;
-        group.add(shadow);
 
         const labelCanvas = this._makeLabel(user, isMe);
         const labelTex = new THREE.CanvasTexture(labelCanvas);
@@ -2132,12 +2122,6 @@ const WorldScene = {
         }
 
         this._updateCameraFromOrbit();
-
-        // Move grid to follow player
-        if (this._gridHelper && this.myBalloon) {
-            this._gridHelper.position.x = this.myBalloon.group.position.x;
-            this._gridHelper.position.z = this.myBalloon.group.position.z;
-        }
 
         this._resolveBalloonCollisions();
 
