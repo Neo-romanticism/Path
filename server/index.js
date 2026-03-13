@@ -183,6 +183,8 @@ app.use((req, res, next) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
     // API가 아닌 경로는 건너뜀
     if (!req.path.startsWith('/api/')) return next();
+  // Apple OAuth는 response_mode=form_post로 콜백되므로 예외 허용
+  if (req.path === '/api/auth/apple/callback') return next();
 
     const origin = req.headers['origin'];
     const referer = req.headers['referer'];

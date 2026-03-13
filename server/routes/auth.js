@@ -944,7 +944,7 @@ router.get('/apple', (req, res) => {
         client_id: clientId,
         redirect_uri: redirectUri,
         response_type: 'code',
-        response_mode: 'query',
+        response_mode: 'form_post',
         scope: 'name email',
         state
     });
@@ -952,8 +952,9 @@ router.get('/apple', (req, res) => {
     return res.redirect(`https://appleid.apple.com/auth/authorize?${params.toString()}`);
 });
 
-router.get('/apple/callback', async (req, res) => {
-    const { code, state } = req.query;
+async function handleAppleCallback(req, res) {
+    const source = req.method === 'POST' ? req.body : req.query;
+    const { code, state } = source || {};
     const oauthContext = req.session.appleOAuth || {};
     const platform = oauthContext.platform === 'app' ? 'app' : 'web';
     const expectedState = oauthContext.state;
@@ -1057,7 +1058,10 @@ router.get('/apple/callback', async (req, res) => {
         clearOauthState();
         return res.redirect(appendQueryParam(errorRedirect, 'reason', 'oauth_failed'));
     }
-});
+}
+
+router.get('/apple/callback', handleAppleCallback);
+router.post('/apple/callback', handleAppleCallback);
 
 router.get('/google/callback', async (req, res) => {
     const { code, state } = req.query;
