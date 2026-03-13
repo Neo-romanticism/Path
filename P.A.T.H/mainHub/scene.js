@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { create3DBalloon, getBalloonColors, setBalloonDetailLevel } from './balloonModel.js';
 import { sceneGenerationMethods } from './sceneGeneration.js';
 import {
@@ -158,6 +159,12 @@ const WorldScene = {
     dayNightMix: 0,
     dayNightTarget: 0,
     balloonLodDistance: 2300,
+    pbrDefaultRoughness: 0.4,
+    pbrDefaultMetalness: 0.1,
+    pbrEnvMapIntensity: 0.85,
+    hdriEnvUrl: './assets/hdr/studio_small_03_1k.hdr',
+    environmentMap: null,
+    _envMapRequested: false,
 
     SPRING: 0.045,
     FRICTION: 0.86,
@@ -201,6 +208,7 @@ const WorldScene = {
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
+        this._initEnvironmentMap();
 
         this.ambientLight = new THREE.AmbientLight(0x8090c0, 0.85);
         this.scene.add(this.ambientLight);
@@ -616,6 +624,123 @@ const WorldScene = {
         }
     },
 
+    _shouldSkipPbrUpgradeMaterial(material) {
+        if (!material) return true;
+        if (material.colorWrite === false) return true;
+        if (material.opacity === 0) return true;
+        if (material.map && material.transparent && material.depthWrite === false) return true;
+        if (material.blending === THREE.AdditiveBlending) return true;
+        return false;
+    },
+
+    _upgradeMaterialToPbr(material) {
+        if (!material || this._shouldSkipPbrUpgradeMaterial(material)) return material;
+
+        if (material.isMeshBasicMaterial) {
+            const standardMat = new THREE.MeshStandardMaterial({
+                color: material.color?.clone?.() ?? new THREE.Color(0xffffff),
+                map: material.map || null,
+                alphaMap: material.alphaMap || null,
+                aoMap: material.aoMap || null,
+                transparent: !!material.transparent,
+                opacity: Number.isFinite(material.opacity) ? material.opacity : 1,
+                side: material.side,
+                depthWrite: material.depthWrite,
+                depthTest: material.depthTest,
+                wireframe: !!material.wireframe,
+                roughness: this.pbrDefaultRoughness,
+                metalness: this.pbrDefaultMetalness,
+            });
+            standardMat.name = material.name || 'basicToStandard';
+            if (standardMat.map) standardMat.map.colorSpace = THREE.SRGBColorSpace;
+            material.dispose?.();
+            return standardMat;
+        }
+
+        if (material.isMeshStandardMaterial || material.isMeshPhysicalMaterial) {
+            const isOpaque = !material.transparent && (material.opacity ?? 1) > 0.98;
+            const isEmissive = !!material.emissive && material.emissiveIntensity > 0.05;
+            if (isOpaque && !isEmissive) {
+                material.roughness = this.pbrDefaultRoughness;
+                material.metalness = this.pbrDefaultMetalness;
+            }
+        }
+
+        return material;
+    },
+
+    _applyEnvironmentToMaterial(material) {
+        if (!material || !this.environmentMap) return;
+        if (
+            !material.isMeshStandardMaterial &&
+            !material.isMeshPhysicalMaterial &&
+            !material.isMeshPhongMaterial
+        ) return;
+        material.envMap = this.environmentMap;
+        material.envMapIntensity = this.pbrEnvMapIntensity;
+        material.needsUpdate = true;
+    },
+
+    _upgradeModelToPbr(root) {
+        if (!root?.traverse) return;
+        root.traverse((child) => {
+            if (!child?.isMesh || !child.material) return;
+            if (Array.isArray(child.material)) {
+                child.material = child.material.map((m) => {
+                    const upgraded = this._upgradeMaterialToPbr(m);
+                    this._applyEnvironmentToMaterial(upgraded);
+                    return upgraded;
+                });
+            } else {
+                child.material = this._upgradeMaterialToPbr(child.material);
+                this._applyEnvironmentToMaterial(child.material);
+            }
+        });
+    },
+
+    _applyEnvironmentToRoot(root) {
+        if (!root?.traverse || !this.environmentMap) return;
+        root.traverse((child) => {
+            if (!child?.isMesh || !child.material) return;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach((m) => this._applyEnvironmentToMaterial(m));
+        });
+    },
+
+    _applyEnvironmentToWorld() {
+        if (!this.scene || !this.environmentMap) return;
+        this._applyEnvironmentToRoot(this.scene);
+    },
+
+    _initEnvironmentMap() {
+        if (!this.renderer || this._envMapRequested) return;
+        this._envMapRequested = true;
+
+        const hdriUrl = (typeof window !== 'undefined' && window.PATH_HDRI_URL)
+            ? window.PATH_HDRI_URL
+            : this.hdriEnvUrl;
+
+        const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new RGBELoader().load(
+            hdriUrl,
+            (hdrTexture) => {
+                const envRT = pmremGenerator.fromEquirectangular(hdrTexture);
+                this.environmentMap = envRT.texture;
+                this.scene.environment = this.environmentMap;
+                hdrTexture.dispose();
+                pmremGenerator.dispose();
+                this._applyEnvironmentToWorld();
+            },
+            undefined,
+            (err) => {
+                pmremGenerator.dispose();
+                console.warn('WorldScene: HDRI envMap 로드에 실패했습니다. PATH_HDRI_URL 설정 또는 파일 경로를 확인하세요.', err);
+            }
+        );
+    },
+
     _loadTexture(src) {
         if (this._texCache && this._texCache.has(src)) return this._texCache.get(src);
         if (!this._texCache) this._texCache = new Map();
@@ -703,6 +828,8 @@ const WorldScene = {
         // Create 3D balloon instead of 2D plane
         const scale = isMe ? 2.0 : 1.25;
         const balloon3D = create3DBalloon(scale, skinId, isMe);
+        this._upgradeModelToPbr(balloon3D);
+        this._applyEnvironmentToRoot(balloon3D);
         balloon3D.position.y = isMe ? 80 : 50;
         balloon3D.renderOrder = 100;
 
@@ -2794,6 +2921,10 @@ const WorldScene = {
             if (island.userData.rimRing) {
                 island.userData.rimRing.rotation.z += 0.004;
                 island.userData.rimRing.material.opacity = 0.18 + Math.sin(t * 1.2 + island.userData.floatPhase) * 0.08;
+            }
+            if (island.userData.fresnelRim?.material?.uniforms) {
+                const uniforms = island.userData.fresnelRim.material.uniforms;
+                uniforms.uIntensity.value = 0.2 + Math.sin(t * 0.9 + island.userData.floatPhase) * 0.04;
             }
             if (island.userData.beaconCore?.material) {
                 island.userData.beaconCore.rotation.y += 0.01;

@@ -3,7 +3,7 @@
  * Provides offline support and caching for the PWA
  */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `path-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `path-dynamic-${CACHE_VERSION}`;
 
@@ -15,9 +15,9 @@ const APP_SHELL = [
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/shared/nav.js',
-  '/mainHub/',
-  '/mainHub/index.html',
-  '/mainHub/style.css',
+  '/study-hub/',
+  '/study-hub/index.html',
+  '/study-hub/style.css',
   '/community/',
   '/community/index.html',
   '/community/style.css',
@@ -37,7 +37,7 @@ const CACHE_FIRST_PATTERNS = [
   /\.(?:js|css|woff2?|ttf|eot)(\?.*)?$/,
   /\/assets\//,
   /\/icons\//,
-  /\/mainHub\/assets\//,
+  /\/study-hub\/assets\//,
 ];
 
 // ─── Install ───────────────────────────────────────────────────────────────
@@ -217,14 +217,14 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-96.png',
       vibrate: [100, 50, 100],
-      data: { url: data.url || '/mainHub/' },
+      data: { url: data.url || '/study-hub/' },
     })
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/mainHub/';
+  const url = event.notification.data?.url || '/study-hub/';
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then((clientList) => {
       for (const client of clientList) {

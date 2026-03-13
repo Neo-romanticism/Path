@@ -348,9 +348,9 @@ function resolveGoogleRedirectUri(req, platform) {
 
 function resolveGoogleSuccessRedirect(platform) {
     if (platform === 'app') {
-        return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT_APP || '/mainHub/';
+        return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT_APP || '/study-hub/';
     }
-    return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT || '/mainHub/';
+    return process.env.GOOGLE_AUTH_SUCCESS_REDIRECT || '/study-hub/';
 }
 
 function resolveGoogleErrorRedirect(platform) {
@@ -375,9 +375,9 @@ function resolveAppleRedirectUri(req, platform) {
 
 function resolveAppleSuccessRedirect(platform) {
     if (platform === 'app') {
-        return process.env.APPLE_AUTH_SUCCESS_REDIRECT_APP || '/mainHub/';
+        return process.env.APPLE_AUTH_SUCCESS_REDIRECT_APP || '/study-hub/';
     }
-    return process.env.APPLE_AUTH_SUCCESS_REDIRECT || '/mainHub/';
+    return process.env.APPLE_AUTH_SUCCESS_REDIRECT || '/study-hub/';
 }
 
 function resolveAppleErrorRedirect(platform) {

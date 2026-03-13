@@ -290,6 +290,47 @@ export const sceneGenerationMethods = {
             top.position.y = 18;
             group.add(top);
 
+            // Subtle Fresnel rim to emphasize island silhouette edges.
+            const fresnelGeo = new THREE.CylinderGeometry(d.rx * 94, d.rx * 76, 36, 32, 1, true);
+            const fresnelMat = new THREE.ShaderMaterial({
+                uniforms: {
+                    uColor: { value: new THREE.Color(theme.accent) },
+                    uPower: { value: 2.8 },
+                    uIntensity: { value: 0.24 },
+                },
+                vertexShader: `
+                    varying vec3 vWorldNormal;
+                    varying vec3 vWorldPos;
+                    void main() {
+                        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+                        vWorldPos = worldPos.xyz;
+                        vWorldNormal = normalize(mat3(modelMatrix) * normal);
+                        gl_Position = projectionMatrix * viewMatrix * worldPos;
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 uColor;
+                    uniform float uPower;
+                    uniform float uIntensity;
+                    varying vec3 vWorldNormal;
+                    varying vec3 vWorldPos;
+                    void main() {
+                        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+                        float fresnel = pow(1.0 - max(dot(viewDir, normalize(vWorldNormal)), 0.0), uPower);
+                        float alpha = fresnel * uIntensity;
+                        if (alpha < 0.01) discard;
+                        gl_FragColor = vec4(uColor, alpha);
+                    }
+                `,
+                transparent: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                side: THREE.DoubleSide,
+            });
+            const fresnelRim = new THREE.Mesh(fresnelGeo, fresnelMat);
+            fresnelRim.position.y = 20;
+            group.add(fresnelRim);
+
             const terraceGeo = new THREE.CylinderGeometry(d.rx * 78, d.rx * 66, 12, 14);
             const terraceMat = new THREE.MeshStandardMaterial({ color: theme.top, roughness: 0.82, metalness: 0.08 });
             const terrace = new THREE.Mesh(terraceGeo, terraceMat);
@@ -628,6 +669,7 @@ export const sceneGenerationMethods = {
             group.userData.floatSpeed = 0.4 + Math.random() * 0.3;
             group.userData.floatPhase = Math.random() * Math.PI * 2;
             group.userData.rimRing = rimRing;
+            group.userData.fresnelRim = fresnelRim;
             group.userData.beaconCore = beaconCore;
             group.userData.orbitRing = orbitRing;
 
@@ -661,6 +703,8 @@ export const sceneGenerationMethods = {
             lodProxy.userData.isLodProxy = true;
             group.add(lodProxy);
             group.userData.lodProxy = lodProxy;
+            if (typeof this._upgradeModelToPbr === 'function') this._upgradeModelToPbr(group);
+            if (typeof this._applyEnvironmentToRoot === 'function') this._applyEnvironmentToRoot(group);
             this.scene.add(group);
             this.skyIslands.push(group);
         });
@@ -886,6 +930,8 @@ export const sceneGenerationMethods = {
             const prop = new InteractableProp(propId, name, wx, wy, wz, rx, this.scene, (id, activated) => {
                 if (this.onInteraction) this.onInteraction(id, activated);
             });
+            if (typeof this._upgradeModelToPbr === 'function') this._upgradeModelToPbr(prop.group);
+            if (typeof this._applyEnvironmentToRoot === 'function') this._applyEnvironmentToRoot(prop.group);
             prop.group.userData.floatSpeed = 0.3 + rng() * 0.4;
             prop.group.userData.floatPhase = rng() * Math.PI * 2;
             this.interactableProps.push(prop);

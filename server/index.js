@@ -352,6 +352,7 @@ app.get('/pwa-install.js', (req, res) => {
 app.use('/assets', express.static(path.join(projectRoot, 'P.A.T.H', 'assets'), staticOptions));
 app.use('/shared', express.static(path.join(projectRoot, 'P.A.T.H', 'shared'), staticOptions));
 app.use('/login', express.static(path.join(projectRoot, 'P.A.T.H', 'login'), noCacheStaticOptions));
+app.use('/study-hub', express.static(path.join(projectRoot, 'P.A.T.H', 'mainHub'), noCacheStaticOptions));
 app.use('/mainHub', express.static(path.join(projectRoot, 'P.A.T.H', 'mainHub'), noCacheStaticOptions));
 app.use('/timer', express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'), noCacheStaticOptions));
 app.use('/community', express.static(path.join(projectRoot, 'P.A.T.H', 'community'), noCacheStaticOptions));
@@ -1057,9 +1058,9 @@ app.get('/P.A.T.H/login', (_req, res) => res.redirect(301, '/login/'));
 app.get('/P.A.T.H/login/', (_req, res) => res.redirect(301, '/login/'));
 app.get('/P.A.T.H/login/index.html', (_req, res) => res.redirect(301, '/login/'));
 
-app.get('/P.A.T.H/mainHub', (_req, res) => res.redirect(301, '/mainHub/'));
-app.get('/P.A.T.H/mainHub/', (_req, res) => res.redirect(301, '/mainHub/'));
-app.get('/P.A.T.H/mainHub/index.html', (_req, res) => res.redirect(301, '/mainHub/'));
+app.get('/P.A.T.H/mainHub', (_req, res) => res.redirect(301, '/study-hub/'));
+app.get('/P.A.T.H/mainHub/', (_req, res) => res.redirect(301, '/study-hub/'));
+app.get('/P.A.T.H/mainHub/index.html', (_req, res) => res.redirect(301, '/study-hub/'));
 
 app.get('/P.A.T.H/mainPageDev', (_req, res) => res.redirect(301, '/timer/'));
 app.get('/P.A.T.H/mainPageDev/', (_req, res) => res.redirect(301, '/timer/'));

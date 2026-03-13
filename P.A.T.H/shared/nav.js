@@ -157,10 +157,10 @@
 
     // ── 페이지 로드 시 인접 라우트 사전 prefetch ──────────────
     var routePrefetchMap = {
-        '/mainHub/':   ['/community/', '/mainPageDev/'],
-        '/mainPageDev/': ['/mainHub/'],
-        '/community/': ['/mainHub/'],
-        '/login/':     ['/mainHub/', '/setup-profile/'],
+        '/study-hub/': ['/community/', '/mainPageDev/'],
+        '/mainPageDev/': ['/study-hub/'],
+        '/community/': ['/study-hub/'],
+        '/login/':     ['/study-hub/', '/setup-profile/'],
     };
     var adjacents = routePrefetchMap[location.pathname] || [];
     // idle callback 또는 800ms 후 prefetch (더 빠르게)

@@ -269,7 +269,7 @@ async function register() {
 
     if (response.ok) {
       alert('회원가입 성공!');
-      window.location.href = '/mainHub';
+      window.location.href = '/study-hub';
     } else {
       alert(data.error || '회원가입 실패');
     }

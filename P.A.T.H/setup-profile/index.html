@@ -158,7 +158,7 @@
                 
                 // 이미 닉네임이 설정된 경우 메인으로
                 if (user && user.nickname && !user.nickname.startsWith('user')) {
-                    navigateTo('/mainHub/');
+                    navigateTo('/study-hub/');
                     return;
                 }
 
@@ -282,7 +282,7 @@
                 }
 
                 localStorage.setItem('path_onboarding_pending', 'true');
-                navigateTo('/mainHub/');
+                navigateTo('/study-hub/');
             } catch (err) {
                 console.error('profile update error:', err);
                 errEl.textContent = '서버 연결 오류가 발생했습니다.';

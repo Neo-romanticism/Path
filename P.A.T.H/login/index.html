@@ -779,7 +779,7 @@ function toggleTheme() {
         (async () => {
             try {
                 const r = await fetch('/api/auth/me', { credentials: 'include' });
-                if (r.ok) navigateTo('/mainHub/');
+                if (r.ok) navigateTo('/study-hub/');
             } catch (e) {}
         })();
 
@@ -1150,7 +1150,7 @@ function toggleTheme() {
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
                 localStorage.setItem('path_onboarding_pending', 'true');
-                navigateTo('/mainHub/');
+                navigateTo('/study-hub/');
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 
@@ -1183,7 +1183,7 @@ function toggleTheme() {
                 });
                 const data = await r.json();
                 if (!r.ok) { errEl.textContent = data.error; return; }
-                navigateTo('/mainHub/');
+                navigateTo('/study-hub/');
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 

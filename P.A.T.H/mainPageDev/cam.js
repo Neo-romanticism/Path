@@ -422,10 +422,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bindTapAction(backBtn, () => {
         if (typeof window.navigateTo === 'function') {
-            window.navigateTo('/mainHub/');
+            window.navigateTo('/study-hub/');
             return;
         }
-        window.location.href = '/mainHub/';
+        window.location.href = '/study-hub/';
     });
 
     bindTapAction(settingsBtn, () => openTimerSettings());

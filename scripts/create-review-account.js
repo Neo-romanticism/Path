@@ -6,6 +6,34 @@ const nickname = process.env.REVIEW_NICKNAME || 'gp_review_test';
 const password = process.env.REVIEW_PASSWORD || '';
 const realName = process.env.REVIEW_REAL_NAME || 'Google Play Reviewer';
 
+function validateDatabaseUrl(value) {
+    if (!value) {
+        throw new Error('DATABASE_URL is missing. Set a real PostgreSQL URL before running this script.');
+    }
+
+    const normalized = String(value).trim();
+    const hasPlaceholder = /(USER|PASS|HOST|DBNAME|DB)\b/i.test(normalized);
+    if (hasPlaceholder) {
+        throw new Error('DATABASE_URL still contains placeholders (USER/PASS/HOST/DB). Replace them with real values.');
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(normalized);
+    } catch (_) {
+        throw new Error('DATABASE_URL is not a valid URL. Expected format: postgresql://user:password@hostname:5432/database');
+    }
+
+    const protocolOk = parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:';
+    if (!protocolOk) {
+        throw new Error(`Unsupported DATABASE_URL protocol: ${parsed.protocol}`);
+    }
+
+    if (!parsed.hostname || /^host$/i.test(parsed.hostname)) {
+        throw new Error('DATABASE_URL hostname is invalid. Use your real DB host (for example, dpg-xxxxx-a.singapore-postgres.render.com).');
+    }
+}
+
 function generatePassword() {
     return `Path!${Math.random().toString(36).slice(2, 8)}#${Date.now().toString().slice(-4)}`;
 }
@@ -21,6 +49,8 @@ async function ensureUserCode(client, userId) {
 }
 
 async function main() {
+    validateDatabaseUrl(process.env.DATABASE_URL);
+
     const finalPassword = password || generatePassword();
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 

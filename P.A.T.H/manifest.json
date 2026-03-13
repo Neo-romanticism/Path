@@ -65,7 +65,7 @@
       "name": "공부 시작",
       "short_name": "공부",
       "description": "바로 공부 타이머 시작",
-      "url": "/mainHub/",
+      "url": "/study-hub/",
       "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
     },
     {
