@@ -53,6 +53,8 @@ let isLoading    = false;
 let currentUser  = null;  // { id, nickname, is_admin, admin_role } | null
 let currentUserBlocks = new Set();
 let communitySettings = { ...DEFAULT_COMMUNITY_SETTINGS };
+let openedInlinePostId = null;
+let openedInlineDetailEl = null;
 
 const REPORT_REASON_OPTIONS = [
   { code: 'spam', label: '도배/광고' },
@@ -169,7 +171,8 @@ async function init() {
 
     updateWriteControls();
 
-    await Promise.all([renderHotPosts(), resetAndLoad()]);
+    await Promise.all([renderHotPosts(), resetAndLoad({ preserveInlineUrl: true })]);
+    await syncInlinePostFromLocation();
 }
 
 /* ─── 카테고리 탭 빌드 ───────────────────────────────────── */
@@ -277,7 +280,10 @@ function HotCard(post) {
 }
 
 /* ─── 목록 초기화 + 첫 로드 ─────────────────────────────── */
-async function resetAndLoad() {
+async function resetAndLoad(options = {}) {
+  const preserveInlineUrl = !!options.preserveInlineUrl;
+  if (preserveInlineUrl) clearInlinePostDetailState();
+  else closeInlinePostDetail({ updateHistory: true, replaceHistory: true });
     currentPage = 0;
     totalPosts  = 0;
     postList.innerHTML = '';
@@ -453,16 +459,199 @@ function applyRowBookmarkState(buttonEl, bookmarked) {
 
 /* ─── 게시글 상세 모달 ───────────────────────────────────── */
 async function openPostDetail(postId) {
-    const id = Number(postId);
-    if (!Number.isInteger(id) || id <= 0) return;
-    markPostViewed(id);
-    window.location.assign(getPostDetailUrl(id));
+  return openPostInline(postId, { updateHistory: true });
 }
 
 function getPostDetailUrl(postId) {
   const id = Number(postId);
   if (!Number.isInteger(id) || id <= 0) return '/community/';
   return `/community/post/${id}`;
+}
+
+function getListUrl() {
+  return '/community/';
+}
+
+function getPostIdFromPath(pathname) {
+  const match = String(pathname || '').match(/^\/community\/post\/(\d+)\/?$/);
+  if (!match) return 0;
+  const id = Number(match[1]);
+  return Number.isInteger(id) && id > 0 ? id : 0;
+}
+
+function getPostIdFromHref(href) {
+  if (!href) return 0;
+  try {
+    const url = new URL(href, window.location.origin);
+    return getPostIdFromPath(url.pathname);
+  } catch (_) {
+    return 0;
+  }
+}
+
+function updateUrlForPost(postId, { replace = false } = {}) {
+  const target = postId > 0 ? getPostDetailUrl(postId) : getListUrl();
+  if (window.location.pathname === target) return;
+  const method = replace ? 'replaceState' : 'pushState';
+  window.history[method]({ communityPostId: postId > 0 ? postId : null }, '', target);
+}
+
+function findPostRow(postId) {
+  return postList.querySelector(`.post-row[data-id="${postId}"]`);
+}
+
+function setActivePostHighlight(postId) {
+  postList.querySelectorAll('.post-row.is-open').forEach((el) => el.classList.remove('is-open'));
+  hotList.querySelectorAll('.c-hot-card.is-open').forEach((el) => el.classList.remove('is-open'));
+
+  if (!postId) return;
+
+  const row = findPostRow(postId);
+  if (row) row.classList.add('is-open');
+
+  const hotCard = hotList.querySelector(`.c-hot-card[data-post-id="${postId}"]`);
+  if (hotCard) hotCard.classList.add('is-open');
+}
+
+function closeInlinePostDetail({ updateHistory = true, replaceHistory = false } = {}) {
+  if (openedInlineDetailEl) {
+    openedInlineDetailEl.remove();
+    openedInlineDetailEl = null;
+  }
+  openedInlinePostId = null;
+  setActivePostHighlight(0);
+
+  if (updateHistory) {
+    updateUrlForPost(0, { replace: replaceHistory });
+  }
+}
+
+function clearInlinePostDetailState() {
+  if (openedInlineDetailEl) {
+    openedInlineDetailEl.remove();
+  }
+  openedInlineDetailEl = null;
+  openedInlinePostId = null;
+  setActivePostHighlight(0);
+}
+
+async function ensurePostRowVisible(postId, maxPages = 8) {
+  let row = findPostRow(postId);
+  let loaded = 0;
+
+  while (!row && loaded < maxPages && currentPage * PAGE_SIZE < totalPosts) {
+    await loadNextPage();
+    loaded += 1;
+    row = findPostRow(postId);
+  }
+
+  return row;
+}
+
+async function openPostInline(postId, options = {}) {
+  const {
+    updateHistory = true,
+    replaceHistory = false,
+    sourceRow = null,
+    scrollIntoView = true,
+  } = options;
+
+  const id = Number(postId);
+  if (!Number.isInteger(id) || id <= 0) return;
+
+  if (openedInlinePostId === id && openedInlineDetailEl) {
+    closeInlinePostDetail({ updateHistory, replaceHistory });
+    return;
+  }
+
+  markPostViewed(id);
+
+  if (openedInlineDetailEl) {
+    openedInlineDetailEl.remove();
+    openedInlineDetailEl = null;
+  }
+
+  let anchorRow = sourceRow;
+  if (!(anchorRow instanceof HTMLElement) || !anchorRow.classList.contains('post-row')) {
+    anchorRow = await ensurePostRowVisible(id);
+  }
+
+  const detailRow = document.createElement('li');
+  detailRow.className = 'post-inline-detail';
+  detailRow.dataset.postDetailId = String(id);
+  detailRow.innerHTML = `
+    <section class="post-inline-detail__panel" role="region" aria-label="게시글 상세">
+      <div class="post-inline-detail__head">
+        <button class="post-inline-detail__close" type="button" aria-label="상세 닫기">목록으로</button>
+      </div>
+      <div class="post-inline-detail__body">
+        <p class="community-settings-loading">게시글을 불러오는 중...</p>
+      </div>
+    </section>`;
+
+  if (anchorRow?.parentElement === postList) {
+    anchorRow.insertAdjacentElement('afterend', detailRow);
+  } else {
+    postList.prepend(detailRow);
+  }
+
+  openedInlinePostId = id;
+  openedInlineDetailEl = detailRow;
+  setActivePostHighlight(id);
+
+  if (updateHistory) {
+    updateUrlForPost(id, { replace: replaceHistory });
+  }
+
+  detailRow.querySelector('.post-inline-detail__close')?.addEventListener('click', () => {
+    closeInlinePostDetail({ updateHistory: true });
+  });
+
+  const bodyEl = detailRow.querySelector('.post-inline-detail__body');
+
+  try {
+    const [postRes, commentsRes] = await Promise.all([
+      fetch(`/api/community/posts/${id}`, { credentials: 'include' }),
+      fetch(`/api/community/posts/${id}/comments`, { credentials: 'include' }),
+    ]);
+
+    if (!postRes.ok) {
+      const msg = await readApiError(postRes, '게시글을 불러오지 못했어요');
+      throw new Error(msg || '게시글을 불러오지 못했어요');
+    }
+
+    const postData = await postRes.json().catch(() => ({}));
+    const commentsData = commentsRes.ok ? await commentsRes.json().catch(() => ({})) : {};
+    const post = postData?.post;
+    const comments = Array.isArray(commentsData?.comments) ? commentsData.comments : [];
+
+    if (!post) {
+      throw new Error('게시글을 불러오지 못했어요');
+    }
+
+    if (openedInlinePostId !== id || openedInlineDetailEl !== detailRow) return;
+    renderDetailBody(bodyEl, { post, postId: id, comments, commentSort: 'latest' });
+
+    if (scrollIntoView) {
+      detailRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } catch (err) {
+    if (openedInlinePostId !== id || openedInlineDetailEl !== detailRow) return;
+    bodyEl.innerHTML = `<p class="community-settings-loading">${escHtml(err?.message || '게시글을 불러오지 못했어요')}</p>`;
+  }
+}
+
+async function syncInlinePostFromLocation() {
+  const postId = getPostIdFromPath(window.location.pathname);
+  if (postId > 0) {
+    await openPostInline(postId, {
+      updateHistory: false,
+      scrollIntoView: false,
+    });
+    return;
+  }
+
+  closeInlinePostDetail({ updateHistory: false });
 }
 
 function markPostViewed(postId) {
@@ -1031,6 +1220,28 @@ function bindEvents() {
   }
 
   settingsToggle?.addEventListener('click', openSettingsModal);
+
+  document.addEventListener('click', async (e) => {
+    const postLink = e.target.closest('a[href^="/community/post/"]');
+    if (!postLink) return;
+    if (postLink.target === '_blank') return;
+
+    const userProfileBtn = e.target.closest('.js-open-user-profile');
+    if (userProfileBtn) return;
+
+    const postId = Number(postLink.dataset.postId || getPostIdFromHref(postLink.getAttribute('href')));
+    if (!postId) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const sourceRow = postLink.closest('.post-row');
+    await openPostInline(postId, { sourceRow, updateHistory: true });
+  });
+
+  window.addEventListener('popstate', () => {
+    syncInlinePostFromLocation();
+  });
 
     // 검색 토글
     searchToggle?.addEventListener('click', () => {
@@ -2718,6 +2929,43 @@ function currentUserIsAdmin() {
 const detailStyle = document.createElement('style');
 detailStyle.textContent = `
 .post-detail-modal { max-height: 90dvh; }
+.post-inline-detail {
+  list-style:none;
+  margin:4px 0 14px;
+}
+.post-inline-detail__panel {
+  border:1px solid var(--border-mid);
+  border-radius:14px;
+  background:var(--surface-1);
+  padding:14px;
+}
+.post-inline-detail__head {
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:8px;
+}
+.post-inline-detail__close {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:30px;
+  padding:0 12px;
+  border-radius:999px;
+  border:1px solid var(--border-mid);
+  background:var(--surface-2);
+  color:var(--text-2);
+  font-size:12px;
+  font-weight:700;
+}
+.post-inline-detail__body {
+  min-height:52px;
+}
+.post-row.is-open {
+  background:color-mix(in srgb, var(--accent-blue) 10%, transparent);
+}
+.c-hot-card.is-open {
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent-blue) 55%, transparent) inset;
+}
 .detail-cat-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .detail-date { font-size:11.5px; color:var(--text-3); margin-left:auto; }
 .detail-title { font-size:16px; font-weight:700; color:var(--text-1); line-height:1.5; margin-bottom:8px; word-break:break-word; }
