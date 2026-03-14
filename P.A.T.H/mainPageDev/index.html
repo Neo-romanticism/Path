@@ -162,6 +162,29 @@ function toggleTheme() {
                 </article>
             </div>
 
+            <section class="home-hub-actions" aria-label="빠른 기능 실행">
+                <button type="button" id="home-quick-apply" class="home-hub-btn">
+                    <span class="home-hub-kicker">입시</span>
+                    <strong>모의지원</strong>
+                    <span class="home-hub-sub">원서비, 슬롯, 지원 이력 보기</span>
+                </button>
+                <button type="button" id="home-quick-shop" class="home-hub-btn">
+                    <span class="home-hub-kicker">경제</span>
+                    <strong>상점 · 성장</strong>
+                    <span class="home-hub-sub">세금 수령, 티켓/스킨 관리</span>
+                </button>
+                <button type="button" id="home-quick-social" class="home-hub-btn">
+                    <span class="home-hub-kicker">소셜</span>
+                    <strong>친구 · 메시지</strong>
+                    <span class="home-hub-sub">동맹 요청, DM, 그룹 대화</span>
+                </button>
+                <button type="button" id="home-quick-notif" class="home-hub-btn">
+                    <span class="home-hub-kicker">피드</span>
+                    <strong>알림 · 랭킹</strong>
+                    <span class="home-hub-sub">전체 랭킹, 최근 알림 확인</span>
+                </button>
+            </section>
+
             <div class="home-grid">
                 <section class="home-panel">
                     <div class="home-panel-head">
@@ -204,7 +227,10 @@ function toggleTheme() {
                         <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플랜 추가하기</button>
                     </form>
                     <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
-                    <span class="subject-hint">학습을 시작하면 플랜이 자동으로 캘린더에 저장돼요</span>
+                    <div class="study-plan-actions">
+                        <button id="study-plan-sync-btn" class="plan-submit-btn" type="button">플래너 날짜에 일정 반영</button>
+                        <span id="study-plan-sync-meta" class="subject-hint">반영 기준 날짜를 불러오는 중...</span>
+                    </div>
                 </div>
             </div>
 
@@ -242,6 +268,38 @@ function toggleTheme() {
             <div class="control-group">
                 <button id="enter-btn" class="btn-primary cmd-btn">학습 시작하기</button>
                 <button id="break-btn" class="btn-danger cmd-btn hidden">중단하기</button>
+            </div>
+
+            <div class="lecture-wrap">
+                <button id="lecture-toggle-btn" class="lecture-toggle-btn" type="button">인강 패널 열기</button>
+                <div id="lecture-panel" class="lecture-panel hidden">
+                    <div class="lecture-head">
+                        <strong>인강 모드</strong>
+                        <button id="lecture-close-btn" class="lecture-close-btn" type="button">닫기</button>
+                    </div>
+                    <p class="lecture-copy">타이머를 유지한 채 앱 내부에서 인강을 볼 수 있어요. 외부 앱/브라우저로 나가면 기존처럼 실패 처리됩니다.</p>
+                    <div class="lecture-url-row">
+                        <input id="lecture-url-input" class="lecture-url-input" type="url" placeholder="https://www.youtube.com/watch?v=...">
+                        <button id="lecture-open-btn" class="lecture-open-btn" type="button">열기</button>
+                    </div>
+                    <div id="lecture-preset-wrap" class="lecture-preset-wrap">
+                        <button class="lecture-preset-btn" type="button" data-url="https://www.youtube.com/">YouTube</button>
+                        <button class="lecture-preset-btn" type="button" data-url="https://www.ebsi.co.kr/">EBSi</button>
+                        <button class="lecture-preset-btn" type="button" data-url="https://www.megastudy.net/">메가스터디</button>
+                    </div>
+                    <p id="lecture-hint" class="lecture-hint">허용된 인강 도메인만 열 수 있습니다.</p>
+                    <div class="lecture-frame-wrap">
+                        <iframe
+                            id="lecture-frame"
+                            class="lecture-frame"
+                            title="인강 패널"
+                            loading="lazy"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -342,7 +400,19 @@ function toggleTheme() {
                 <div id="week-label" class="week-label">이번 주</div>
                 <button id="week-next-btn" class="week-nav-btn" type="button">다음 주 ▶</button>
             </div>
+            <div class="calendar-overview">
+                <div class="calendar-overview-copy">
+                    <span class="calendar-overview-kicker">선택 날짜</span>
+                    <h3 id="calendar-selected-date-label" class="calendar-selected-date-label">오늘 일정</h3>
+                    <p id="calendar-selected-date-summary" class="calendar-selected-date-summary">주간 타임라인에서 날짜를 누르면 해당 날짜 요약이 보입니다.</p>
+                </div>
+                <div class="calendar-overview-actions">
+                    <button id="calendar-today-btn" class="week-nav-btn" type="button">오늘로 이동</button>
+                    <button id="calendar-open-planner-btn" class="week-nav-btn" type="button">플래너에서 보기</button>
+                </div>
+            </div>
             <div id="calendar-timeline" class="calendar-timeline"></div>
+            <div id="calendar-day-panel" class="calendar-day-panel" aria-live="polite"></div>
 
             <form id="calendar-plan-form" class="plan-form">
                 <select id="plan-subject-select" class="plan-input" required></select>
@@ -351,7 +421,9 @@ function toggleTheme() {
                 <input id="plan-end-time" class="plan-input" type="time" required>
                 <input id="plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모(선택)">
                 <button id="plan-add-btn" class="plan-submit-btn" type="submit">타임라인 추가</button>
+                <button id="plan-cancel-btn" class="plan-secondary-btn hidden" type="button">편집 취소</button>
             </form>
+            <div id="plan-form-status" class="plan-form-status">주간 계획이나 수업 일정을 추가하고 드래그로 옮길 수 있습니다.</div>
         </section>
 
         <section id="tab-scorecalc" class="tab-panel">
@@ -771,6 +843,19 @@ function toggleTheme() {
             </div>
         </div>
     </main>
+
+    <div id="hub-overlay" class="hub-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="hub-overlay-title">
+        <div class="hub-overlay-card">
+            <div class="hub-overlay-head">
+                <h3 id="hub-overlay-title">빠른 실행</h3>
+                <button id="hub-overlay-close" type="button" class="hub-overlay-close" aria-label="닫기">×</button>
+            </div>
+            <div id="hub-overlay-body" class="hub-overlay-body"></div>
+            <div class="hub-overlay-foot">
+                <button id="hub-overlay-confirm" type="button" class="home-refresh-btn">확인</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Result Overlay -->
     <div id="overlay" class="result-overlay hidden">

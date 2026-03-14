@@ -16,10 +16,15 @@ const UI = {
     lastStudyRecordId: null,
     studyPlanDrafts: [],
     draftSeq: 1,
+    editingPlanId: null,
     quickSubjectNames: ['국어', '영어', '수학', '사회', '과학', '코딩', '전공'],
     plannerDate: null,
     plannerData: null,
+    calendarAnchorDate: null,
+    calendarSelectedDate: null,
     homeRefreshIntervalId: null,
+    activeHubOverlay: null,
+    hubApplyTargets: new Map(),
     timetableConfig: {
         dayStartMinute: 6 * 60,
         dayEndMinute: 24 * 60,
@@ -49,11 +54,20 @@ const UI = {
         tabBalloon:  document.getElementById('tab-balloon'),
         homeStartBtn: document.getElementById('home-start-btn'),
         homeRefreshBtn: document.getElementById('home-refresh-btn'),
+        homeQuickApplyBtn: document.getElementById('home-quick-apply'),
+        homeQuickShopBtn: document.getElementById('home-quick-shop'),
+        homeQuickSocialBtn: document.getElementById('home-quick-social'),
+        homeQuickNotifBtn: document.getElementById('home-quick-notif'),
         homeStatToday: document.getElementById('home-stat-today'),
         homeStatTotal: document.getElementById('home-stat-total'),
         homeStatActive: document.getElementById('home-stat-active'),
         homeTopList: document.getElementById('home-top-list'),
         homeRoomList: document.getElementById('home-room-list'),
+        hubOverlay: document.getElementById('hub-overlay'),
+        hubOverlayTitle: document.getElementById('hub-overlay-title'),
+        hubOverlayBody: document.getElementById('hub-overlay-body'),
+        hubOverlayCloseBtn: document.getElementById('hub-overlay-close'),
+        hubOverlayConfirmBtn: document.getElementById('hub-overlay-confirm'),
         scoreCalcUniversity: document.getElementById('scorecalc-university'),
         scoreCalcTrack: document.getElementById('scorecalc-track'),
         scoreCalcCategory: document.getElementById('scorecalc-category'),
@@ -83,16 +97,26 @@ const UI = {
         studyPlanDuration: document.getElementById('study-plan-duration'),
         studyPlanNote: document.getElementById('study-plan-note'),
         studyPlanList: document.getElementById('study-plan-list'),
+        studyPlanSyncBtn: document.getElementById('study-plan-sync-btn'),
+        studyPlanSyncMeta: document.getElementById('study-plan-sync-meta'),
         planSubjectSelect: document.getElementById('plan-subject-select'),
         planDate: document.getElementById('plan-date'),
         planStartTime: document.getElementById('plan-start-time'),
         planEndTime: document.getElementById('plan-end-time'),
         planNote: document.getElementById('plan-note'),
         planForm: document.getElementById('calendar-plan-form'),
+        planSubmitBtn: document.getElementById('plan-add-btn'),
+        planCancelBtn: document.getElementById('plan-cancel-btn'),
+        planFormStatus: document.getElementById('plan-form-status'),
         weekPrevBtn: document.getElementById('week-prev-btn'),
         weekNextBtn: document.getElementById('week-next-btn'),
         weekLabel: document.getElementById('week-label'),
+        calendarSelectedDateLabel: document.getElementById('calendar-selected-date-label'),
+        calendarSelectedDateSummary: document.getElementById('calendar-selected-date-summary'),
+        calendarOpenPlannerBtn: document.getElementById('calendar-open-planner-btn'),
+        calendarTodayBtn: document.getElementById('calendar-today-btn'),
         calendarTimeline: document.getElementById('calendar-timeline'),
+        calendarDayPanel: document.getElementById('calendar-day-panel'),
         setupArea:   document.getElementById('setup-area'),
         inputHr:     document.getElementById('input-hr'),
         inputMin:    document.getElementById('input-min'),
@@ -144,10 +168,15 @@ const UI = {
     },
 
     setTodayDefaults() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = this.toLocalYmd(new Date());
         if (this.elements.planDate) this.elements.planDate.value = today;
         if (this.elements.planStartTime) this.elements.planStartTime.value = '09:00';
         if (this.elements.planEndTime) this.elements.planEndTime.value = '11:00';
+        this.plannerDate = this.plannerDate || today;
+        this.calendarAnchorDate = this.calendarAnchorDate || today;
+        this.calendarSelectedDate = this.calendarSelectedDate || this.plannerDate;
+        this.updateStudyPlanSyncMeta();
+        this.clearPlanFormEditingState(today);
     },
 
     async loadRankInfo() {
@@ -190,6 +219,18 @@ const UI = {
         this.elements.homeStartBtn?.addEventListener('click', () => this.switchTab('study'));
         this.elements.homeRefreshBtn?.addEventListener('click', () => {
             this.loadHomeHubData(true).catch(() => {});
+        });
+        this.elements.homeQuickApplyBtn?.addEventListener('click', () => this.openHomeHubOverlay('apply'));
+        this.elements.homeQuickShopBtn?.addEventListener('click', () => this.openHomeHubOverlay('shop'));
+        this.elements.homeQuickSocialBtn?.addEventListener('click', () => this.openHomeHubOverlay('social'));
+        this.elements.homeQuickNotifBtn?.addEventListener('click', () => this.openHomeHubOverlay('notif'));
+        this.elements.hubOverlayCloseBtn?.addEventListener('click', () => this.closeHomeHubOverlay());
+        this.elements.hubOverlayConfirmBtn?.addEventListener('click', () => this.closeHomeHubOverlay());
+        this.elements.hubOverlay?.addEventListener('click', (e) => {
+            if (e.target === this.elements.hubOverlay) this.closeHomeHubOverlay();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.closeHomeHubOverlay();
         });
 
         this.elements.scoreCalcUniversity?.addEventListener('change', () => {
@@ -241,14 +282,27 @@ const UI = {
         this.elements.quickSubjects?.addEventListener('click', (e) => this.handleQuickSubjectClick(e));
         this.elements.studyPlanForm?.addEventListener('submit', (e) => this.handleStudyPlanSubmit(e));
         this.elements.studyPlanList?.addEventListener('click', (e) => this.handleStudyPlanDraftDelete(e));
+        this.elements.studyPlanSyncBtn?.addEventListener('click', () => this.handleStudyPlanSyncClick());
 
-        this.elements.weekPrevBtn.onclick = () => this.loadWeekCalendar(this.weekOffset - 1);
-        this.elements.weekNextBtn.onclick = () => this.loadWeekCalendar(this.weekOffset + 1);
+        this.elements.weekPrevBtn.onclick = () => this.loadWeekCalendar(this.weekOffset - 1, {
+            anchorDate: this.calendarAnchorDate || this.calendarSelectedDate || this.plannerDate,
+            selectedDate: this.shiftDateByDays(this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date()), -7),
+            syncPlanner: false
+        });
+        this.elements.weekNextBtn.onclick = () => this.loadWeekCalendar(this.weekOffset + 1, {
+            anchorDate: this.calendarAnchorDate || this.calendarSelectedDate || this.plannerDate,
+            selectedDate: this.shiftDateByDays(this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date()), 7),
+            syncPlanner: false
+        });
         this.elements.planForm.onsubmit = (e) => this.handlePlanSubmit(e);
-        this.elements.calendarTimeline.addEventListener('click', (e) => this.handlePlanDelete(e));
+        this.elements.planCancelBtn?.addEventListener('click', () => this.clearPlanFormEditingState());
+        this.elements.calendarTimeline.addEventListener('click', (e) => this.handleCalendarTimelineClick(e));
+        this.elements.calendarDayPanel?.addEventListener('click', (e) => this.handleCalendarDayPanelClick(e));
         this.elements.calendarTimeline.addEventListener('pointerdown', (e) => this.handlePlanPointerDown(e));
         window.addEventListener('pointermove', (e) => this.handlePlanPointerMove(e));
         window.addEventListener('pointerup', () => this.handlePlanPointerUp());
+        this.elements.calendarOpenPlannerBtn?.addEventListener('click', () => this.switchTab('planner'));
+        this.elements.calendarTodayBtn?.addEventListener('click', () => this.goToTodaySchedule());
         document.body.addEventListener('click', (e) => {
             if (e.target.closest('.undo-btn')) {
                 this.handleUndoClick();
@@ -279,7 +333,7 @@ const UI = {
             this.elements.breakBtn.textContent = this.currentMode === 'stopwatch' ? '학습 완료하기' : '중단하기';
 
             // 플래너 저장은 백그라운드 (타이머 시작 블로킹 안 함)
-            this.persistStudyPlanDrafts().catch(e => {
+            this.persistStudyPlanDrafts(this.toLocalYmd(new Date()), { reloadViews: false }).catch(e => {
                 console.warn('플래너 저장 실패 (무시):', e);
             });
 
@@ -398,10 +452,17 @@ const UI = {
         }
 
         if (isCalendar) {
-            this.loadWeekCalendar(this.weekOffset).catch(() => {});
+            const focusDate = this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
+            this.loadWeekCalendar(0, {
+                anchorDate: focusDate,
+                selectedDate: focusDate,
+                syncPlanner: false
+            }).catch(() => {});
             return;
         }
         if (isPlanner) {
+            this.plannerDate = this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
+            this.updateStudyPlanSyncMeta();
             this.initPlanner();
             return;
         }
@@ -496,6 +557,428 @@ const UI = {
                 <div class="home-row-val">${members}/${maxMembers || '-'}명 · ${this.formatDuration(todaySec)}</div>
             </div>`;
         }).join('');
+    },
+
+    openHomeHubOverlay(type) {
+        if (!this.elements.hubOverlay || !this.elements.hubOverlayTitle || !this.elements.hubOverlayBody) return;
+
+        this.elements.hubOverlay.classList.remove('hidden');
+        this.activeHubOverlay = type;
+
+        if (type === 'apply') {
+            this.elements.hubOverlayTitle.textContent = '모의지원';
+            this.renderHubApplyPanel().catch((err) => {
+                this.elements.hubOverlayBody.innerHTML = `<div class="hub-apply-error">${this.escapeHtml(err?.message || '모의지원 데이터를 불러오지 못했습니다.')}</div>`;
+            });
+            return;
+        }
+
+        if (type === 'shop') {
+            this.elements.hubOverlayTitle.textContent = '상점 · 성장';
+            this.renderHubShopPanel().catch((err) => {
+                this.elements.hubOverlayBody.innerHTML = `<div class="hub-apply-error">${this.escapeHtml(err?.message || '상점 데이터를 불러오지 못했습니다.')}</div>`;
+            });
+            return;
+        }
+
+        const map = {
+            apply: {
+                title: '모의지원',
+                body: '원서비, 지원 슬롯, 지원 이력을 이 화면에서 바로 처리할 예정입니다. 다음 단계에서 기존 기능을 순서대로 연결합니다.'
+            },
+            shop: {
+                title: '상점 · 성장',
+                body: '세금 수령, 티켓 구매, 스킨/오오라 관리 기능을 월드 없이 패널 형태로 이식할 예정입니다.'
+            },
+            social: {
+                title: '친구 · 메시지',
+                body: '동맹 관리와 1:1 메시지 진입을 홈 허브에서 처리할 수 있도록 연결할 예정입니다.'
+            },
+            notif: {
+                title: '알림 · 랭킹',
+                body: '전체 랭킹(TODAY/TOTAL)과 알림 읽음 처리를 같은 패널로 묶어 복구할 예정입니다.'
+            }
+        };
+
+        const conf = map[type] || map.notif;
+        this.elements.hubOverlayTitle.textContent = conf.title;
+        this.elements.hubOverlayBody.textContent = conf.body;
+    },
+
+    closeHomeHubOverlay() {
+        if (!this.elements.hubOverlay) return;
+        this.activeHubOverlay = null;
+        this.elements.hubOverlay.classList.add('hidden');
+    },
+
+    async requestJson(url, options = {}) {
+        const merged = {
+            credentials: 'include',
+            ...options
+        };
+        const res = await fetch(url, merged);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data?.error || '요청 처리에 실패했습니다.');
+        }
+        return data;
+    },
+
+    mergeCurrentUserPatch(userPatch) {
+        if (!userPatch || typeof userPatch !== 'object') return;
+        this.currentUser = {
+            ...(this.currentUser || {}),
+            ...userPatch
+        };
+        this.updateAssets(this.currentUser);
+    },
+
+    async renderHubApplyPanel() {
+        if (!this.elements.hubOverlayBody || !this.elements.hubOverlayConfirmBtn) return;
+
+        this.elements.hubOverlayConfirmBtn.textContent = '닫기';
+        this.elements.hubOverlayBody.innerHTML = '<div class="hub-apply-loading">불러오는 중...</div>';
+
+        const [applyData, rankingData] = await Promise.all([
+            this.requestJson('/api/invasion/my-applications'),
+            this.requestJson('/api/ranking/today')
+        ]);
+
+        const maxSlots = Number(applyData?.max_slots || 0);
+        const usedSlots = Number(applyData?.used_slots || 0);
+        const remainSlots = Math.max(0, maxSlots - usedSlots);
+        const myScore = Number(applyData?.my_score || 0);
+        const myScoreStatus = String(applyData?.score_status || 'none');
+        const myTickets = Number(applyData?.tickets || 0);
+        const applications = Array.isArray(applyData?.applications) ? applyData.applications : [];
+        const rankingRows = Array.isArray(rankingData?.ranking) ? rankingData.ranking : [];
+
+        const currentUserId = Number(this.currentUser?.id || 0);
+        const targets = rankingRows
+            .filter((row) => Number(row?.id || 0) > 0 && Number(row.id) !== currentUserId)
+            .slice(0, 12);
+
+        this.hubApplyTargets = new Map();
+        targets.forEach((row) => {
+            this.hubApplyTargets.set(Number(row.id), row);
+        });
+
+        const scoreStateText = myScoreStatus === 'approved'
+            ? `${myScore}점 인증 완료`
+            : myScoreStatus === 'pending'
+                ? '점수 심사 대기 중'
+                : myScoreStatus === 'rejected'
+                    ? '점수 반려됨 (재업로드 필요)'
+                    : '점수 미인증';
+
+        const slotProgress = maxSlots > 0 ? Math.round((usedSlots / maxSlots) * 100) : 0;
+
+        const historyHtml = applications.length
+            ? applications.slice(0, 8).map((item) => {
+                const won = String(item?.result || '').toUpperCase() === 'WIN';
+                const date = item?.created_at ? new Date(item.created_at).toLocaleDateString('ko-KR', {
+                    month: 'numeric',
+                    day: 'numeric'
+                }) : '-';
+                const targetUniversity = this.escapeHtml(item?.target_university || '대학 미상');
+                const targetNickname = this.escapeHtml(item?.target_nickname || '상대 미상');
+                const scoreText = Number(item?.my_score || 0);
+                return `<li class="hub-apply-history-item">
+                    <div class="hub-apply-history-main">
+                        <strong>${targetUniversity}</strong>
+                        <span>${targetNickname} · ${date} · ${scoreText}점</span>
+                    </div>
+                    <span class="hub-apply-history-result ${won ? 'win' : 'loss'}">${won ? '합격' : '불합격'}</span>
+                </li>`;
+            }).join('')
+            : '<li class="hub-apply-empty">지원 이력이 없습니다.</li>';
+
+        const targetHtml = targets.length
+            ? targets.map((row) => {
+                const userId = Number(row?.id || 0);
+                const nick = this.escapeHtml(row?.display_nickname || row?.nickname || '익명');
+                const univ = this.escapeHtml(row?.university || '대학 미설정');
+                const sec = Number(row?.today_sec || 0);
+                return `<li class="hub-apply-target-item">
+                    <div class="hub-apply-target-main">
+                        <strong>${nick}</strong>
+                        <span>${univ} · 오늘 ${this.formatDuration(sec)}</span>
+                    </div>
+                    <button type="button" class="hub-apply-attack-btn" data-defender-id="${userId}">지원</button>
+                </li>`;
+            }).join('')
+            : '<li class="hub-apply-empty">현재 도전 가능한 대상이 없습니다.</li>';
+
+        this.elements.hubOverlayBody.innerHTML = `
+            <section class="hub-apply-wrap">
+                <div class="hub-apply-summary">
+                    <div class="hub-apply-meta-row">
+                        <span>슬롯</span>
+                        <strong>${usedSlots}/${maxSlots} 사용 · ${remainSlots}회 남음</strong>
+                    </div>
+                    <div class="hub-apply-progress"><span style="width:${Math.max(0, Math.min(100, slotProgress))}%"></span></div>
+                    <div class="hub-apply-meta-row">
+                        <span>내 점수 상태</span>
+                        <strong>${this.escapeHtml(scoreStateText)}</strong>
+                    </div>
+                    <div class="hub-apply-meta-row">
+                        <span>보유 원서비</span>
+                        <strong>${myTickets}장</strong>
+                    </div>
+                    <div class="hub-apply-actions-row">
+                        <button type="button" id="hub-apply-refresh-btn" class="home-refresh-btn">새로고침</button>
+                        <button type="button" id="hub-apply-study-btn" class="btn-primary home-start-btn">학습하러 가기</button>
+                    </div>
+                </div>
+
+                <div class="hub-apply-grid">
+                    <section class="hub-apply-panel">
+                        <h4>도전 대상</h4>
+                        <ul class="hub-apply-list">${targetHtml}</ul>
+                    </section>
+                    <section class="hub-apply-panel">
+                        <h4>최근 지원 이력</h4>
+                        <ul class="hub-apply-list">${historyHtml}</ul>
+                    </section>
+                </div>
+            </section>
+        `;
+
+        this.elements.hubOverlayBody.querySelector('#hub-apply-refresh-btn')?.addEventListener('click', () => {
+            this.renderHubApplyPanel().catch((err) => {
+                this.elements.hubOverlayBody.innerHTML = `<div class="hub-apply-error">${this.escapeHtml(err?.message || '새로고침 실패')}</div>`;
+            });
+        });
+
+        this.elements.hubOverlayBody.querySelector('#hub-apply-study-btn')?.addEventListener('click', () => {
+            this.closeHomeHubOverlay();
+            this.switchTab('study');
+        });
+
+        this.elements.hubOverlayBody.querySelectorAll('.hub-apply-attack-btn').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const defenderId = Number(btn.dataset.defenderId || 0);
+                if (!defenderId) return;
+                await this.handleHubApplyAttack(defenderId, btn);
+            });
+        });
+    },
+
+    async handleHubApplyAttack(defenderId, triggerBtn) {
+        const target = this.hubApplyTargets.get(defenderId);
+        const targetName = this.escapeHtml(target?.display_nickname || target?.nickname || '상대');
+        if (!confirm(`${targetName}에게 지원하시겠습니까?\n원서비 1장이 소모됩니다.`)) return;
+
+        const btn = triggerBtn;
+        const prevText = btn?.textContent;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '진행중...';
+        }
+
+        try {
+            const data = await this.requestJson('/api/invasion/attack', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ defender_id: defenderId })
+            });
+
+            if (data?.user) this.mergeCurrentUserPatch(data.user);
+
+            const won = String(data?.result || '').toUpperCase() === 'WIN';
+            const resultText = won ? '합격' : '불합격';
+            const probText = Number.isFinite(Number(data?.accept_prob)) ? `합격 확률 ${data.accept_prob}%` : '확률 집계 없음';
+            alert(`모의지원 결과: ${resultText}\n${probText}`);
+
+            if (this.activeHubOverlay === 'apply') {
+                await this.renderHubApplyPanel();
+            }
+        } catch (err) {
+            alert(err?.message || '지원 처리 중 오류가 발생했습니다.');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = prevText || '지원';
+            }
+        }
+    },
+
+    async renderHubShopPanel() {
+        if (!this.elements.hubOverlayBody || !this.elements.hubOverlayConfirmBtn) return;
+
+        this.elements.hubOverlayConfirmBtn.textContent = '닫기';
+        this.elements.hubOverlayBody.innerHTML = '<div class="hub-apply-loading">불러오는 중...</div>';
+
+        const [taxData, skinData, auraData] = await Promise.all([
+            this.requestJson('/api/estate/tax'),
+            this.requestJson('/api/estate/skins'),
+            this.requestJson('/api/estate/auras')
+        ]);
+
+        const ownedSkins = Array.isArray(skinData?.owned) ? skinData.owned : [];
+        const ownedAuras = Array.isArray(auraData?.owned) ? auraData.owned : [];
+        const skins = Array.isArray(skinData?.skins) ? skinData.skins : [];
+        const auras = Array.isArray(auraData?.auras) ? auraData.auras : [];
+
+        const collectible = Number(taxData?.pending || 0);
+        const gold = Number(taxData?.gold || this.currentUser?.gold || 0);
+        const diamond = Number(taxData?.diamond || this.currentUser?.diamond || 0);
+        const tickets = Number(this.currentUser?.tickets || 0);
+        const ticketPrice = Number(taxData?.ticketPrice || 0);
+
+        const skinHtml = skins.slice(0, 8).map((skin) => {
+            const skinId = String(skin?.id || '');
+            const owned = ownedSkins.includes(skinId);
+            const equipped = String(skinData?.equipped || 'default') === skinId;
+            const price = Number(skin?.price || 0);
+            const actionLabel = equipped ? '장착중' : owned ? '장착' : price > 0 ? `${price.toLocaleString()}G 구매` : '획득';
+            const disabled = equipped ? 'disabled' : '';
+            return `<li class="hub-shop-item">
+                <div class="hub-shop-main">
+                    <strong>${this.escapeHtml(skin?.name || skinId)}</strong>
+                    <span>${this.escapeHtml(skin?.desc || '')}</span>
+                </div>
+                <button type="button" class="hub-shop-action-btn" data-shop-kind="skin" data-shop-id="${this.escapeHtml(skinId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" ${disabled}>${actionLabel}</button>
+            </li>`;
+        }).join('');
+
+        const auraHtml = auras.slice(0, 8).map((aura) => {
+            const auraId = String(aura?.id || '');
+            const owned = ownedAuras.includes(auraId);
+            const equipped = String(auraData?.equipped || 'none') === auraId;
+            const price = Number(aura?.price || 0);
+            const actionLabel = equipped ? '장착중' : owned ? '장착' : price > 0 ? `${price.toLocaleString()}G 구매` : '획득';
+            const disabled = equipped ? 'disabled' : '';
+            return `<li class="hub-shop-item">
+                <div class="hub-shop-main">
+                    <strong>${this.escapeHtml(aura?.name || auraId)}</strong>
+                    <span>${this.escapeHtml(aura?.desc || '')}</span>
+                </div>
+                <button type="button" class="hub-shop-action-btn" data-shop-kind="aura" data-shop-id="${this.escapeHtml(auraId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" ${disabled}>${actionLabel}</button>
+            </li>`;
+        }).join('');
+
+        this.elements.hubOverlayBody.innerHTML = `
+            <section class="hub-shop-wrap">
+                <div class="hub-shop-summary">
+                    <div class="hub-shop-meta-row"><span>보유 골드</span><strong>${gold.toLocaleString()}G</strong></div>
+                    <div class="hub-shop-meta-row"><span>보유 다이아</span><strong>${diamond.toLocaleString()}D</strong></div>
+                    <div class="hub-shop-meta-row"><span>보유 원서비</span><strong>${tickets}장</strong></div>
+                    <div class="hub-shop-meta-row"><span>미수령 수입</span><strong>${collectible.toLocaleString()}G</strong></div>
+                    <div class="hub-shop-actions-row">
+                        <button type="button" id="hub-shop-collect-btn" class="home-refresh-btn">수입 수령</button>
+                        <button type="button" id="hub-shop-buy-ticket-btn" class="btn-primary home-start-btn">원서비 구매 (${ticketPrice.toLocaleString()}G)</button>
+                    </div>
+                </div>
+
+                <div class="hub-shop-grid">
+                    <section class="hub-shop-panel">
+                        <h4>스킨</h4>
+                        <ul class="hub-shop-list">${skinHtml || '<li class="hub-apply-empty">스킨 데이터가 없습니다.</li>'}</ul>
+                    </section>
+                    <section class="hub-shop-panel">
+                        <h4>오오라</h4>
+                        <ul class="hub-shop-list">${auraHtml || '<li class="hub-apply-empty">오오라 데이터가 없습니다.</li>'}</ul>
+                    </section>
+                </div>
+            </section>
+        `;
+
+        this.elements.hubOverlayBody.querySelector('#hub-shop-collect-btn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const prev = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '처리중...';
+            try {
+                const data = await this.requestJson('/api/estate/collect-tax', { method: 'POST' });
+                if (data?.user) this.mergeCurrentUserPatch(data.user);
+                alert(data?.collected > 0 ? `${data.collected.toLocaleString()}G 수령 완료` : (data?.message || '수령할 수입이 없습니다.'));
+                await this.renderHubShopPanel();
+            } catch (err) {
+                alert(err?.message || '수입 수령 중 오류가 발생했습니다.');
+                btn.disabled = false;
+                btn.textContent = prev;
+            }
+        });
+
+        this.elements.hubOverlayBody.querySelector('#hub-shop-buy-ticket-btn')?.addEventListener('click', async (e) => {
+            const btn = e.currentTarget;
+            const prev = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '구매중...';
+            try {
+                const data = await this.requestJson('/api/estate/buy-ticket', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity: 1 })
+                });
+                if (data?.user) this.mergeCurrentUserPatch(data.user);
+                alert(`원서비 1장 구매 완료 (-${Number(data?.spent || 0).toLocaleString()}G)`);
+                await this.renderHubShopPanel();
+            } catch (err) {
+                alert(err?.message || '원서비 구매 중 오류가 발생했습니다.');
+                btn.disabled = false;
+                btn.textContent = prev;
+            }
+        });
+
+        this.elements.hubOverlayBody.querySelectorAll('.hub-shop-action-btn').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const kind = String(btn.dataset.shopKind || '');
+                const id = String(btn.dataset.shopId || '');
+                const mode = String(btn.dataset.shopMode || '');
+                await this.handleHubShopAction({ kind, id, mode, button: btn });
+            });
+        });
+    },
+
+    async handleHubShopAction({ kind, id, mode, button }) {
+        if (!kind || !id || !mode || !button) return;
+
+        const prev = button.textContent;
+        button.disabled = true;
+        button.textContent = mode === 'equip' ? '장착중...' : '구매중...';
+
+        try {
+            if (kind === 'skin' && mode === 'buy') {
+                const data = await this.requestJson('/api/estate/buy-skin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skin_id: id })
+                });
+                if (data?.user) this.mergeCurrentUserPatch(data.user);
+                alert('스킨을 구매했습니다.');
+            } else if (kind === 'skin' && mode === 'equip') {
+                await this.requestJson('/api/estate/equip-skin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skin_id: id })
+                });
+                this.mergeCurrentUserPatch({ balloon_skin: id });
+                alert('스킨을 장착했습니다.');
+            } else if (kind === 'aura' && mode === 'buy') {
+                const data = await this.requestJson('/api/estate/buy-aura', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aura_id: id, currency: 'gold' })
+                });
+                if (data?.user) this.mergeCurrentUserPatch(data.user);
+                alert('오오라를 구매했습니다.');
+            } else if (kind === 'aura' && mode === 'equip') {
+                await this.requestJson('/api/estate/equip-aura', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aura_id: id })
+                });
+                this.mergeCurrentUserPatch({ balloon_aura: id });
+                alert('오오라를 장착했습니다.');
+            }
+
+            await this.renderHubShopPanel();
+        } catch (err) {
+            alert(err?.message || '상점 처리 중 오류가 발생했습니다.');
+            button.disabled = false;
+            button.textContent = prev;
+        }
     },
 
     async loadUniversityCalculator(preferredUniversity) {
@@ -880,6 +1363,7 @@ const UI = {
 
         this.elements.subjectSelect.innerHTML = build('과목을 먼저 추가하세요');
         this.elements.planSubjectSelect.innerHTML = build('과목 필요');
+        this.renderPlannerSubjectSelect();
         this.renderQuickSubjects();
     },
 
@@ -1022,16 +1506,46 @@ const UI = {
         this.renderStudyPlanDrafts();
     },
 
-    async persistStudyPlanDrafts() {
+    async handleStudyPlanSyncClick() {
+        if (!Array.isArray(this.studyPlanDrafts) || this.studyPlanDrafts.length === 0) {
+            alert('반영할 플랜 초안이 없습니다.');
+            return;
+        }
+
+        const targetDate = this.plannerDate || this.calendarSelectedDate || this.toLocalYmd(new Date());
+
+        try {
+            const createdCount = await this.persistStudyPlanDrafts(targetDate);
+            if (createdCount <= 0) {
+                alert('배치할 수 있는 일정이 없습니다. 시간을 비우거나 날짜를 바꿔보세요.');
+                return;
+            }
+            alert(`${createdCount}개의 계획을 ${targetDate} 일정에 반영했습니다.`);
+        } catch (e) {
+            alert(e.message || '플랜 반영 실패');
+        }
+    },
+
+    async persistStudyPlanDrafts(targetDate = this.toLocalYmd(new Date()), options = {}) {
         if (!Array.isArray(this.studyPlanDrafts) || this.studyPlanDrafts.length === 0) return 0;
 
+        const focusDate = this.normalizeDateKey(targetDate) || this.toLocalYmd(new Date());
         const now = new Date();
         const snap = this.timetableConfig.snapMinute;
-        const today = this.toLocalYmd(now);
         const dayStart = this.timetableConfig.dayStartMinute;
         const dayEnd = this.timetableConfig.dayEndMinute;
+        const isToday = focusDate === this.toLocalYmd(now);
         const nowMinute = now.getHours() * 60 + now.getMinutes();
-        let cursor = Math.ceil(nowMinute / snap) * snap;
+        const weekData = await StorageManager.fetchWeekCalendar(0, focusDate).catch(() => null);
+        const existingPlans = (weekData?.plans || [])
+            .filter((plan) => this.normalizeDateKey(plan.plan_date) === focusDate)
+            .sort((a, b) => (parseInt(a.start_minute, 10) || 0) - (parseInt(b.start_minute, 10) || 0));
+
+        let cursor = existingPlans.reduce((maxMinute, plan) => {
+            const endMinute = parseInt(plan.end_minute, 10) || 0;
+            return Math.max(maxMinute, endMinute);
+        }, isToday ? Math.ceil(nowMinute / snap) * snap : Math.max(dayStart, 9 * 60));
+
         cursor = Math.max(dayStart, Math.min(cursor, dayEnd - snap));
 
         let createdCount = 0;
@@ -1043,9 +1557,11 @@ const UI = {
             const endMinute = Math.max(startMinute + snap, Math.min(dayEnd, startMinute + duration));
             const note = draft.note ? `${draft.topic} | ${draft.note}` : draft.topic;
 
+            if (endMinute <= startMinute) break;
+
             await StorageManager.addPlan({
                 subject_id: draft.subjectId,
-                plan_date: today,
+                plan_date: focusDate,
                 start_time: this.minuteToTime(startMinute),
                 end_time: this.minuteToTime(endMinute),
                 note
@@ -1057,20 +1573,44 @@ const UI = {
 
         this.studyPlanDrafts = [];
         this.renderStudyPlanDrafts();
-        if (this.currentTab === 'calendar') await this.loadWeekCalendar(this.weekOffset);
+
+        this.plannerDate = focusDate;
+        this.calendarSelectedDate = focusDate;
+        this.calendarAnchorDate = focusDate;
+        this.updateStudyPlanSyncMeta();
+
+        if (options.reloadViews !== false) {
+            await this.loadPlannerData();
+            await this.loadWeekCalendar(0, {
+                anchorDate: focusDate,
+                selectedDate: focusDate,
+                syncPlanner: false
+            });
+        }
+
         return createdCount;
     },
 
-    async loadWeekCalendar(offset) {
+    async loadWeekCalendar(offset = 0, options = {}) {
         this.weekOffset = offset;
+        const anchorDate = this.normalizeDateKey(options.anchorDate) || this.calendarAnchorDate || this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
+        const selectedDate = this.normalizeDateKey(options.selectedDate) || this.calendarSelectedDate || this.plannerDate || anchorDate;
+        this.calendarAnchorDate = anchorDate;
+
         try {
-            this.weekData = await StorageManager.fetchWeekCalendar(this.weekOffset);
+            this.weekData = await StorageManager.fetchWeekCalendar(this.weekOffset, anchorDate);
             if (Array.isArray(this.weekData.subjects)) {
                 this.subjects = this.weekData.subjects;
                 this.renderSubjectOptions(this.elements.subjectSelect.value || this.subjects[0]?.id);
             }
+            this.calendarSelectedDate = this.resolveWeekDate(selectedDate);
+            if (this.elements.planDate) this.elements.planDate.value = this.calendarSelectedDate;
+            if (options.syncPlanner !== false) this.plannerDate = this.calendarSelectedDate;
             this.renderWeekLabel();
             this.renderCalendarTimeline();
+            this.renderCalendarDayPanel();
+            this.syncEditingPlanSelection();
+            this.updateStudyPlanSyncMeta();
         } catch (e) {
             console.error(e);
             if (this.elements.weekLabel) this.elements.weekLabel.textContent = '캘린더 로드 실패';
@@ -1132,6 +1672,7 @@ const UI = {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
             const key = this.toLocalYmd(d);
+            const isSelected = key === this.calendarSelectedDate;
             const plans = plansByDate.get(key) || [];
             const records = recordsByDate.get(key) || [];
             const totalRecordSec = records.reduce((acc, r) => acc + (parseInt(r.duration_sec, 10) || 0), 0);
@@ -1146,11 +1687,11 @@ const UI = {
             }
 
             headCols.push(
-                `<div class="tt-day-head">
+                `<button type="button" class="tt-day-head tt-day-head-btn${isSelected ? ' is-selected' : ''}" data-date="${key}">
                     <div class="tt-day-name">${dayNames[i]}</div>
                     <div class="tt-day-date">${key}</div>
                     <div class="tt-day-record">완료 ${recordDuration}</div>
-                </div>`
+                </button>`
             );
 
             const planItems = plans.map((p) => {
@@ -1170,7 +1711,10 @@ const UI = {
                     <div class="tt-event-title">${this.escapeHtml(p.subject_name || '미지정')}</div>
                     <div class="tt-event-time">${this.minuteToTime(rawStart)} - ${this.minuteToTime(rawEnd)}</div>
                     ${p.note ? `<div class="tt-event-note">${this.escapeHtml(p.note)}</div>` : ''}
-                    <button class="plan-delete-btn" data-plan-id="${p.id}" type="button">삭제</button>
+                    <div class="plan-action-row">
+                        <button class="plan-edit-btn" data-plan-id="${p.id}" type="button">수정</button>
+                        <button class="plan-delete-btn" data-plan-id="${p.id}" type="button">삭제</button>
+                    </div>
                     <div class="tt-resize-handle" title="길이 조절"></div>
                 </div>`;
             }).join('');
@@ -1190,7 +1734,7 @@ const UI = {
             }
 
             dayCols.push(
-                `<div class="tt-day-col" style="height:${timelineHeight}px">
+                `<div class="tt-day-col${isSelected ? ' is-selected' : ''}" data-date="${key}" style="height:${timelineHeight}px">
                     ${planItems || ''}
                     ${nowLine}
                     ${records.length > 0 ? `<div class="tt-records-box">${recordChips}</div>` : ''}
@@ -1214,9 +1758,168 @@ const UI = {
             </div>`;
     },
 
+    getScheduleDayData(dateText, sourceData = this.weekData) {
+        const dateKey = this.normalizeDateKey(dateText);
+        if (!dateKey || !sourceData) {
+            return { dateKey: this.normalizeDateKey(dateText), plans: [], records: [], plannedMin: 0, actualSec: 0 };
+        }
+
+        const plans = (sourceData.plans || []).filter((plan) => this.normalizeDateKey(plan.plan_date) === dateKey);
+        const records = (sourceData.records || []).filter((record) => this.normalizeDateKey(record.record_date || record.created_at) === dateKey);
+        const plannedMin = plans.reduce((acc, plan) => {
+            const startMinute = parseInt(plan.start_minute, 10) || 0;
+            const endMinute = parseInt(plan.end_minute, 10) || 0;
+            return acc + Math.max(0, endMinute - startMinute);
+        }, 0);
+        const actualSec = records.reduce((acc, record) => acc + (parseInt(record.duration_sec, 10) || 0), 0);
+
+        return { dateKey, plans, records, plannedMin, actualSec };
+    },
+
+    resolveWeekDate(dateText) {
+        const normalized = this.normalizeDateKey(dateText);
+        const weekStart = this.weekData?.week?.start_date;
+        if (!weekStart) return normalized || this.toLocalYmd(new Date());
+        if (normalized && this.isDateInDisplayedWeek(normalized)) return normalized;
+        return weekStart;
+    },
+
+    isDateInDisplayedWeek(dateText) {
+        const normalized = this.normalizeDateKey(dateText);
+        const weekStart = this.weekData?.week?.start_date;
+        if (!normalized || !weekStart) return false;
+        const start = this.parseLocalDate(weekStart);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        const date = this.parseLocalDate(normalized);
+        return date >= start && date <= end;
+    },
+
+    selectCalendarDate(dateText, options = {}) {
+        const normalized = this.resolveWeekDate(dateText);
+        this.calendarSelectedDate = normalized;
+        if (this.elements.planDate) this.elements.planDate.value = normalized;
+        if (options.syncPlanner !== false) this.plannerDate = normalized;
+        if (options.renderTimeline !== false) this.renderCalendarTimeline();
+        this.renderCalendarDayPanel();
+        this.updateStudyPlanSyncMeta();
+    },
+
+    renderCalendarDayPanel() {
+        if (!this.elements.calendarDayPanel) return;
+
+        const dayData = this.getScheduleDayData(this.calendarSelectedDate, this.weekData);
+        const selectedLabel = this.formatLongDate(dayData.dateKey || this.calendarSelectedDate || this.toLocalYmd(new Date()));
+        const summaryText = dayData.plans.length > 0 || dayData.records.length > 0
+            ? `계획 ${this.formatDuration(dayData.plannedMin * 60)} · 실제 ${this.formatDuration(dayData.actualSec)}`
+            : '아직 일정이나 공부 기록이 없습니다.';
+
+        if (this.elements.calendarSelectedDateLabel) this.elements.calendarSelectedDateLabel.textContent = selectedLabel;
+        if (this.elements.calendarSelectedDateSummary) this.elements.calendarSelectedDateSummary.textContent = summaryText;
+
+        const planItems = dayData.plans.length > 0
+            ? dayData.plans.map((plan) => {
+                const color = this.getSubjectColor(plan.subject_id, plan.subject_name);
+                return `<div class="calendar-day-item" style="--day-item-color:${color}">
+                    <div class="calendar-day-item-main">
+                        <div class="calendar-day-item-title">${this.escapeHtml(plan.subject_name || '미지정')}</div>
+                        <div class="calendar-day-item-meta">${this.minuteToTime(parseInt(plan.start_minute, 10) || 0)} - ${this.minuteToTime(parseInt(plan.end_minute, 10) || 0)}</div>
+                        ${plan.note ? `<div class="calendar-day-item-note">${this.escapeHtml(plan.note)}</div>` : ''}
+                    </div>
+                    <div class="calendar-day-item-actions">
+                        <button type="button" class="calendar-day-edit" data-plan-id="${plan.id}">수정</button>
+                        <button type="button" class="calendar-day-delete" data-plan-id="${plan.id}">삭제</button>
+                    </div>
+                </div>`;
+            }).join('')
+            : '<div class="calendar-day-empty">등록된 계획이 없습니다. 아래에서 바로 추가할 수 있습니다.</div>';
+
+        const recordItems = dayData.records.length > 0
+            ? dayData.records.map((record) => {
+                const createdAt = new Date(record.created_at);
+                const clockText = `${String(createdAt.getHours()).padStart(2, '0')}:${String(createdAt.getMinutes()).padStart(2, '0')}`;
+                return `<div class="calendar-day-record">
+                    <div class="calendar-day-record-title">${this.escapeHtml(record.subject_name || '미지정')}</div>
+                    <div class="calendar-day-record-meta">${this.formatDuration(parseInt(record.duration_sec, 10) || 0)} · ${clockText}</div>
+                </div>`;
+            }).join('')
+            : '<div class="calendar-day-empty">이 날짜의 실제 공부 기록이 없습니다.</div>';
+
+        this.elements.calendarDayPanel.innerHTML = `
+            <div class="calendar-day-summary-row">
+                <div class="calendar-day-stat-card">
+                    <span class="calendar-day-stat-label">계획 수</span>
+                    <strong class="calendar-day-stat-value">${dayData.plans.length}개</strong>
+                </div>
+                <div class="calendar-day-stat-card">
+                    <span class="calendar-day-stat-label">계획 시간</span>
+                    <strong class="calendar-day-stat-value">${this.formatDuration(dayData.plannedMin * 60)}</strong>
+                </div>
+                <div class="calendar-day-stat-card">
+                    <span class="calendar-day-stat-label">실제 공부</span>
+                    <strong class="calendar-day-stat-value">${this.formatDuration(dayData.actualSec)}</strong>
+                </div>
+            </div>
+            <div class="calendar-day-columns">
+                <section class="calendar-day-column">
+                    <div class="calendar-day-column-head">
+                        <h4>계획</h4>
+                        <button type="button" class="calendar-day-link-btn" data-action="open-planner">플래너 열기</button>
+                    </div>
+                    <div class="calendar-day-list">${planItems}</div>
+                </section>
+                <section class="calendar-day-column">
+                    <div class="calendar-day-column-head">
+                        <h4>실제 공부</h4>
+                        <span class="calendar-day-column-sub">기록 기반</span>
+                    </div>
+                    <div class="calendar-day-list">${recordItems}</div>
+                </section>
+            </div>`;
+    },
+
+    handleCalendarTimelineClick(event) {
+        const editBtn = event.target.closest('.plan-edit-btn[data-plan-id]');
+        if (editBtn) {
+            const planId = parseInt(editBtn.getAttribute('data-plan-id'), 10);
+            if (planId) this.startEditingPlan(planId);
+            return;
+        }
+
+        if (event.target.closest('.plan-delete-btn[data-plan-id]')) {
+            this.handlePlanDelete(event);
+            return;
+        }
+
+        const dateTrigger = event.target.closest('[data-date]');
+        const dateText = dateTrigger?.getAttribute('data-date');
+        if (dateText) {
+            this.selectCalendarDate(dateText);
+        }
+    },
+
+    handleCalendarDayPanelClick(event) {
+        const editBtn = event.target.closest('.calendar-day-edit[data-plan-id]');
+        if (editBtn) {
+            const planId = parseInt(editBtn.getAttribute('data-plan-id'), 10);
+            if (planId) this.startEditingPlan(planId);
+            return;
+        }
+
+        if (event.target.closest('.calendar-day-delete[data-plan-id]')) {
+            this.handlePlanDelete(event);
+            return;
+        }
+
+        if (event.target.closest('[data-action="open-planner"]')) {
+            this.switchTab('planner');
+        }
+    },
+
     handlePlanPointerDown(event) {
         const eventBox = event.target.closest('.tt-event');
         if (!eventBox) return;
+        if (event.target.closest('.plan-edit-btn')) return;
         if (event.target.closest('.plan-delete-btn')) return;
 
         const planId = parseInt(eventBox.dataset.planId, 10);
@@ -1342,10 +2045,18 @@ const UI = {
                 planId: ctx.planId,
                 beforePayload
             });
-            await this.loadWeekCalendar(this.weekOffset);
+            await this.loadWeekCalendar(0, {
+                anchorDate: nextDate,
+                selectedDate: nextDate,
+                syncPlanner: false
+            });
         } catch (e) {
             alert(e.message || '타임라인 수정 실패');
-            await this.loadWeekCalendar(this.weekOffset);
+            await this.loadWeekCalendar(0, {
+                anchorDate: ctx.planDate,
+                selectedDate: ctx.planDate,
+                syncPlanner: false
+            });
         }
     },
 
@@ -1414,6 +2125,36 @@ const UI = {
         return this.toLocalYmd(parsed);
     },
 
+    shiftDateByDays(value, diffDays) {
+        const date = this.parseLocalDate(value);
+        date.setDate(date.getDate() + diffDays);
+        return this.toLocalYmd(date);
+    },
+
+    formatLongDate(value) {
+        const date = this.parseLocalDate(value);
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}요일`;
+    },
+
+    updateStudyPlanSyncMeta() {
+        if (!this.elements.studyPlanSyncMeta) return;
+        const targetDate = this.plannerDate || this.calendarSelectedDate || this.toLocalYmd(new Date());
+        this.elements.studyPlanSyncMeta.textContent = `${this.formatLongDate(targetDate)} 기준으로 일정이 배치됩니다.`;
+    },
+
+    goToTodaySchedule() {
+        const today = this.toLocalYmd(new Date());
+        this.plannerDate = today;
+        this.calendarSelectedDate = today;
+        this.calendarAnchorDate = today;
+        this.loadWeekCalendar(0, {
+            anchorDate: today,
+            selectedDate: today,
+            syncPlanner: false
+        }).catch(() => {});
+    },
+
     getWeekDateByIndex(index) {
         const startText = this.weekData?.week?.start_date;
         const safeIndex = Math.max(0, Math.min(6, index || 0));
@@ -1458,7 +2199,11 @@ const UI = {
 
         try {
             await StorageManager.updatePlan(payload.planId, payload.beforePayload);
-            await this.loadWeekCalendar(this.weekOffset);
+            await this.loadWeekCalendar(0, {
+                anchorDate: payload.beforePayload.plan_date,
+                selectedDate: payload.beforePayload.plan_date,
+                syncPlanner: false
+            });
         } catch (e) {
             alert(e.message || '되돌리기 실패');
         }
@@ -1481,23 +2226,39 @@ const UI = {
         };
 
         try {
-            await StorageManager.addPlan(payload);
-            this.elements.planNote.value = '';
-            await this.loadWeekCalendar(this.weekOffset);
+            if (this.editingPlanId) {
+                await StorageManager.updatePlan(this.editingPlanId, payload);
+            } else {
+                await StorageManager.addPlan(payload);
+            }
+            this.clearPlanFormEditingState(payload.plan_date);
+            await this.loadWeekCalendar(0, {
+                anchorDate: payload.plan_date,
+                selectedDate: payload.plan_date,
+                syncPlanner: false
+            });
         } catch (e) {
             alert(e.message || '타임라인 추가 실패');
         }
     },
 
     async handlePlanDelete(event) {
-        const btn = event.target.closest('.plan-delete-btn[data-plan-id]');
+        const btn = event.target.closest('.plan-delete-btn[data-plan-id], .calendar-day-delete[data-plan-id]');
         if (!btn) return;
         const planId = parseInt(btn.getAttribute('data-plan-id'), 10);
         if (!planId) return;
         if (!confirm('이 타임라인 항목을 삭제할까요?')) return;
         try {
             await StorageManager.deletePlan(planId);
-            await this.loadWeekCalendar(this.weekOffset);
+            if (Number(this.editingPlanId) === Number(planId)) {
+                this.clearPlanFormEditingState();
+            }
+            const fallbackDate = this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
+            await this.loadWeekCalendar(0, {
+                anchorDate: fallbackDate,
+                selectedDate: fallbackDate,
+                syncPlanner: false
+            });
         } catch (e) {
             alert(e.message || '삭제 실패');
         }
@@ -1507,6 +2268,68 @@ const UI = {
         const h = Math.floor((minute || 0) / 60);
         const m = (minute || 0) % 60;
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    },
+
+    startEditingPlan(planId, options = {}) {
+        const plan = this.findPlanById(planId);
+        if (!plan) return;
+
+        const planDate = this.normalizeDateKey(plan.plan_date) || this.calendarSelectedDate || this.toLocalYmd(new Date());
+        this.editingPlanId = Number(plan.id);
+        this.calendarSelectedDate = planDate;
+        this.plannerDate = planDate;
+        this.calendarAnchorDate = planDate;
+
+        if (this.elements.planSubjectSelect) this.elements.planSubjectSelect.value = String(plan.subject_id || '');
+        if (this.elements.planDate) this.elements.planDate.value = planDate;
+        if (this.elements.planStartTime) this.elements.planStartTime.value = this.minuteToTime(parseInt(plan.start_minute, 10) || 0);
+        if (this.elements.planEndTime) this.elements.planEndTime.value = this.minuteToTime(parseInt(plan.end_minute, 10) || 0);
+        if (this.elements.planNote) this.elements.planNote.value = plan.note || '';
+        if (this.elements.planSubmitBtn) this.elements.planSubmitBtn.textContent = '일정 수정 저장';
+        if (this.elements.planCancelBtn) this.elements.planCancelBtn.classList.remove('hidden');
+        if (this.elements.planFormStatus) {
+            this.elements.planFormStatus.textContent = `${plan.subject_name || '미지정'} 일정을 편집 중입니다. 과목, 날짜, 시간, 메모를 수정할 수 있습니다.`;
+        }
+        this.updateStudyPlanSyncMeta();
+
+        if (options.switchTab !== false && this.currentTab !== 'calendar') {
+            this.switchTab('calendar');
+            return;
+        }
+
+        this.renderCalendarTimeline();
+        this.renderCalendarDayPanel();
+    },
+
+    clearPlanFormEditingState(nextDate = null) {
+        this.editingPlanId = null;
+        const targetDate = this.normalizeDateKey(nextDate) || this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
+        if (this.elements.planDate) this.elements.planDate.value = targetDate;
+        if (this.elements.planStartTime && !this.elements.planStartTime.value) this.elements.planStartTime.value = '09:00';
+        if (this.elements.planEndTime && !this.elements.planEndTime.value) this.elements.planEndTime.value = '11:00';
+        if (this.elements.planNote) this.elements.planNote.value = '';
+        if (this.elements.planSubmitBtn) this.elements.planSubmitBtn.textContent = '타임라인 추가';
+        if (this.elements.planCancelBtn) this.elements.planCancelBtn.classList.add('hidden');
+        if (this.elements.planFormStatus) {
+            this.elements.planFormStatus.textContent = '주간 계획이나 수업 일정을 추가하고 드래그로 옮길 수 있습니다.';
+        }
+    },
+
+    findPlanById(planId) {
+        const numericId = Number(planId);
+        return (this.weekData?.plans || []).find((plan) => Number(plan.id) === numericId)
+            || (this.plannerData?.plans || []).find((plan) => Number(plan.id) === numericId)
+            || null;
+    },
+
+    syncEditingPlanSelection() {
+        if (!this.editingPlanId) return;
+        const plan = this.findPlanById(this.editingPlanId);
+        if (!plan) {
+            this.clearPlanFormEditingState();
+            return;
+        }
+        this.startEditingPlan(this.editingPlanId, { switchTab: false });
     },
 
     escapeHtml(text) {
@@ -1631,9 +2454,7 @@ const UI = {
 
     // ─── PLANNER (10 Minutes Planner) ─────────────────────────────────────
     initPlanner() {
-        if (!this.plannerDate) {
-            this.plannerDate = this.toLocalYmd(new Date());
-        }
+        this.plannerDate = this.calendarSelectedDate || this.plannerDate || this.toLocalYmd(new Date());
         this.bindPlannerEvents();
         this.loadPlannerDday();
         this.loadPlannerMemo();
@@ -1650,6 +2471,8 @@ const UI = {
             const d = this.parseLocalDate(this.plannerDate);
             d.setDate(d.getDate() - 1);
             this.plannerDate = this.toLocalYmd(d);
+            this.calendarSelectedDate = this.plannerDate;
+            this.updateStudyPlanSyncMeta();
             this.loadPlannerData();
             this.loadPlannerMemo();
         });
@@ -1657,6 +2480,8 @@ const UI = {
             const d = this.parseLocalDate(this.plannerDate);
             d.setDate(d.getDate() + 1);
             this.plannerDate = this.toLocalYmd(d);
+            this.calendarSelectedDate = this.plannerDate;
+            this.updateStudyPlanSyncMeta();
             this.loadPlannerData();
             this.loadPlannerMemo();
         });
@@ -1753,19 +2578,11 @@ const UI = {
     },
 
     async loadPlannerData() {
-        const dateObj = this.parseLocalDate(this.plannerDate);
-        const dayOfWeek = (dateObj.getDay() + 6) % 7; // Mon=0
-        const monday = new Date(dateObj);
-        monday.setDate(dateObj.getDate() - dayOfWeek);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const refMonday = new Date(today);
-        refMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-        const weekDiff = Math.round((monday - refMonday) / (7 * 24 * 60 * 60 * 1000));
-
         try {
-            const weekData = await StorageManager.fetchWeekCalendar(weekDiff);
+            const weekData = await StorageManager.fetchWeekCalendar(0, this.plannerDate);
             this.plannerData = weekData;
+            this.calendarSelectedDate = this.plannerDate;
+            this.calendarAnchorDate = this.plannerDate;
             if (Array.isArray(weekData.subjects)) {
                 this.subjects = weekData.subjects;
                 this.renderPlannerSubjectSelect();
@@ -1846,6 +2663,7 @@ const UI = {
                 <div class="planner-block-label">${this.escapeHtml(p.subject_name || '미지정')}</div>
                 <div class="planner-block-time">${this.minuteToTime(s)}-${this.minuteToTime(e)}</div>
                 ${p.note ? `<div class="planner-block-note">${this.escapeHtml(p.note)}</div>` : ''}
+                <button class="planner-block-edit" data-plan-id="${p.id}" type="button">수정</button>
                 <button class="planner-block-del" data-plan-id="${p.id}" type="button">×</button>
             </div>`;
         }).join('');
@@ -1891,9 +2709,23 @@ const UI = {
                 try {
                     await StorageManager.deletePlan(planId);
                     await this.loadPlannerData();
+                    await this.loadWeekCalendar(0, {
+                        anchorDate: this.plannerDate,
+                        selectedDate: this.plannerDate,
+                        syncPlanner: false
+                    });
                 } catch (err) {
                     alert(err.message || '삭제 실패');
                 }
+            });
+        });
+
+        container.querySelectorAll('.planner-block-edit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const planId = parseInt(btn.dataset.planId, 10);
+                if (!planId) return;
+                this.startEditingPlan(planId);
             });
         });
     },
@@ -1985,6 +2817,11 @@ const UI = {
             });
             if (document.getElementById('planner-add-note')) document.getElementById('planner-add-note').value = '';
             await this.loadPlannerData();
+            await this.loadWeekCalendar(0, {
+                anchorDate: this.plannerDate,
+                selectedDate: this.plannerDate,
+                syncPlanner: false
+            });
         } catch (e) {
             alert(e.message || '계획 추가 실패');
         }

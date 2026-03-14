@@ -221,11 +221,18 @@ router.put('/calendar/plan/:id', async (req, res) => {
     const id = parseInt(req.params.id, 10);
     if (!id) return res.status(400).json({ error: '유효하지 않은 계획 ID입니다.' });
 
+    const subjectIdRaw = req.body.subject_id;
+    const subjectId = subjectIdRaw === undefined || subjectIdRaw === null || subjectIdRaw === ''
+        ? null
+        : parseInt(subjectIdRaw, 10);
     const planDate = String(req.body.plan_date || '').trim();
     const startMinute = parseTimeToMinute(req.body.start_time);
     const endMinute = parseTimeToMinute(req.body.end_time);
     const note = req.body.note === undefined ? undefined : String(req.body.note || '').trim().slice(0, 120);
 
+    if (subjectIdRaw !== undefined && !subjectId) {
+        return res.status(400).json({ error: '유효한 과목을 선택하세요.' });
+    }
     if (planDate && !/^\d{4}-\d{2}-\d{2}$/.test(planDate)) {
         return res.status(400).json({ error: '날짜 형식이 올바르지 않습니다.' });
     }
@@ -248,6 +255,17 @@ router.put('/calendar/plan/:id', async (req, res) => {
         }
 
         const prev = found.rows[0];
+        let nextSubjectId = prev.subject_id;
+        if (subjectId) {
+            const ownsSubject = await pool.query(
+                'SELECT id FROM study_subjects WHERE id = $1 AND user_id = $2',
+                [subjectId, req.session.userId]
+            );
+            if (ownsSubject.rows.length === 0) {
+                return res.status(400).json({ error: '유효하지 않은 과목입니다.' });
+            }
+            nextSubjectId = subjectId;
+        }
         const nextPlanDate = planDate || String(prev.plan_date).slice(0, 10);
         const nextStartMinute = startMinute === null ? prev.start_minute : startMinute;
         const nextEndMinute = endMinute === null ? prev.end_minute : endMinute;
@@ -255,13 +273,14 @@ router.put('/calendar/plan/:id', async (req, res) => {
 
         const updated = await pool.query(
             `UPDATE study_plans
-             SET plan_date = $1::date,
-                 start_minute = $2,
-                 end_minute = $3,
-                 note = $4
-             WHERE id = $5 AND user_id = $6
+             SET subject_id = $1,
+                 plan_date = $2::date,
+                 start_minute = $3,
+                 end_minute = $4,
+                 note = $5
+             WHERE id = $6 AND user_id = $7
              RETURNING id, subject_id, plan_date, start_minute, end_minute, note, is_completed`,
-            [nextPlanDate, nextStartMinute, nextEndMinute, nextNote, id, req.session.userId]
+            [nextSubjectId, nextPlanDate, nextStartMinute, nextEndMinute, nextNote, id, req.session.userId]
         );
 
         res.json({ ok: true, plan: updated.rows[0] });

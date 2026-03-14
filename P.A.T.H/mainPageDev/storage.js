@@ -92,9 +92,11 @@ const StorageManager = {
         }
     },
 
-    async fetchWeekCalendar(offset = 0) {
+    async fetchWeekCalendar(offset = 0, anchorDate = null) {
         try {
-            const r = await fetch(`/api/study/calendar/week?offset=${offset}`, { credentials: 'include' });
+            const params = new URLSearchParams({ offset: String(offset) });
+            if (anchorDate) params.set('anchor', String(anchorDate));
+            const r = await fetch(`/api/study/calendar/week?${params.toString()}`, { credentials: 'include' });
             if (!r.ok) throw new Error('캘린더 조회 실패');
             return await r.json();
         } catch (e) {
