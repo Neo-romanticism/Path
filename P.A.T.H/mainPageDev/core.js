@@ -8,6 +8,7 @@ let studyMode = 'timer';
 const FocusGuard = {
     armed: false,
     nativeHandles: [],
+    approvedAppSession: null,
 
     isNativeApp() {
         const cap = window.Capacitor;
@@ -24,6 +25,21 @@ const FocusGuard = {
         if (!isRunning) return;
         console.warn(reason);
         TimerEngine.finish('FAILED');
+    },
+
+    allowApprovedAppSession(appLabel) {
+        this.approvedAppSession = {
+            appLabel: appLabel || '승인 앱',
+            startedAt: Date.now()
+        };
+    },
+
+    clearApprovedAppSession() {
+        this.approvedAppSession = null;
+    },
+
+    hasApprovedAppSession() {
+        return !!this.approvedAppSession;
     },
 
     onVisibilityChange() {
@@ -58,12 +74,18 @@ const FocusGuard = {
     onAppStateChange(state) {
         if (!isRunning) return;
         if (state?.isActive === false) {
+            if (FocusGuard.hasApprovedAppSession()) {
+                const label = FocusGuard.approvedAppSession?.appLabel || '승인 앱';
+                console.log(`P.A.T.H: ${label} 학습 세션으로 백그라운드 허용.`);
+                return;
+            }
             FocusGuard.triggerFail('P.A.T.H: 앱 백그라운드 전환 감지됨.');
         }
     },
 
     onBackButton() {
         if (!isRunning) return;
+        if (FocusGuard.hasApprovedAppSession()) return;
         alert('학습 중에는 앱을 종료할 수 없습니다. 먼저 중단 버튼을 눌러주세요.');
     },
 
@@ -110,6 +132,7 @@ const FocusGuard = {
     deactivate() {
         if (!this.armed) return;
         this.armed = false;
+        this.clearApprovedAppSession();
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         window.removeEventListener('blur', this.onBlur);
         window.removeEventListener('pagehide', this.onPageHide);
@@ -129,6 +152,16 @@ const TimerEngine = {
 
     isActive() {
         return isRunning;
+    },
+
+    startApprovedAppSession(appLabel) {
+        if (!isRunning) return false;
+        FocusGuard.allowApprovedAppSession(appLabel);
+        return true;
+    },
+
+    clearApprovedAppSession() {
+        FocusGuard.clearApprovedAppSession();
     },
 
     async start(hr, min, subjectId) {

@@ -25,6 +25,8 @@ const WRITE_DRAFT_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 const COMMUNITY_SETTINGS_KEY = 'path.community.settings.v1';
 const SETTINGS_ACTIVITY_PAGE_SIZE = 8;
 const SETTINGS_ACTIVITY_TYPES = ['posts', 'comments', 'likes', 'bookmarks', 'commentLikes'];
+const OPEN_SKIN_SHOP_ONCE_KEY = 'path_open_skin_shop_once';
+const OPEN_SKIN_SHOP_FOCUS_ID_KEY = 'path_open_skin_shop_focus_id';
 
 const DEFAULT_COMMUNITY_SETTINGS = {
   layout: 'comfortable',
@@ -258,6 +260,7 @@ function HotCard(post) {
             nickname: post.display_nickname || post.nickname || '익명',
             isVerifiedNickname: post.is_verified_nickname,
             userId: post.user_id,
+            balloonSkin: post.balloon_skin,
             profileImageUrl: post.profile_image_url,
             className: 'js-open-user-profile'
           })}(${escHtml(post.ip_prefix ?? '?')})</span>
@@ -276,6 +279,7 @@ function HotCard(post) {
         </div>
       </a>`;
     bindUserProfileTriggers(li);
+    bindSkinShopTriggers(li);
     return li;
 }
 
@@ -357,6 +361,7 @@ async function loadNextPage() {
                 nickname:     post.display_nickname || post.nickname || '익명',
                 userId:       post.user_id,
                 isVerifiedNickname: Boolean(post.is_verified_nickname),
+                balloonSkin:  post.balloon_skin,
                 profileImageUrl: post.profile_image_url || '',
                 ipPrefix:     post.ip_prefix ?? '?.?',
                 likes:        post.likes,
@@ -386,6 +391,7 @@ async function loadNextPage() {
 /* ─── 게시글 클릭 → 조회수 증가 + 상세 열기 ──────────────── */
 function bindPostClicks() {
   bindUserProfileTriggers(postList);
+  bindSkinShopTriggers(postList);
 
     postList.querySelectorAll('.post-row__bookmark-btn:not([data-bookmark-bound])').forEach((btn) => {
       btn.dataset.bookmarkBound = '1';
@@ -682,6 +688,7 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
             nickname: c.display_nickname || c.nickname || '익명',
             isVerifiedNickname: c.is_verified_nickname,
             userId: c.user_id,
+            balloonSkin: c.balloon_skin,
             profileImageUrl: c.profile_image_url,
             className: 'js-open-user-profile'
           })}</span>
@@ -710,6 +717,7 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
           nickname: post.display_nickname || post.nickname || '익명',
           isVerifiedNickname: post.is_verified_nickname,
           userId: post.user_id,
+          balloonSkin: post.balloon_skin,
           profileImageUrl: post.profile_image_url,
           className: 'js-open-user-profile'
         })}</span>
@@ -757,6 +765,7 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
       </div>`;
 
     bindUserProfileTriggers(container);
+    bindSkinShopTriggers(container);
 
     // 추천
     container.querySelector('#detail-like-btn').addEventListener('click', async () => {
@@ -1010,6 +1019,7 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
                   nickname: comment.display_nickname || comment.nickname || '익명',
                   isVerifiedNickname: comment.is_verified_nickname,
                   userId: comment.user_id,
+                  balloonSkin: comment.balloon_skin,
                   profileImageUrl: comment.profile_image_url,
                   className: 'js-open-user-profile'
                 })}</span>
@@ -1026,15 +1036,8 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
             const emptyEl = container.querySelector('.cmt-empty');
             if (emptyEl) emptyEl.remove();
             container.querySelector('#cmt-list').appendChild(li);
-            li.querySelectorAll('.js-open-user-profile').forEach((nameEl) => {
-              nameEl.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const userId = parseInt(nameEl.dataset.userId || '', 10);
-                if (!userId) return;
-                openUserProfile(userId);
-              });
-            });
+            bindUserProfileTriggers(li);
+            bindSkinShopTriggers(li);
 
             // 댓글 수 갱신
             const headEl = container.querySelector('.detail-cmt-head strong');
@@ -1213,6 +1216,27 @@ function bindUserProfileTriggers(root) {
   });
 }
 
+function bindSkinShopTriggers(root) {
+  root.querySelectorAll('.js-open-skin-shop:not([data-skin-shop-bound])').forEach((skinEl) => {
+    skinEl.dataset.skinShopBound = '1';
+    skinEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const skinId = String(skinEl.dataset.skinId || 'default').trim() || 'default';
+      try {
+        sessionStorage.setItem(OPEN_SKIN_SHOP_ONCE_KEY, '1');
+        sessionStorage.setItem(OPEN_SKIN_SHOP_FOCUS_ID_KEY, skinId);
+      } catch (_) {}
+
+      if (typeof window.navigateTo === 'function') {
+        window.navigateTo('/study-hub/');
+      } else {
+        window.location.href = '/study-hub/';
+      }
+    });
+  });
+}
+
 /* ─── 이벤트 바인딩 ─────────────────────────────────────── */
 function bindEvents() {
   if (themeToggleBtn) {
@@ -1228,6 +1252,8 @@ function bindEvents() {
 
     const userProfileBtn = e.target.closest('.js-open-user-profile');
     if (userProfileBtn) return;
+    const skinShopBtn = e.target.closest('.js-open-skin-shop');
+    if (skinShopBtn) return;
 
     const postId = Number(postLink.dataset.postId || getPostIdFromHref(postLink.getAttribute('href')));
     if (!postId) return;
@@ -2830,11 +2856,12 @@ async function openUserProfile(userId) {
     const { user } = await r.json();
     const profileBody = backdrop.querySelector('#profile-body');
     const profileImage = safeHttpUrl(user.profile_image_url);
+    const skinPill = `<span class="user-skin-badge js-open-skin-shop" data-skin-id="${escHtml(String(user.balloon_skin || 'default'))}" style="${getSkinToneVars(user.balloon_skin || 'default')}" title="스킨 상점 열기">🎈 ${escHtml(getSkinLabel(user.balloon_skin || 'default'))}</span>`;
     profileBody.innerHTML = `
       <div class="user-profile-head">
         ${profileImage ? `<img class="user-profile-avatar" src="${escHtml(profileImage)}" alt="${escHtml(user.display_nickname || user.nickname)} 프로필">` : '<div class="user-profile-avatar user-profile-avatar--empty">👤</div>'}
         <div class="user-profile-main">
-          <p class="user-profile-nick">${escHtml(user.display_nickname || user.nickname || '익명')}</p>
+          <p class="user-profile-nick">${escHtml(user.display_nickname || user.nickname || '익명')} ${skinPill}</p>
           <p class="user-profile-sub">${escHtml(user.university || '비공개')}</p>
         </div>
       </div>
@@ -2846,16 +2873,21 @@ async function openUserProfile(userId) {
       </div>
       ${user.status_message ? `<p class="user-profile-status">${escHtml(user.status_emoji || '')} ${escHtml(user.status_message)}</p>` : ''}
     `;
+    bindSkinShopTriggers(profileBody);
   } catch (_) {
     showToast('프로필을 불러올 수 없어요');
     close();
   }
 }
 
-function renderNicknameWithBadge({ nickname, isVerifiedNickname, userId = 0, profileImageUrl = '', className = '' }) {
+function renderNicknameWithBadge({ nickname, isVerifiedNickname, userId = 0, balloonSkin = 'default', profileImageUrl = '', className = '' }) {
   const badge = isVerifiedNickname
     ? '<span class="user-verified-badge" aria-label="본인 닉네임 인증" title="본인 닉네임 인증">✓</span>'
     : '';
+  const skinId = String(balloonSkin || 'default').trim() || 'default';
+  const skinLabel = getSkinLabel(skinId);
+  const skinTone = getSkinToneVars(skinId);
+  const skinBadge = `<span class="user-skin-badge js-open-skin-shop" data-skin-id="${escHtml(skinId)}" style="${skinTone}" title="스킨 상점 열기">🎈 ${escHtml(skinLabel)}</span>`;
   const safeClass = className ? ` ${escHtml(className)}` : '';
   const safeUserId = Number.isInteger(Number(userId)) ? Number(userId) : 0;
   const safeProfileImageUrl = safeHttpUrl(profileImageUrl);
@@ -2864,10 +2896,38 @@ function renderNicknameWithBadge({ nickname, isVerifiedNickname, userId = 0, pro
     : '';
 
   if (isVerifiedNickname && safeUserId > 0) {
-    return `<button class="user-name-inline js-open-user-profile${safeClass}" type="button" data-user-id="${safeUserId}">${avatar}${escHtml(nickname)}${badge}</button>`;
+    return `<button class="user-name-inline js-open-user-profile${safeClass}" type="button" data-user-id="${safeUserId}">${avatar}${escHtml(nickname)}${badge}${skinBadge}</button>`;
   }
 
-  return `<span class="user-name-inline">${avatar}${escHtml(nickname)}${badge}</span>`;
+  return `<span class="user-name-inline">${avatar}${escHtml(nickname)}${badge}${skinBadge}</span>`;
+}
+
+function getSkinLabel(skinId) {
+  const map = {
+    default: '기본',
+    aurora: '오로라',
+    magma: '마그마',
+    cobalt: '코발트',
+    ivory: '아이보리',
+    mint: '민트',
+    midnight: '미드나잇',
+    royale: '로열',
+    prism: '프리즘',
+    obsidian: '옵시디언',
+  };
+  return map[skinId] || skinId;
+}
+
+function getSkinToneVars(skinId) {
+  const raw = String(skinId || 'default');
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  const hue2 = (hue + 38) % 360;
+  return `--skin-h:${hue};--skin-h2:${hue2};`;
 }
 
 function safeHttpUrl(url) {

@@ -1330,7 +1330,14 @@ function togglePanel(id) {
     const isHidden = el.classList.contains('hidden');
 
     document.querySelectorAll('.glass-panel').forEach(p => {
-        if (p.id !== id) p.classList.add('hidden');
+        if (p.id !== id) {
+            p.classList.add('hidden');
+            if (p.id === 'panel-messenger') {
+                document.body.classList.remove('messenger-open');
+                messengerPanelOpen = false;
+                stopChatPoll();
+            }
+        }
     });
 
     if (isHidden) {
@@ -2071,6 +2078,219 @@ let currentChatUserId = null;
 let currentChatUserName = null;
 let currentChatRoomId = null;
 let chatPollInterval = null;
+let messengerSearchKeyword = '';
+const MESSENGER_SEARCH_HISTORY_KEY = 'path_messenger_search_history';
+let messengerConversationCache = {
+    convs: [],
+    newFriends: [],
+    groupConvs: []
+};
+let messengerSearchHistory = [];
+let _messengerSwipePointerId = null;
+
+function getMessengerContactMeta(userId) {
+    const uid = Number(userId);
+    const fromConvs = (messengerConversationCache.convs || []).find(c => Number(c.other_user) === uid);
+    if (fromConvs) return fromConvs;
+    const fromFriends = (messengerConversationCache.newFriends || []).find(f => Number(f.id) === uid);
+    return fromFriends || null;
+}
+
+function setMessengerHeaderAvatar({ nickname, profileImageUrl, isOnline, isGroup }) {
+    const avatarWrap = document.getElementById('messenger-header-avatar');
+    const avatarText = document.getElementById('messenger-header-avatar-text');
+    const avatarImg = document.getElementById('messenger-header-avatar-img');
+    const onlineDot = document.getElementById('messenger-header-online');
+    if (!avatarWrap || !avatarText || !avatarImg || !onlineDot) return;
+
+    const first = String(nickname || '').trim().charAt(0) || (isGroup ? '👥' : '💬');
+    avatarText.textContent = first;
+    avatarWrap.classList.toggle('group', !!isGroup);
+
+    if (profileImageUrl) {
+        avatarImg.src = profileImageUrl;
+        avatarImg.classList.remove('hidden');
+        avatarText.classList.add('hidden');
+    } else {
+        avatarImg.src = '';
+        avatarImg.classList.add('hidden');
+        avatarText.classList.remove('hidden');
+    }
+
+    onlineDot.classList.toggle('hidden', !isOnline);
+}
+
+function setMessengerHeaderInfo(titleText, subtitleText) {
+    const title = document.getElementById('messenger-title');
+    const subtitle = document.getElementById('messenger-subtitle');
+    if (title) title.textContent = titleText || '메시지';
+    if (subtitle) subtitle.textContent = subtitleText || '';
+}
+
+function loadMessengerSearchHistory() {
+    try {
+        const raw = localStorage.getItem(MESSENGER_SEARCH_HISTORY_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .map(v => String(v || '').trim())
+            .filter(Boolean)
+            .slice(0, 8);
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveMessengerSearchHistory(list) {
+    try {
+        localStorage.setItem(MESSENGER_SEARCH_HISTORY_KEY, JSON.stringify(list.slice(0, 8)));
+    } catch (e) {}
+}
+
+function pushMessengerSearchHistory(keyword) {
+    const term = String(keyword || '').trim();
+    if (!term) return;
+    const next = [term, ...messengerSearchHistory.filter(v => v.toLowerCase() !== term.toLowerCase())].slice(0, 8);
+    messengerSearchHistory = next;
+    saveMessengerSearchHistory(next);
+}
+
+function setMessengerSearchHistoryOpen(open) {
+    const history = document.getElementById('messenger-search-history');
+    if (!history) return;
+    history.classList.toggle('hidden', !open);
+}
+
+function clearMessengerSearchHistory() {
+    messengerSearchHistory = [];
+    saveMessengerSearchHistory([]);
+    renderMessengerSearchHistory();
+}
+
+function applyMessengerSearch(term) {
+    const input = document.getElementById('messenger-search');
+    if (!input) return;
+    input.value = term;
+    messengerSearchKeyword = String(term || '').trim().toLowerCase();
+    pushMessengerSearchHistory(term);
+    renderConversationsFromCache();
+    renderMessengerSearchHistory();
+    setMessengerSearchHistoryOpen(false);
+}
+
+function openChatFromList(userId, nickname) {
+    if (nickname) pushMessengerSearchHistory(nickname);
+    openChat(userId, nickname);
+}
+
+function openGroupChatFromList(roomId, roomName) {
+    if (roomName) pushMessengerSearchHistory(roomName);
+    openGroupChat(roomId, roomName);
+}
+
+function highlightMessengerMatch(text) {
+    const raw = String(text || '');
+    const escaped = esc(raw);
+    const keyword = String(messengerSearchKeyword || '').trim();
+    if (!keyword) return escaped;
+
+    const source = raw.toLowerCase();
+    const query = keyword.toLowerCase();
+    const idx = source.indexOf(query);
+    if (idx < 0) return escaped;
+
+    const head = esc(raw.slice(0, idx));
+    const mid = esc(raw.slice(idx, idx + query.length));
+    const tail = esc(raw.slice(idx + query.length));
+    return `${head}<mark class="messenger-highlight">${mid}</mark>${tail}`;
+}
+
+function closeAllConversationSwipes(exceptShell = null) {
+    document.querySelectorAll('.conv-shell.open').forEach(shell => {
+        if (exceptShell && shell === exceptShell) return;
+        shell.classList.remove('open');
+    });
+}
+
+function onConvTouchStart(event, shell) {
+    if (!shell || event.touches.length !== 1) return;
+    _messengerSwipePointerId = String(shell.dataset.kind || '') + ':' + String(shell.dataset.id || '');
+    shell.dataset.touchStartX = String(event.touches[0].clientX);
+    shell.dataset.touchDeltaX = '0';
+}
+
+function onConvTouchMove(event, shell) {
+    if (!shell || event.touches.length !== 1) return;
+    const currentId = String(shell.dataset.kind || '') + ':' + String(shell.dataset.id || '');
+    if (_messengerSwipePointerId !== currentId) return;
+
+    const startX = Number(shell.dataset.touchStartX || 0);
+    const dx = event.touches[0].clientX - startX;
+    shell.dataset.touchDeltaX = String(dx);
+    if (dx < -24) {
+        closeAllConversationSwipes(shell);
+    }
+}
+
+function onConvTouchEnd(event, shell) {
+    if (!shell) return;
+    const dx = Number(shell.dataset.touchDeltaX || 0);
+    const shouldOpen = dx < -42;
+    if (shouldOpen) {
+        closeAllConversationSwipes(shell);
+        shell.classList.add('open');
+    } else if (dx > 24) {
+        shell.classList.remove('open');
+    }
+    _messengerSwipePointerId = null;
+}
+
+function markConversationRead(kind, id) {
+    if (kind !== 'dm') return;
+    const targetId = Number(id);
+    messengerConversationCache.convs = (messengerConversationCache.convs || []).map(c => {
+        if (Number(c.other_user) !== targetId) return c;
+        return { ...c, unread_count: 0 };
+    });
+    renderConversationsFromCache();
+}
+
+function hideConversation(kind, id) {
+    if (kind === 'dm') {
+        const targetId = Number(id);
+        messengerConversationCache.convs = (messengerConversationCache.convs || []).filter(c => Number(c.other_user) !== targetId);
+    }
+    if (kind === 'group') {
+        const roomId = Number(id);
+        messengerConversationCache.groupConvs = (messengerConversationCache.groupConvs || []).filter(g => Number(g.room_id) !== roomId);
+    }
+    renderConversationsFromCache();
+}
+
+function renderMessengerSearchHistory() {
+    const history = document.getElementById('messenger-search-history');
+    if (!history) return;
+
+    const keyword = String(messengerSearchKeyword || '').trim().toLowerCase();
+    const list = messengerSearchHistory.filter(v => !keyword || v.toLowerCase().includes(keyword));
+
+    if (!messengerSearchHistory.length) {
+        history.innerHTML = '<div class="messenger-history-empty">최근 검색 없음</div>';
+        return;
+    }
+
+    const itemsHtml = list.length
+        ? list.map(v => `<button type="button" class="messenger-history-item" data-term="${encodeURIComponent(v)}" onclick="applyMessengerSearch(decodeURIComponent(this.dataset.term))">${esc(v)}</button>`).join('')
+        : '<div class="messenger-history-empty">일치하는 검색어 없음</div>';
+
+    history.innerHTML = `
+        <div class="messenger-history-head">
+            <span>최근 검색</span>
+            <button type="button" class="messenger-history-clear" onclick="clearMessengerSearchHistory()">지우기</button>
+        </div>
+        ${itemsHtml}
+    `;
+}
 
 async function refreshFriendBadge() {
     try {
@@ -2369,12 +2589,14 @@ function openMessengerPanel() {
     document.querySelectorAll('.glass-panel').forEach(p => p.classList.add('hidden'));
     const panel = document.getElementById('panel-messenger');
     panel.classList.remove('hidden');
+    document.body.classList.add('messenger-open');
     messengerPanelOpen = true;
     showConversationList();
 }
 
 function closeMessengerPanel() {
     document.getElementById('panel-messenger').classList.add('hidden');
+    document.body.classList.remove('messenger-open');
     messengerPanelOpen = false;
     stopChatPoll();
 }
@@ -2392,19 +2614,162 @@ function showConversationList() {
     const convList = document.getElementById('messenger-conv-list');
     const chat = document.getElementById('messenger-chat');
     const backBtn = document.getElementById('messenger-back-btn');
-    const title = document.getElementById('messenger-title');
-
     convList.style.display = 'block';
     chat.style.display = 'none';
     backBtn.style.display = 'none';
-    title.textContent = 'MESSENGER';
+    setMessengerHeaderInfo('메시지', '대화 목록');
+    setMessengerHeaderAvatar({ nickname: '메시지', profileImageUrl: '', isOnline: false, isGroup: false });
 
+    ensureMessengerListShell();
     loadConversations();
 }
 
-async function loadConversations() {
+function ensureMessengerListShell() {
     const convList = document.getElementById('messenger-conv-list');
-    convList.innerHTML = '<div style="text-align:center;padding:20px;font-size:11px;color:#666">로딩 중...</div>';
+    if (!convList) return;
+
+    if (!messengerSearchHistory.length) {
+        messengerSearchHistory = loadMessengerSearchHistory();
+    }
+
+    convList.innerHTML = `
+        <div class="messenger-search-wrap">
+            <span class="messenger-search-icon">🔍</span>
+            <input id="messenger-search" class="messenger-search-input" type="text" placeholder="대화 검색" maxlength="60">
+        </div>
+        <div id="messenger-search-history" class="messenger-search-history hidden"></div>
+        <div id="messenger-conv-items" class="messenger-conv-items">
+            <div class="messenger-empty">로딩 중...</div>
+        </div>
+    `;
+
+    const searchInput = document.getElementById('messenger-search');
+    if (searchInput) {
+        searchInput.value = messengerSearchKeyword;
+        searchInput.addEventListener('focus', () => {
+            renderMessengerSearchHistory();
+            setMessengerSearchHistoryOpen(true);
+        });
+        searchInput.addEventListener('input', (event) => {
+            messengerSearchKeyword = String(event.target.value || '').trim().toLowerCase();
+            renderMessengerSearchHistory();
+            setMessengerSearchHistoryOpen(true);
+            renderConversationsFromCache();
+        });
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                const value = String(searchInput.value || '').trim();
+                if (value) pushMessengerSearchHistory(value);
+                setMessengerSearchHistoryOpen(false);
+            }
+            if (event.key === 'Escape') {
+                setMessengerSearchHistoryOpen(false);
+            }
+        });
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => setMessengerSearchHistoryOpen(false), 120);
+        });
+    }
+
+    if (!window.__messengerShellClickBound) {
+        window.__messengerShellClickBound = true;
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            if (target.closest('#panel-messenger .conv-shell')) return;
+            closeAllConversationSwipes();
+        });
+    }
+
+    renderMessengerSearchHistory();
+}
+
+function renderConversationsFromCache() {
+    const convItems = document.getElementById('messenger-conv-items');
+    if (!convItems) return;
+
+    const keyword = messengerSearchKeyword;
+    const convs = messengerConversationCache.convs || [];
+    const newFriends = messengerConversationCache.newFriends || [];
+    const groupConvs = messengerConversationCache.groupConvs || [];
+
+    const filterByKeyword = (values) => {
+        if (!keyword) return true;
+        return values.some(v => String(v || '').toLowerCase().includes(keyword));
+    };
+
+    const filteredConvs = convs.filter(c => filterByKeyword([c.nickname, c.university, c.last_msg]));
+    const filteredNewFriends = newFriends.filter(f => filterByKeyword([f.nickname, f.university]));
+    const filteredGroups = groupConvs.filter(g => filterByKeyword([g.room_name, g.last_msg]));
+
+    const convHtml = filteredConvs.map(c => {
+        const nickJson = JSON.stringify(String(c.nickname || ''));
+        return `
+        <div class="conv-shell" data-kind="dm" data-id="${c.other_user}" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">
+            <div class="conv-item" onclick='openChatFromList(${c.other_user}, ${nickJson})'>
+                <div class="conv-avatar ${c.unread_count > 0 ? 'has-unread' : ''}">${esc(c.nickname)[0]}</div>
+                <div class="conv-info">
+                    <div class="conv-nick">${highlightMessengerMatch(c.nickname)} ${c.unread_count > 0 ? `<span class="conv-unread">${c.unread_count}</span>` : ''}</div>
+                    <div class="conv-last">${highlightMessengerMatch(c.last_msg || '')}</div>
+                </div>
+                <div class="conv-studying ${c.is_studying ? 'active' : ''}"></div>
+            </div>
+            <div class="conv-swipe-actions">
+                <button type="button" class="conv-swipe-btn" onclick="event.stopPropagation();markConversationRead('dm', ${c.other_user})">읽음</button>
+                <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation('dm', ${c.other_user})">삭제</button>
+            </div>
+        </div>
+    `;
+    }).join('');
+
+    const groupHtml = filteredGroups.map(g => {
+        const roomName = (g.room_name || '그룹 채팅').trim() || '그룹 채팅';
+        const roomNameJson = JSON.stringify(roomName);
+        return `
+            <div class="conv-shell" data-kind="group" data-id="${g.room_id}" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">
+                <div class="conv-item" onclick='openGroupChatFromList(${g.room_id}, ${roomNameJson})'>
+                    <div class="conv-avatar">👥</div>
+                    <div class="conv-info">
+                        <div class="conv-nick">${highlightMessengerMatch(roomName)}</div>
+                        <div class="conv-last">${highlightMessengerMatch(g.last_msg || '아직 채팅이 없습니다')}</div>
+                    </div>
+                    <div class="conv-studying"></div>
+                </div>
+                <div class="conv-swipe-actions">
+                    <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation('group', ${g.room_id})">숨김</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const newHtml = filteredNewFriends.length > 0 ? `
+        <div class="messenger-section-title">동맹 - 새 대화 시작</div>
+        ${filteredNewFriends.map(f => `
+            <div class="conv-item" onclick='openChatFromList(${f.id}, ${JSON.stringify(String(f.nickname || ''))})'>
+                <div class="conv-avatar is-new">${esc(f.nickname)[0]}</div>
+                <div class="conv-info">
+                    <div class="conv-nick is-muted">${highlightMessengerMatch(f.nickname)}</div>
+                    <div class="conv-last is-muted">첫 메시지를 보내보세요</div>
+                </div>
+                <div class="conv-studying ${f.is_studying ? 'active' : ''}"></div>
+            </div>
+        `).join('')}
+    ` : '';
+
+    if (!convHtml && !newHtml && !groupHtml) {
+        convItems.innerHTML = `<div class="messenger-empty">${keyword ? '검색 결과가 없습니다.' : '동맹을 추가하면<br>여기서 대화할 수 있어요.'}</div>`;
+        return;
+    }
+
+    const dmSection = (convHtml ? `<div class="messenger-section-title">${filteredConvs.length > 0 ? '최근 대화' : ''}</div>${convHtml}` : '') + newHtml;
+    const groupSection = groupHtml ? `<div class="messenger-section-title">그룹 채팅</div>${groupHtml}` : '';
+    convItems.innerHTML = dmSection + groupSection;
+}
+
+async function loadConversations() {
+    ensureMessengerListShell();
+    const convItems = document.getElementById('messenger-conv-items');
+    if (convItems) convItems.innerHTML = '<div class="messenger-empty">로딩 중...</div>';
     try {
         const [convRes, friendRes, groupRes] = await Promise.all([
             fetch('/api/messages/conversations', { credentials: 'include' }),
@@ -2418,56 +2783,10 @@ async function loadConversations() {
         const convIds = new Set(convs.map(c => c.other_user));
         const newFriends = friends.filter(f => !convIds.has(f.id));
 
-        const convHtml = convs.map(c => `
-            <div class="conv-item" onclick="openChat(${c.other_user},'${esc(c.nickname)}')">
-                <div class="conv-avatar">${esc(c.nickname)[0]}</div>
-                <div class="conv-info">
-                    <div class="conv-nick">${esc(c.nickname)} ${c.unread_count > 0 ? `<span class="conv-unread">${c.unread_count}</span>` : ''}</div>
-                    <div class="conv-last">${esc(c.last_msg || '')}</div>
-                </div>
-                <div class="conv-studying ${c.is_studying ? 'active' : ''}"></div>
-            </div>
-        `).join('');
-
-        const groupHtml = groupConvs.map(g => {
-            const roomName = (g.room_name || '그룹 채팅').trim() || '그룹 채팅';
-            const roomNameJson = JSON.stringify(roomName);
-            return `
-                <div class="conv-item" onclick='openGroupChat(${g.room_id}, ${roomNameJson})'>
-                    <div class="conv-avatar">👥</div>
-                    <div class="conv-info">
-                        <div class="conv-nick">${esc(roomName)}</div>
-                        <div class="conv-last">${esc(g.last_msg || '아직 채팅이 없습니다')}</div>
-                    </div>
-                    <div class="conv-studying"></div>
-                </div>
-            `;
-        }).join('');
-
-        const newHtml = newFriends.length > 0 ? `
-            <div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">동맹 — 새 대화 시작</div>
-            ${newFriends.map(f => `
-                <div class="conv-item" onclick="openChat(${f.id},'${esc(f.nickname)}')">
-                    <div class="conv-avatar" style="opacity:0.7">${esc(f.nickname)[0]}</div>
-                    <div class="conv-info">
-                        <div class="conv-nick" style="color:var(--text-secondary)">${esc(f.nickname)}</div>
-                        <div class="conv-last" style="color:#555">첫 메시지를 보내보세요</div>
-                    </div>
-                    <div class="conv-studying ${f.is_studying ? 'active' : ''}"></div>
-                </div>
-            `).join('')}
-        ` : '';
-
-        if (!convHtml && !newHtml && !groupHtml) {
-            convList.innerHTML = '<div style="text-align:center;padding:30px;font-size:11px;color:#555">동맹을 추가하면<br>여기서 대화할 수 있어요.</div>';
-            return;
-        }
-
-        const dmSection = (convHtml ? `<div style="padding:8px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">${convs.length > 0 ? '최근 대화' : ''}</div>` + convHtml : '') + newHtml;
-        const groupSection = groupHtml ? `<div style="padding:10px 14px 4px;font-size:9px;color:#666;letter-spacing:.08em;text-transform:uppercase;">그룹 채팅</div>${groupHtml}` : '';
-        convList.innerHTML = dmSection + groupSection;
+        messengerConversationCache = { convs, newFriends, groupConvs };
+        renderConversationsFromCache();
     } catch (e) {
-        convList.innerHTML = '<div style="color:#e55;padding:16px;font-size:11px">로드 실패</div>';
+        if (convItems) convItems.innerHTML = '<div class="messenger-error">로드 실패</div>';
     }
 }
 
@@ -2480,17 +2799,32 @@ async function openChat(userId, nickname) {
     const convList = document.getElementById('messenger-conv-list');
     const chat = document.getElementById('messenger-chat');
     const backBtn = document.getElementById('messenger-back-btn');
-    const title = document.getElementById('messenger-title');
-
     convList.style.display = 'none';
     chat.style.display = 'flex';
     backBtn.style.display = 'inline-block';
-    title.textContent = nickname;
+    const meta = getMessengerContactMeta(userId);
+    setMessengerHeaderInfo(nickname, meta?.is_studying ? '온라인' : (meta?.university || '오프라인'));
+    setMessengerHeaderAvatar({
+        nickname,
+        profileImageUrl: meta?.profile_image_url || '',
+        isOnline: !!meta?.is_studying,
+        isGroup: false
+    });
+
+    const statusEl = document.getElementById('chat-delivery-status');
+    if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+    }
 
     const fileBtn = document.querySelector('.chat-file-btn');
     if (fileBtn) fileBtn.style.display = 'inline-flex';
 
     await loadChatMessages();
+    setTimeout(() => {
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }, 20);
     startChatPoll();
 }
 
@@ -2503,18 +2837,30 @@ async function openGroupChat(roomId, roomName) {
     const convList = document.getElementById('messenger-conv-list');
     const chat = document.getElementById('messenger-chat');
     const backBtn = document.getElementById('messenger-back-btn');
-    const title = document.getElementById('messenger-title');
-
     convList.style.display = 'none';
     chat.style.display = 'flex';
     backBtn.style.display = 'inline-block';
-    title.textContent = `그룹 · ${roomName || '채팅'}`;
+    const groupMeta = (messengerConversationCache.groupConvs || []).find(g => Number(g.room_id) === Number(roomId));
+    const memberCount = Number(groupMeta?.member_count || 0);
+    const memberLabel = memberCount > 0 ? `${memberCount}명 참여` : '그룹 채팅';
+    setMessengerHeaderInfo(roomName || '그룹 채팅', memberLabel);
+    setMessengerHeaderAvatar({ nickname: roomName || '그룹', profileImageUrl: '', isOnline: false, isGroup: true });
+
+    const statusEl = document.getElementById('chat-delivery-status');
+    if (statusEl) {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+    }
 
     cancelFileUpload();
     const fileBtn = document.querySelector('.chat-file-btn');
     if (fileBtn) fileBtn.style.display = 'none';
 
     await loadChatMessages();
+    setTimeout(() => {
+        const input = document.getElementById('chat-input');
+        if (input) input.focus();
+    }, 20);
     startChatPoll();
 }
 
@@ -2568,7 +2914,7 @@ async function loadChatMessages() {
             } else {
                 // 텍스트 메시지
                 const prefix = currentChatMode === 'group' && !isMine
-                    ? `<div style="font-size:10px;color:#6b7280;margin-bottom:2px;">${esc(m.sender_nickname || '알 수 없음')}</div>`
+                    ? `<div class="group-sender-name">${esc(m.sender_nickname || '알 수 없음')}</div>`
                     : '';
                 contentHtml = `${prefix}${esc(m.content)}`;
             }
@@ -2581,8 +2927,48 @@ async function loadChatMessages() {
             `;
         }).join('');
         container.scrollTop = container.scrollHeight;
+        updateDeliveryStatus(msgs);
         refreshFriendBadge();
     } catch (e) {}
+}
+
+function updateDeliveryStatus(msgs) {
+    const statusEl = document.getElementById('chat-delivery-status');
+    if (!statusEl) return;
+
+    if (currentChatMode !== 'dm') {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+        return;
+    }
+
+    const myMsgs = (Array.isArray(msgs) ? msgs : []).filter(m => m.is_mine === true || m.is_mine === 1);
+    if (!myMsgs.length) {
+        statusEl.textContent = '';
+        statusEl.style.display = 'none';
+        return;
+    }
+
+    const latestMine = myMsgs[myMsgs.length - 1];
+    const latestReadMine = [...myMsgs].reverse().find(m => !!m.is_read);
+    const readerName = String(currentChatUserName || '').trim();
+    let statusLabel = '전송됨';
+    let statusBaseMsg = latestMine;
+
+    if (latestReadMine && latestReadMine.id === latestMine.id) {
+        statusLabel = readerName ? `${readerName}님이 읽음` : '읽음';
+        statusBaseMsg = latestReadMine;
+    } else if (latestReadMine) {
+        statusLabel = `전송됨 · 이전 메시지 읽음`;
+        statusBaseMsg = latestMine;
+    }
+
+    const statusTime = statusBaseMsg?.created_at
+        ? new Date(statusBaseMsg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        : '';
+
+    statusEl.textContent = statusTime ? `${statusLabel} · ${statusTime}` : statusLabel;
+    statusEl.style.display = 'block';
 }
 
 let selectedFile = null;

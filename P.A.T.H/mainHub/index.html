@@ -334,13 +334,24 @@
 
     <div class="glass-panel hidden" id="panel-messenger" style="width: 360px;">
         <div class="panel-head">
-            <h3 id="messenger-title">MESSENGER</h3>
+            <div class="messenger-header-center">
+                <div id="messenger-header-avatar" class="messenger-header-avatar">
+                    <span id="messenger-header-avatar-text">💬</span>
+                    <img id="messenger-header-avatar-img" class="hidden" alt="프로필">
+                    <span id="messenger-header-online" class="messenger-header-online hidden"></span>
+                </div>
+                <div class="messenger-header-meta">
+                    <div id="messenger-title">메시지</div>
+                    <div id="messenger-subtitle" class="messenger-subtitle">대화 목록</div>
+                </div>
+            </div>
             <button class="close-btn" id="messenger-back-btn" onclick="messengerBack()" style="display:none;">←</button>
             <button class="close-btn" onclick="closeMessengerPanel()">×</button>
         </div>
         <div id="messenger-conv-list" class="panel-content">로딩 중...</div>
         <div id="messenger-chat" style="display:none; flex-direction:column; flex:1; min-height:0;">
             <div id="chat-messages" style="flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px;"></div>
+            <div id="chat-delivery-status" class="chat-delivery-status" style="display:none;"></div>
             <div id="file-preview" style="display:none; padding:8px 12px; background:var(--surface-hover); border-top:1px solid var(--border-color); font-size:11px;">
                 <span id="file-preview-name"></span>
                 <button onclick="cancelFileUpload()" style="margin-left:8px; padding:2px 8px; font-size:10px; cursor:pointer;">취소</button>
@@ -350,7 +361,7 @@
                 <button class="chat-file-btn" onclick="document.getElementById('chat-file-input').click()" title="파일 첨부">📎</button>
                 <input type="text" id="chat-input" class="chat-input" placeholder="메시지 입력..." maxlength="500"
                     onkeydown="if(event.key==='Enter')sendMessage()">
-                <button class="chat-send-btn" onclick="sendMessage()">전송</button>
+                <button class="chat-send-btn" onclick="sendMessage()" aria-label="전송" title="전송"></button>
             </div>
         </div>
     </div>

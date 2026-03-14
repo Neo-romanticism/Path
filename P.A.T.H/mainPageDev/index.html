@@ -129,11 +129,16 @@ function toggleTheme() {
             <button id="tab-home-btn" class="page-tab-btn active" type="button">홈</button>
             <button id="tab-study-btn" class="page-tab-btn" type="button">학습하기</button>
             <button id="tab-planner-btn" class="page-tab-btn" type="button">플래너</button>
-            <button id="tab-calendar-btn" class="page-tab-btn" type="button">캘린더</button>
-            <button id="tab-scorecalc-btn" class="page-tab-btn" type="button">환산점수</button>
-            <button id="tab-balloon-btn" class="page-tab-btn" type="button">성장 리포트</button>
-            <button id="tab-rooms-btn" class="page-tab-btn" type="button">그룹 🔥</button>
-            <button id="tab-community-btn" class="page-tab-btn" type="button">커뮤니티</button>
+            <div class="page-more-wrap">
+                <button id="tab-more-btn" class="page-tab-btn page-tab-more" type="button" aria-expanded="false" aria-haspopup="menu">더보기 ▾</button>
+                <div id="tab-more-menu" class="page-more-menu hidden" role="menu" aria-label="추가 탭">
+                    <button id="tab-calendar-btn" class="page-more-item" type="button" role="menuitem">캘린더</button>
+                    <button id="tab-scorecalc-btn" class="page-more-item" type="button" role="menuitem">환산점수</button>
+                    <button id="tab-balloon-btn" class="page-more-item" type="button" role="menuitem">성장 리포트</button>
+                    <button id="tab-rooms-btn" class="page-more-item" type="button" role="menuitem">그룹 🔥</button>
+                    <button id="tab-community-btn" class="page-more-item" type="button" role="menuitem">커뮤니티</button>
+                </div>
+            </div>
         </div>
 
         <section id="tab-home" class="tab-panel active">
@@ -145,6 +150,7 @@ function toggleTheme() {
                     <button type="button" class="btn-primary home-start-btn" id="home-start-btn">바로 학습 시작</button>
                     <button type="button" class="home-refresh-btn" id="home-refresh-btn">새로고침</button>
                 </div>
+                <div id="home-skin-spot" class="home-skin-spot" aria-live="polite"></div>
             </div>
 
             <div class="home-stat-row">

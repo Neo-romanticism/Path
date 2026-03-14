@@ -1,4 +1,6 @@
 const UI = {
+    OPEN_SKIN_SHOP_ONCE_KEY: 'path_open_skin_shop_once',
+    OPEN_SKIN_SHOP_FOCUS_ID_KEY: 'path_open_skin_shop_focus_id',
     defaultEngGradeRatio: [1.0, 0.97, 0.92, 0.84, 0.74, 0.6, 0.44, 0.26, 0.1],
     defaultHistGradeRatio: [1.0, 1.0, 1.0, 0.98, 0.96, 0.94, 0.92, 0.9, 0.8],
     currentMode: 'timer',
@@ -28,6 +30,16 @@ const UI = {
     hubSocialCurrentChatId: null,
     hubSocialCurrentChatNickname: '',
     hubNotifRankTab: 'today',
+    skinCatalogById: {},
+    skinCatalogFetchedAt: 0,
+    pendingFocusSkinId: '',
+    moreSheetGesture: {
+        active: false,
+        startY: 0,
+        deltaY: 0,
+        startTime: 0,
+        lastTime: 0
+    },
     timetableConfig: {
         dayStartMinute: 6 * 60,
         dayEndMinute: 24 * 60,
@@ -49,6 +61,8 @@ const UI = {
         tabScoreCalcBtn: document.getElementById('tab-scorecalc-btn'),
         tabBalloonBtn: document.getElementById('tab-balloon-btn'),
         tabCommunityBtn: document.getElementById('tab-community-btn'),
+        tabMoreBtn: document.getElementById('tab-more-btn'),
+        tabMoreMenu: document.getElementById('tab-more-menu'),
         tabHome: document.getElementById('tab-home'),
         tabStudy:    document.getElementById('tab-study'),
         tabPlanner:  document.getElementById('tab-planner'),
@@ -61,6 +75,7 @@ const UI = {
         homeQuickShopBtn: document.getElementById('home-quick-shop'),
         homeQuickSocialBtn: document.getElementById('home-quick-social'),
         homeQuickNotifBtn: document.getElementById('home-quick-notif'),
+        homeSkinSpot: document.getElementById('home-skin-spot'),
         homeStatToday: document.getElementById('home-stat-today'),
         homeStatTotal: document.getElementById('home-stat-total'),
         homeStatActive: document.getElementById('home-stat-active'),
@@ -146,6 +161,7 @@ const UI = {
         this.currentUser = userData;
 
         this.updateAssets(userData);
+        await this.ensureSkinCatalog();
         if (this.elements.bottomInfo) {
             this.elements.bottomInfo.textContent = '';
             this.elements.bottomInfo.style.display = 'none';
@@ -163,11 +179,30 @@ const UI = {
         await this.loadBalloonMetrics();
         await this.loadHomeHubData();
         this.switchTab('home');
+        this.openSkinShopFromSessionFlag();
         this.startHomeAutoRefresh();
 
         if (typeof CamManager !== 'undefined') CamManager.loadSettings();
         if (typeof applyStudyPowerSaveMode === 'function') applyStudyPowerSaveMode(false);
         console.log('P.A.T.H: UI 초기화 완료');
+    },
+
+    openSkinShopFromSessionFlag() {
+        let shouldOpen = false;
+        let focusSkinId = '';
+        try {
+            shouldOpen = sessionStorage.getItem(this.OPEN_SKIN_SHOP_ONCE_KEY) === '1';
+            focusSkinId = String(sessionStorage.getItem(this.OPEN_SKIN_SHOP_FOCUS_ID_KEY) || '').trim();
+            if (shouldOpen) sessionStorage.removeItem(this.OPEN_SKIN_SHOP_ONCE_KEY);
+            if (focusSkinId) sessionStorage.removeItem(this.OPEN_SKIN_SHOP_FOCUS_ID_KEY);
+        } catch (_) {
+            shouldOpen = false;
+            focusSkinId = '';
+        }
+
+        if (!shouldOpen) return;
+        this.pendingFocusSkinId = focusSkinId;
+        this.openHomeHubOverlay('shop');
     },
 
     setTodayDefaults() {
@@ -222,6 +257,18 @@ const UI = {
         this.elements.tabScoreCalcBtn.onclick = () => this.switchTab('scorecalc');
         this.elements.tabBalloonBtn.onclick = () => this.switchTab('balloon');
         document.getElementById('tab-rooms-btn')?.addEventListener('click', () => this.switchTab('rooms'));
+        this.elements.tabMoreBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const willOpen = this.elements.tabMoreMenu?.classList.contains('hidden');
+            this.setMoreMenuOpen(Boolean(willOpen));
+        });
+        this.elements.tabMoreMenu?.addEventListener('click', () => this.setMoreMenuOpen(false));
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.page-more-wrap')) {
+                this.setMoreMenuOpen(false);
+            }
+        });
+        this.bindMoreSheetGesture();
         this.elements.tabCommunityBtn?.addEventListener('click', () => {
             if (blockWhenStudying(null, '타이머 진행 중에는 커뮤니티로 이동할 수 없습니다.')) return;
             if (typeof window.navigateTo === 'function') {
@@ -476,6 +523,11 @@ const UI = {
         this.elements.tabBalloonBtn.classList.toggle('active', this.currentTab === 'balloon');
         document.getElementById('tab-rooms-btn')?.classList.toggle('active', isRooms);
 
+        const isMoreActive = ['calendar', 'scorecalc', 'balloon', 'rooms'].includes(this.currentTab);
+        this.elements.tabMoreBtn?.classList.toggle('active', isMoreActive);
+        this.elements.tabMoreBtn?.setAttribute('aria-label', isMoreActive ? `더보기 (${this.currentTab})` : '더보기');
+        this.setMoreMenuOpen(false);
+
         this.elements.tabHome.classList.toggle('active', isHome);
         this.elements.tabStudy.classList.toggle('active', this.currentTab === 'study');
         this.elements.tabPlanner.classList.toggle('active', isPlanner);
@@ -521,6 +573,100 @@ const UI = {
         }
     },
 
+    setMoreMenuOpen(open) {
+        if (!this.elements.tabMoreMenu || !this.elements.tabMoreBtn) return;
+        this.elements.tabMoreMenu.classList.toggle('hidden', !open);
+        this.elements.tabMoreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        this.elements.tabMoreBtn.textContent = open ? '더보기 ▴' : '더보기 ▾';
+        if (open) {
+            this.elements.body?.classList.remove('tab-more-closing');
+            this.elements.body?.classList.add('tab-more-open');
+        } else {
+            this.elements.body?.classList.remove('tab-more-open');
+            this.elements.body?.classList.remove('tab-more-closing');
+        }
+        if (!open) {
+            this.moreSheetGesture.active = false;
+            this.moreSheetGesture.deltaY = 0;
+            this.elements.tabMoreMenu.style.removeProperty('--sheet-drag-offset');
+        }
+    },
+
+    bindMoreSheetGesture() {
+        const menu = this.elements.tabMoreMenu;
+        if (!menu) return;
+
+        const isMobile = () => window.matchMedia('(max-width: 620px)').matches;
+        const resetDrag = () => {
+            this.moreSheetGesture.active = false;
+            this.moreSheetGesture.deltaY = 0;
+            this.moreSheetGesture.startTime = 0;
+            this.moreSheetGesture.lastTime = 0;
+            menu.style.removeProperty('--sheet-drag-offset');
+            menu.style.removeProperty('--sheet-close-boost');
+            menu.classList.remove('is-dragging');
+            menu.classList.remove('is-closing');
+        };
+        const animateAndClose = (velocity) => {
+            this.moreSheetGesture.active = false;
+            this.moreSheetGesture.startTime = 0;
+            this.moreSheetGesture.lastTime = 0;
+            menu.classList.remove('is-dragging');
+            this.elements.body?.classList.add('tab-more-closing');
+            const boost = Math.max(42, Math.min(130, Math.round(velocity * 140)));
+            menu.style.setProperty('--sheet-close-boost', `${boost}px`);
+            menu.classList.add('is-closing');
+            window.setTimeout(() => {
+                this.setMoreMenuOpen(false);
+                menu.classList.remove('is-closing');
+                menu.style.removeProperty('--sheet-close-boost');
+            }, 120);
+        };
+
+        menu.addEventListener('touchstart', (e) => {
+            if (!isMobile()) return;
+            if (menu.classList.contains('hidden')) return;
+            if (menu.scrollTop > 0) return;
+            const touch = e.touches?.[0];
+            if (!touch) return;
+
+            this.moreSheetGesture.active = true;
+            this.moreSheetGesture.startY = touch.clientY;
+            this.moreSheetGesture.deltaY = 0;
+            this.moreSheetGesture.startTime = performance.now();
+            this.moreSheetGesture.lastTime = this.moreSheetGesture.startTime;
+            menu.classList.add('is-dragging');
+        }, { passive: true });
+
+        menu.addEventListener('touchmove', (e) => {
+            if (!this.moreSheetGesture.active) return;
+            const touch = e.touches?.[0];
+            if (!touch) return;
+
+            const rawDelta = touch.clientY - this.moreSheetGesture.startY;
+            const delta = Math.max(0, Math.min(160, rawDelta));
+            this.moreSheetGesture.deltaY = delta;
+            this.moreSheetGesture.lastTime = performance.now();
+            menu.style.setProperty('--sheet-drag-offset', `${delta}px`);
+        }, { passive: true });
+
+        menu.addEventListener('touchend', () => {
+            if (!this.moreSheetGesture.active) return;
+            const elapsed = Math.max(1, this.moreSheetGesture.lastTime - this.moreSheetGesture.startTime);
+            const velocity = this.moreSheetGesture.deltaY / elapsed;
+            const byDistance = this.moreSheetGesture.deltaY >= 56;
+            const byFlick = this.moreSheetGesture.deltaY >= 18 && velocity >= 0.55;
+            const shouldClose = byDistance || byFlick;
+            if (shouldClose) {
+                animateAndClose(velocity);
+                return;
+            }
+            resetDrag();
+        });
+
+        menu.addEventListener('touchcancel', resetDrag);
+    },
+
     startHomeAutoRefresh() {
         if (this.homeRefreshIntervalId) clearInterval(this.homeRefreshIntervalId);
         this.homeRefreshIntervalId = setInterval(() => {
@@ -535,6 +681,8 @@ const UI = {
             this.elements.homeTopList.textContent = '갱신 중...';
             this.elements.homeRoomList.textContent = '갱신 중...';
         }
+
+        this.ensureSkinCatalog(forceReload).catch(() => {});
 
         const [stats, ranking, rooms] = await Promise.all([
             StorageManager.fetchStudyStats(),
@@ -566,10 +714,14 @@ const UI = {
             const nickname = this.escapeHtml(row?.display_nickname || row?.nickname || '익명');
             const university = this.escapeHtml(row?.university || '소속 미설정');
             const studying = row?.is_studying ? '<span class="home-badge-live">공부중</span>' : '';
+            const skinId = String(row?.balloon_skin || 'default');
+            const skinName = this.escapeHtml(this.getSkinNameById(skinId));
+            const skinTone = this.getSkinToneVars(skinId);
+            const skinBadge = `<span class="home-badge-skin" style="${skinTone}">🎈 ${skinName}</span>`;
             return `<div class="home-row-item">
                 <div class="home-row-rank">${idx + 1}</div>
                 <div class="home-row-main">
-                    <div class="home-row-title">${nickname} ${studying}</div>
+                    <div class="home-row-title">${nickname} ${skinBadge} ${studying}</div>
                     <div class="home-row-sub">${university}</div>
                 </div>
                 <div class="home-row-val">${this.formatDuration(sec)}</div>
@@ -688,6 +840,91 @@ const UI = {
             ...userPatch
         };
         this.updateAssets(this.currentUser);
+    },
+
+    async ensureSkinCatalog(forceReload = false) {
+        const now = Date.now();
+        const staleMs = 3 * 60 * 1000;
+        const hasCatalog = this.skinCatalogById && Object.keys(this.skinCatalogById).length > 0;
+        if (!forceReload && hasCatalog && (now - this.skinCatalogFetchedAt < staleMs)) {
+            return this.skinCatalogById;
+        }
+
+        const data = await this.requestJson('/api/estate/skins');
+        const skins = Array.isArray(data?.skins) ? data.skins : [];
+        const nextCatalog = {};
+        skins.forEach((skin) => {
+            const id = String(skin?.id || '').trim();
+            if (!id) return;
+            nextCatalog[id] = skin;
+        });
+
+        this.skinCatalogById = nextCatalog;
+        this.skinCatalogFetchedAt = now;
+
+        const owned = Array.isArray(data?.owned) ? data.owned.join(',') : undefined;
+        this.mergeCurrentUserPatch({
+            balloon_skin: data?.equipped || this.currentUser?.balloon_skin || 'default',
+            ...(owned ? { owned_skins: owned } : {})
+        });
+
+        return this.skinCatalogById;
+    },
+
+    getSkinNameById(skinId) {
+        const id = String(skinId || 'default');
+        const skin = this.skinCatalogById?.[id];
+        if (skin?.name) return skin.name;
+        if (id === 'default') return '기본 열기구';
+        return id;
+    },
+
+    getSkinToneVars(skinId) {
+        const raw = String(skinId || 'default');
+        let hash = 0;
+        for (let i = 0; i < raw.length; i += 1) {
+            hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+            hash |= 0;
+        }
+        const hue = Math.abs(hash) % 360;
+        const hue2 = (hue + 38) % 360;
+        return `--skin-h:${hue};--skin-h2:${hue2};`;
+    },
+
+    renderHomeSkinSpot() {
+        const spot = this.elements.homeSkinSpot;
+        if (!spot) return;
+
+        const skinId = String(this.currentUser?.balloon_skin || 'default');
+        const skinName = this.escapeHtml(this.getSkinNameById(skinId));
+        const ownedRaw = String(this.currentUser?.owned_skins || 'default');
+        const ownedCount = ownedRaw
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean).length;
+        const toneVars = this.getSkinToneVars(skinId);
+
+        spot.innerHTML = `
+            <div class="home-skin-card">
+                <div class="home-skin-preview" style="${toneVars}" aria-hidden="true">🎈</div>
+                <div class="home-skin-info">
+                    <span class="home-skin-label">CURRENT SKIN</span>
+                    <strong class="home-skin-name">${skinName}</strong>
+                    <span class="home-skin-meta">보유 ${ownedCount}개 · 장착 ID ${this.escapeHtml(skinId)}</span>
+                </div>
+                <button type="button" class="home-skin-manage-btn" id="home-skin-manage-btn">관리</button>
+            </div>
+        `;
+
+        const manageBtn = spot.querySelector('#home-skin-manage-btn');
+        manageBtn?.addEventListener('click', () => this.openHomeHubOverlay('shop'));
+    },
+
+    buildSkinPillHtml(skinId) {
+        const id = String(skinId || 'default');
+        const toneVars = this.getSkinToneVars(id);
+        const skinName = this.escapeHtml(this.getSkinNameById(id));
+        return `<span class="hub-skin-pill" style="${toneVars}">🎈 ${skinName}</span>`;
     },
 
     async renderHubApplyPanel() {
@@ -881,6 +1118,7 @@ const UI = {
         const diamond = Number(taxData?.diamond || this.currentUser?.diamond || 0);
         const tickets = Number(this.currentUser?.tickets || 0);
         const ticketPrice = Number(taxData?.ticketPrice || 0);
+        const focusSkinId = String(this.pendingFocusSkinId || '').trim();
 
         const skinHtml = skins.slice(0, 8).map((skin) => {
             const skinId = String(skin?.id || '');
@@ -889,9 +1127,14 @@ const UI = {
             const price = Number(skin?.price || 0);
             const actionLabel = equipped ? '장착중' : owned ? '장착' : price > 0 ? `${price.toLocaleString()}G 구매` : '획득';
             const disabled = equipped ? 'disabled' : '';
-            return `<li class="hub-shop-item">
+            const toneVars = this.getSkinToneVars(skinId || 'default');
+            const focusClass = focusSkinId && skinId === focusSkinId ? ' hub-shop-item--focus' : '';
+            return `<li class="hub-shop-item${focusClass}" data-skin-id="${this.escapeHtml(skinId)}">
                 <div class="hub-shop-main">
-                    <strong>${this.escapeHtml(skin?.name || skinId)}</strong>
+                    <div class="hub-shop-main-top">
+                        <span class="hub-shop-skin-preview" style="${toneVars}" aria-hidden="true">🎈</span>
+                        <strong>${this.escapeHtml(skin?.name || skinId)}</strong>
+                    </div>
                     <span>${this.escapeHtml(skin?.desc || '')}</span>
                 </div>
                 <button type="button" class="hub-shop-action-btn" data-shop-kind="skin" data-shop-id="${this.escapeHtml(skinId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" ${disabled}>${actionLabel}</button>
@@ -986,6 +1229,12 @@ const UI = {
                 await this.handleHubShopAction({ kind, id, mode, button: btn });
             });
         });
+
+        if (focusSkinId) {
+            const focusEl = this.elements.hubOverlayBody.querySelector(`.hub-shop-item[data-skin-id="${focusSkinId}"]`);
+            focusEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            this.pendingFocusSkinId = '';
+        }
     },
 
     async handleHubShopAction({ kind, id, mode, button }) {
@@ -1068,9 +1317,10 @@ const UI = {
                 const id = Number(req?.friendship_id || 0);
                 const nick = this.escapeHtml(req?.nickname || '익명');
                 const univ = this.escapeHtml(req?.university || '소속 미설정');
+                const skinPill = this.buildSkinPillHtml(req?.balloon_skin || 'default');
                 return `<li class="hub-social-request-item">
                     <div class="hub-social-user-main">
-                        <strong>${nick}</strong>
+                        <strong>${nick} ${skinPill}</strong>
                         <span>${univ}</span>
                     </div>
                     <div class="hub-social-mini-actions">
@@ -1086,11 +1336,12 @@ const UI = {
                 const userId = Number(f?.id || 0);
                 const nick = this.escapeHtml(f?.nickname || '익명');
                 const univ = this.escapeHtml(f?.university || '소속 미설정');
+                const skinPill = this.buildSkinPillHtml(f?.balloon_skin || 'default');
                 const studying = f?.is_studying ? ' · 공부중' : '';
                 const activeClass = this.hubSocialCurrentChatId === userId ? 'active' : '';
                 return `<li class="hub-social-friend-item ${activeClass}">
                     <button type="button" class="hub-social-friend-main" data-social-act="open-chat" data-chat-user-id="${userId}" data-chat-user-name="${nick}">
-                        <strong>${nick}</strong>
+                        <strong>${nick} ${skinPill}</strong>
                         <span>${univ}${studying}</span>
                     </button>
                     <button type="button" class="hub-shop-action-btn hub-social-danger" data-social-act="remove-friend" data-target-id="${userId}">해제</button>
@@ -1098,29 +1349,14 @@ const UI = {
             }).join('')
             : '<li class="hub-apply-empty">동맹이 없습니다.</li>';
 
-        const convoPreviewHtml = convoList.length
-            ? convoList.slice(0, 10).map((c) => {
-                const userId = Number(c?.other_user || 0);
-                const nick = this.escapeHtml(c?.nickname || '익명');
-                const msg = this.escapeHtml(c?.last_msg || '대화 내역 없음');
-                const activeClass = this.hubSocialCurrentChatId === userId ? 'active' : '';
-                const unreadBadge = Number(c?.unread_count || 0) > 0 ? `<em>${Math.min(99, Number(c.unread_count))}</em>` : '';
-                return `<li class="hub-social-convo-item ${activeClass}">
-                    <button type="button" class="hub-social-convo-main" data-social-act="open-chat" data-chat-user-id="${userId}" data-chat-user-name="${nick}">
-                        <strong>${nick}</strong>
-                        <span>${msg}</span>
-                    </button>
-                    ${unreadBadge}
-                </li>`;
-            }).join('')
-            : '<li class="hub-apply-empty">대화 내역이 없습니다.</li>';
+        const convoPreviewHtml = this.buildHubSocialConvoPreviewHtml(convoList);
 
         this.elements.hubOverlayBody.innerHTML = `
             <section class="hub-social-wrap">
                 <div class="hub-social-summary">
                     <div class="hub-shop-meta-row"><span>동맹 수</span><strong>${friendList.length}명</strong></div>
                     <div class="hub-shop-meta-row"><span>대기 신청</span><strong>${requestList.length}건</strong></div>
-                    <div class="hub-shop-meta-row"><span>읽지 않은 메시지</span><strong>${unread}개</strong></div>
+                    <div class="hub-shop-meta-row"><span>읽지 않은 메시지</span><strong id="hub-social-unread-count">${unread}개</strong></div>
                     <div class="hub-shop-actions-row">
                         <button type="button" id="hub-social-refresh-btn" class="home-refresh-btn">새로고침</button>
                     </div>
@@ -1136,7 +1372,7 @@ const UI = {
 
                     <section class="hub-social-panel">
                         <h4>대화</h4>
-                        <ul class="hub-social-list hub-social-convo-list">${convoPreviewHtml}</ul>
+                        <ul id="hub-social-convo-list" class="hub-social-list hub-social-convo-list">${convoPreviewHtml}</ul>
                         <div class="hub-social-chat-box">
                             <div id="hub-social-chat-title" class="hub-social-chat-title">대화 상대를 선택하세요</div>
                             <div id="hub-social-messages" class="hub-social-messages"></div>
@@ -1319,6 +1555,66 @@ const UI = {
         }).join('');
 
         listEl.scrollTop = listEl.scrollHeight;
+
+        // The conversation API marks incoming messages as read.
+        // Refresh preview/unread badges right away so the UI reflects that state.
+        if (this.activeHubOverlay === 'social') {
+            this.refreshHubSocialConversationPreview().catch(() => {});
+        }
+    },
+
+    buildHubSocialConvoPreviewHtml(convoList) {
+        const rows = Array.isArray(convoList) ? convoList : [];
+        if (!rows.length) {
+            return '<li class="hub-apply-empty">대화 내역이 없습니다.</li>';
+        }
+
+        return rows.slice(0, 10).map((c) => {
+            const userId = Number(c?.other_user || 0);
+            const nickRaw = c?.nickname || '익명';
+            const nick = this.escapeHtml(nickRaw);
+            const skinPill = this.buildSkinPillHtml(c?.balloon_skin || 'default');
+            const msg = this.escapeHtml(c?.last_msg || '대화 내역 없음');
+            const activeClass = this.hubSocialCurrentChatId === userId ? 'active' : '';
+            const unreadBadge = Number(c?.unread_count || 0) > 0 ? `<em>${Math.min(99, Number(c.unread_count))}</em>` : '';
+            return `<li class="hub-social-convo-item ${activeClass}">
+                <button type="button" class="hub-social-convo-main" data-social-act="open-chat" data-chat-user-id="${userId}" data-chat-user-name="${nick}">
+                    <strong>${nick} ${skinPill}</strong>
+                    <span>${msg}</span>
+                </button>
+                ${unreadBadge}
+            </li>`;
+        }).join('');
+    },
+
+    async refreshHubSocialConversationPreview() {
+        if (this.activeHubOverlay !== 'social') return;
+        const body = this.elements.hubOverlayBody;
+        if (!body) return;
+
+        const convoListEl = body.querySelector('#hub-social-convo-list');
+        const unreadEl = body.querySelector('#hub-social-unread-count');
+        if (!convoListEl) return;
+
+        const [conversations, unreadCount] = await Promise.all([
+            this.requestJson('/api/messages/conversations'),
+            this.requestJson('/api/messages/unread-count')
+        ]);
+
+        const convoList = Array.isArray(conversations) ? conversations : [];
+        if (!this.hubSocialCurrentChatId && convoList[0]?.other_user) {
+            this.hubSocialCurrentChatId = Number(convoList[0].other_user) || null;
+            this.hubSocialCurrentChatNickname = String(convoList[0].nickname || '');
+        }
+
+        convoListEl.innerHTML = this.buildHubSocialConvoPreviewHtml(convoList);
+        if (unreadEl) unreadEl.textContent = `${Number(unreadCount?.count || 0)}개`;
+
+        convoListEl.querySelectorAll('[data-social-act="open-chat"]').forEach((el) => {
+            el.addEventListener('click', async () => {
+                await this.handleHubSocialAction('open-chat', el);
+            });
+        });
     },
 
     updateHubSocialFileSelectionLabel() {
@@ -1360,6 +1656,7 @@ const UI = {
             });
             input.value = '';
             await this.renderHubSocialConversation();
+            await this.refreshHubSocialConversationPreview();
         } catch (err) {
             alert(err?.message || '메시지 전송에 실패했습니다.');
         } finally {
@@ -1404,6 +1701,7 @@ const UI = {
             this.updateHubSocialFileSelectionLabel();
             if (textInput) textInput.value = '';
             await this.renderHubSocialConversation();
+            await this.refreshHubSocialConversationPreview();
         } catch (err) {
             alert(err?.message || '파일 전송에 실패했습니다.');
         } finally {
@@ -2939,6 +3237,7 @@ const UI = {
         if (this.elements.diamondVal) this.elements.diamondVal.innerText = (data.diamond || 0).toLocaleString();
         if (this.elements.ticketVal) this.elements.ticketVal.innerText = String(data.tickets || 0).padStart(2, '0');
         if (this.elements.tierTag)   this.elements.tierTag.innerText   = data.university || data.tier || '-';
+        this.renderHomeSkinSpot();
     },
 
     showResult(type, gold = 0, mode = 'timer', studyRecordId = null) {
