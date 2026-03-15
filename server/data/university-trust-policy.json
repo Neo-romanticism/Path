@@ -1,5 +1,5 @@
 {
-  "minConfidence": 0.75,
+  "minConfidence": 0.85,
   "requireYear": true,
   "requireSourceId": true,
   "requireSourceUrl": true,

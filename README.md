@@ -533,6 +533,7 @@ GET /api/university/data-status
   - `server/data/source-manifest.json` (배치 수집 대상 목록)
   - `server/data/raw-snapshots/` (수집 원본 보관)
   - `server/data/university-import-template.csv` (CSV 템플릿)
+  - `server/data/DATA_QUALITY_PLAYBOOK.md` (고품질 운영 체크리스트)
 
 권장 운영 순서
 
@@ -545,6 +546,9 @@ npm run univ:cli -- add-source --id snu-2026 --name "서울대 입학처 2026" -
 
 # 3) CSV 반영 (템플릿: server/data/university-import-template.csv)
 npm run univ:cli -- import-csv --file ./server/data/university-import-template.csv --source snu-2026 --year 2026
+
+# 3-0) URL 없이 내장 데이터로 초기 시드 생성
+npm run univ:cli -- seed-from-builtin --source builtin-seed-2026 --year 2026 --replace true
 
 # 3-1) URL 자동수집 (csv/json)
 npm run univ:cli -- import-url --url "https://example.com/univ-2026.csv" --format csv --source snu-2026 --year 2026

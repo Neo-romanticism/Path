@@ -413,6 +413,73 @@ function cmdImportCsv(args) {
     console.log(`[ok] imported ${result.imported}/${rows.length} rows from ${file}`);
 }
 
+function cmdSeedFromBuiltin(args) {
+    const sourceId = (args.source || 'builtin-seed').trim();
+    const defaultYear = toNumber(args.year) || new Date().getFullYear();
+    const replace = args.replace === true || args.replace === 'true';
+    const confidence = Number.isFinite(Number(args.confidence))
+        ? Math.max(0, Math.min(1, Number(args.confidence)))
+        : 0.86;
+
+    if (!sourceId) {
+        console.error('[invalid] --source is required');
+        process.exit(1);
+    }
+
+    const { getAllUniversities, getUniversityInfo } = require('../server/data/universities');
+    const universities = getAllUniversities();
+    const rows = [];
+
+    for (const uniMeta of universities) {
+        const uni = getUniversityInfo(uniMeta.name);
+        if (!uni || !Array.isArray(uni.departments)) continue;
+
+        for (const dept of uni.departments) {
+            const admissions = dept && typeof dept.admissions === 'object' ? dept.admissions : {};
+            const entries = Object.entries(admissions);
+            if (!entries.length) continue;
+
+            for (const [admissionsType, score] of entries) {
+                const s = score && typeof score === 'object' ? score : {};
+                const gpaCut = toNumber(s.내신) ?? toNumber(s.내신참고);
+
+                rows.push({
+                    university: uni.name,
+                    department: dept.name,
+                    category: dept.category || '기타',
+                    admissionsType: admissionsType || '정시',
+                    percentile: toNumber(s.백분위),
+                    convertedCut: toNumber(s.환산컷),
+                    gpaCut,
+                    track: null,
+                    note: 'seeded from built-in dataset',
+                    sourceUrl: `local://server/data/universities.js/${encodeURIComponent(uni.name)}`,
+                    confidence,
+                    year: defaultYear,
+                    sourceId,
+                });
+            }
+        }
+    }
+
+    if (!rows.length) {
+        console.error('[invalid] no rows generated from built-in dataset');
+        process.exit(1);
+    }
+
+    const pipeline = loadPipeline();
+    const result = importRowsToPipeline(pipeline, rows, {
+        defaultSourceId: sourceId,
+        defaultYear,
+        mapSpec: null,
+        fallbackSourceUrl: null,
+        replace,
+    });
+
+    savePipeline(pipeline);
+    console.log(`[ok] seeded ${result.imported}/${rows.length} rows from built-in dataset (source=${sourceId}, year=${defaultYear})`);
+}
+
 async function cmdImportUrl(args) {
     const sourceUrl = (args.url || '').trim();
     const format = ((args.format || 'csv').trim() || 'csv').toLowerCase();
@@ -790,6 +857,9 @@ function printHelp() {
         '    optional: --map <json map file>',
         '    CSV columns: university,department,category,admissionsType,percentile,convertedCut,gpaCut,track,note,sourceUrl,confidence,year,sourceId',
         '',
+        '  seed-from-builtin [--source builtin-seed] [--year 2026] [--replace true] [--confidence 0.86]',
+        '    URL 없이 내장 universities 데이터로 pipeline 레코드 초기 시드 생성',
+        '',
         '  import-url --url <http(s)> --source <id> [--format csv|json] [--year 2026] [--replace true] [--map <json map file>]',
         '    map samples: server/data/source-maps/*.json',
         '',
@@ -819,6 +889,7 @@ async function main() {
     if (command === 'bootstrap') return cmdBootstrap();
     if (command === 'add-source') return cmdAddSource(args);
     if (command === 'import-csv') return cmdImportCsv(args);
+    if (command === 'seed-from-builtin') return cmdSeedFromBuiltin(args);
     if (command === 'import-url') return cmdImportUrl(args);
     if (command === 'collect') return cmdCollect(args);
     if (command === 'set-trust-policy') return cmdSetTrustPolicy(args);

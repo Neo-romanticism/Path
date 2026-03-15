@@ -1,24 +1,101 @@
 {
-  "updatedAt": "2026-03-11",
-  "description": "배치 수집 소스 목록. enabled=true 인 항목만 collect 대상",
+  "updatedAt": "2026-03-15",
+  "description": "진학사급 품질 근접용 공공/입학처 수집 목록. enabled=true 인 항목만 collect 대상",
+  "policy": {
+    "notes": [
+      "민간 유료 서비스 데이터는 직접 크롤링/복제하지 않고, 공개 라이선스/공식 출처만 사용",
+      "동일 대학/학과는 다중 출처를 수집해 confidence 높은 레코드가 최종 반영",
+      "replace=true 는 해당 source/year 레코드 전체를 대체하므로 정기 배치에 권장"
+    ]
+  },
   "sources": [
     {
-      "id": "sample-university-alimi-2026",
+      "id": "university-alimi-2026-main",
       "enabled": false,
-      "url": "https://example.com/university-alimi-2026.csv",
+      "url": "https://example.com/university-alimi-2026-main.csv",
       "format": "csv",
       "map": "./server/data/source-maps/university-alimi.csv.map.json",
       "year": 2026,
-      "replace": true
+      "replace": true,
+      "priority": 1,
+      "license": "public"
     },
     {
-      "id": "sample-adiga-2026",
+      "id": "university-alimi-2026-regional",
       "enabled": false,
-      "url": "https://example.com/adiga-2026.csv",
+      "url": "https://example.com/university-alimi-2026-regional.csv",
+      "format": "csv",
+      "map": "./server/data/source-maps/university-alimi.csv.map.json",
+      "year": 2026,
+      "replace": false,
+      "priority": 2,
+      "license": "public"
+    },
+    {
+      "id": "adiga-2026-main",
+      "enabled": false,
+      "url": "https://example.com/adiga-2026-main.csv",
       "format": "csv",
       "map": "./server/data/source-maps/adiga.csv.map.json",
       "year": 2026,
-      "replace": false
+      "replace": false,
+      "priority": 3,
+      "license": "public"
+    },
+    {
+      "id": "admission-office-2026-a",
+      "enabled": false,
+      "url": "https://example.com/admission-office-2026-a.csv",
+      "format": "csv",
+      "map": "./server/data/source-maps/admission-office.generic.csv.map.json",
+      "year": 2026,
+      "replace": false,
+      "priority": 4,
+      "license": "public"
+    },
+    {
+      "id": "admission-office-2026-b",
+      "enabled": false,
+      "url": "https://example.com/admission-office-2026-b.csv",
+      "format": "csv",
+      "map": "./server/data/source-maps/admission-office.generic.csv.map.json",
+      "year": 2026,
+      "replace": false,
+      "priority": 5,
+      "license": "public"
+    },
+    {
+      "id": "admission-office-2026-json",
+      "enabled": false,
+      "url": "https://example.com/admission-office-2026.json",
+      "format": "json",
+      "map": "./server/data/source-maps/admission-office.generic.csv.map.json",
+      "year": 2026,
+      "replace": true
+    }
+  ],
+  "recommendedRunbook": [
+    "1) enabled=true 로 수집 대상만 켜기",
+    "2) npm run univ:collect",
+    "3) npm run univ:report",
+    "4) npm run univ:export",
+    "5) npm run validate:universities"
+  ],
+  "qualityTargets": {
+    "minTrustedRecords": 5000,
+    "maxRejectedRate": 0.15,
+    "minSourceCountPerTopUniversity": 2,
+    "requiredYear": 2026
+  },
+  "notes": [
+    "example.com URL은 자리표시자이므로 실제 공개 CSV/JSON URL로 교체 필요",
+    "collect는 source-maps 기준으로 필드를 표준화하여 pipeline에 적재",
+    "export-real은 trust policy를 통과한 레코드만 universities.real.json으로 반영"
+  ],
+  "owners": [
+    {
+      "role": "data-ops",
+      "contact": "replace-with-team-contact"
     }
   ]
 }
