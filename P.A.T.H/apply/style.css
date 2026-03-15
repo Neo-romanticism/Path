@@ -5,9 +5,9 @@
     --blue:    #3182F6;
     --blue-bg: #EEF5FF;
     --navy:    #0F172A;
-    --teal:    #0F766E;
-    --teal-bg: #ECFDF5;
-    --green:   #00C73C;
+    --teal:    #1F57BF;
+    --teal-bg: #E5EEFF;
+    --green:   #2C70F5;
     --yellow:  #F59E0B;
     --red:     #EF4444;
     --ink-soft:#334155;
@@ -146,7 +146,7 @@ body {
     font-size: 11px; font-weight: 700; letter-spacing: .02em;
 }
 .badge-blue  { background: var(--blue-bg); color: var(--blue); }
-.badge-green { background: #E6F9EE; color: var(--green); }
+.badge-green { background: #E5EEFF; color: var(--green); }
 .badge-yellow{ background: #FEF3C7; color: #D97706; }
 .badge-red   { background: #FEE2E2; color: var(--red); }
 .badge-gray  { background: var(--gray-100); color: var(--gray-600); }
