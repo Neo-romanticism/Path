@@ -5940,11 +5940,11 @@ body.tab-more-closing::after {
 }
 
 .page-more-wrap {
-    z-index: 52;
+    z-index: 460;
 }
 
 .page-more-menu {
-    z-index: 53;
+    z-index: 461;
 }
 
 
@@ -6163,7 +6163,7 @@ body:not(.light) .timer-display .timer-ms {
         box-shadow: 0 24px 48px rgba(13, 25, 44, 0.28);
         transform: translateY(var(--sheet-drag-offset, 0px));
         transition: transform 0.16s ease;
-        z-index: 40;
+        z-index: 461;
     }
 
     .page-more-menu.is-dragging {
