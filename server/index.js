@@ -403,10 +403,17 @@ app.use('/timer', (req, res) => {
   return res.redirect(301, `${targetPath}${query}`);
 });
 app.use('/community', express.static(path.join(projectRoot, 'P.A.T.H', 'community'), noCacheStaticOptions));
+app.use('/messages', express.static(path.join(projectRoot, 'P.A.T.H', 'messages'), noCacheStaticOptions));
 app.use('/setup-profile', express.static(path.join(projectRoot, 'P.A.T.H', 'setup-profile'), noCacheStaticOptions));
 app.use('/admin', express.static(path.join(projectRoot, 'P.A.T.H', 'admin'), noCacheStaticOptions));
 app.use('/apply', express.static(path.join(projectRoot, 'P.A.T.H', 'apply'), noCacheStaticOptions));
 app.use('/legal', express.static(path.join(projectRoot, 'P.A.T.H', 'legal'), staticOptions));
+
+app.use('/study-hub/messages', (req, res) => {
+  const queryIndex = req.url.indexOf('?');
+  const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+  return res.redirect(301, `/messages/${query}`);
+});
 
 app.get('/community/post/:id', async (req, res) => {
     const postId = parseInt(req.params.id, 10);
@@ -1116,6 +1123,10 @@ app.get('/P.A.T.H/mainPageDev/index.html', (_req, res) => res.redirect(301, '/st
 app.get('/P.A.T.H/community', (_req, res) => res.redirect(301, '/community/'));
 app.get('/P.A.T.H/community/', (_req, res) => res.redirect(301, '/community/'));
 app.get('/P.A.T.H/community/index.html', (_req, res) => res.redirect(301, '/community/'));
+
+app.get('/P.A.T.H/messages', (_req, res) => res.redirect(301, '/messages/'));
+app.get('/P.A.T.H/messages/', (_req, res) => res.redirect(301, '/messages/'));
+app.get('/P.A.T.H/messages/index.html', (_req, res) => res.redirect(301, '/messages/'));
 
 app.get('/P.A.T.H/setup-profile', (_req, res) => res.redirect(301, '/setup-profile/'));
 app.get('/P.A.T.H/setup-profile/', (_req, res) => res.redirect(301, '/setup-profile/'));
