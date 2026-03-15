@@ -110,6 +110,14 @@ function corsOriginHandler(origin, callback) {
 
 function isSecureRequest(req) {
   if (req.secure) return true;
+
+  // Cloudflare may terminate TLS and forward plain HTTP to origin.
+  // In that case, cf-visitor still carries the original client scheme.
+  const cfVisitor = req.headers['cf-visitor'];
+  if (typeof cfVisitor === 'string' && cfVisitor.includes('"scheme":"https"')) {
+    return true;
+  }
+
   const forwardedProto = req.headers['x-forwarded-proto'];
   if (!forwardedProto || typeof forwardedProto !== 'string') return false;
   return forwardedProto.split(',')[0].trim() === 'https';
