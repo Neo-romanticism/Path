@@ -3,7 +3,7 @@
  * Provides offline support and caching for the PWA
  */
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const STATIC_CACHE = `path-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `path-dynamic-${CACHE_VERSION}`;
 
@@ -83,6 +83,15 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET requests
   if (request.method !== 'GET') {
+    return;
+  }
+
+  // Navigation requests (page loads) must NEVER be intercepted by the SW.
+  // If the SW intercepts a navigation and the server returns a redirect,
+  // the fetch() inside the SW receives an opaque redirect response
+  // (because navigation requests set redirect:'manual'). Returning that
+  // opaque response to the browser causes ERR_TOO_MANY_REDIRECTS loops.
+  if (request.mode === 'navigate') {
     return;
   }
 
