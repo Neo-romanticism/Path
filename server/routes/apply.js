@@ -144,6 +144,13 @@ router.post('/scores/image', requireAuth, (req, res) => {
                 ON CONFLICT (user_id) DO UPDATE SET
                     score_image_url=$2, verified_status='pending', updated_at=NOW()
             `, [req.session.userId, imageUrl]);
+            await pool.query(
+                `UPDATE users
+                 SET score_image_url = $1,
+                     score_status = 'pending'
+                 WHERE id = $2`,
+                [imageUrl, req.session.userId]
+            );
             res.json({ ok: true, imageUrl });
         } catch (dbErr) {
             console.error('apply/scores/image 오류:', dbErr.message);

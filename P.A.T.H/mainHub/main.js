@@ -1165,8 +1165,19 @@ async function doFriendAction() {
 function openChatFromModal() {
     if (!selectedUser) return;
     closeModal('modal-user');
-    openMessengerPanel();
-    setTimeout(() => openChat(selectedUser.id, selectedUser.nickname), 200);
+
+    const targetId = Number(selectedUser.id);
+    if (!Number.isFinite(targetId) || targetId <= 0) {
+        openMessengerPanel();
+        return;
+    }
+
+    const next = `/messages/?dm=${targetId}&name=${encodeURIComponent(String(selectedUser.nickname || ''))}`;
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo(next);
+    } else {
+        window.location.href = next;
+    }
 }
 
 async function doInvade() {
@@ -2631,18 +2642,28 @@ function updateMinimap() {
 
 function openAllyChat(userId, nickname) {
     closeFriendPanel();
-    openMessengerPanel();
-    setTimeout(() => openChat(userId, nickname), 100);
+
+    const targetId = Number(userId);
+    if (!Number.isFinite(targetId) || targetId <= 0) {
+        openMessengerPanel();
+        return;
+    }
+
+    const next = `/messages/?dm=${targetId}&name=${encodeURIComponent(String(nickname || ''))}`;
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo(next);
+    } else {
+        window.location.href = next;
+    }
 }
 
 // ── 메신저 ───────────────────────────────────────────────────────────
 function openMessengerPanel() {
-    document.querySelectorAll('.glass-panel').forEach(p => p.classList.add('hidden'));
-    const panel = document.getElementById('panel-messenger');
-    panel.classList.remove('hidden');
-    document.body.classList.add('messenger-open');
-    messengerPanelOpen = true;
-    showConversationList();
+    if (typeof window.navigateTo === 'function') {
+        window.navigateTo('/messages/');
+    } else {
+        window.location.href = '/messages/';
+    }
 }
 
 function closeMessengerPanel() {

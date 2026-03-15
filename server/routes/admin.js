@@ -363,12 +363,22 @@ router.post('/community-reports/:id/review', requireAdmin, async (req, res) => {
 router.get('/pending', requireAdmin, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, nickname, real_name, university, prev_university, is_n_su,
-                    score_image_url, score_status, mock_exam_score,
-                    gpa_image_url, gpa_status, gpa_score, created_at
-             FROM users
-             WHERE score_status = 'pending' OR gpa_status = 'pending'
-             ORDER BY created_at DESC`
+            `SELECT u.id, u.nickname, u.real_name, u.university, u.prev_university, u.is_n_su,
+                    COALESCE(es.score_image_url, u.score_image_url) AS score_image_url,
+                    CASE
+                        WHEN es.verified_status = 'pending' THEN 'pending'
+                        ELSE u.score_status
+                    END AS score_status,
+                    u.mock_exam_score,
+                    u.gpa_image_url, u.gpa_status, u.gpa_score, u.created_at,
+                    es.verified_status AS apply_score_status,
+                    es.updated_at AS apply_score_updated_at
+             FROM users u
+             LEFT JOIN exam_scores es ON es.user_id = u.id
+             WHERE u.score_status = 'pending'
+                OR u.gpa_status = 'pending'
+                OR es.verified_status = 'pending'
+             ORDER BY COALESCE(es.updated_at, u.created_at) DESC`
         );
         res.json({ submissions: result.rows });
     } catch (err) {
@@ -597,17 +607,17 @@ router.post('/update-user', requireAdmin, async (req, res) => {
         let worldY = targetUser.world_y;
         let worldZ = targetUser.world_z;
 
-        if (isMainAdmin) {
-            const goldResult = parseAdminIntegerField(goldRaw, targetUser.gold, {
-                min: 0,
-                error: '골드는 0 이상의 정수여야 합니다.'
-            });
-            if (!goldResult.ok) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: goldResult.error });
-            }
-            gold = goldResult.value;
+        const goldResult = parseAdminIntegerField(goldRaw, targetUser.gold, {
+            min: 0,
+            error: '골드는 0 이상의 정수여야 합니다.'
+        });
+        if (!goldResult.ok) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: goldResult.error });
+        }
+        gold = goldResult.value;
 
+        if (isMainAdmin) {
             const diamondResult = parseAdminIntegerField(diamondRaw, targetUser.diamond, {
                 min: 0,
                 error: '다이아는 0 이상의 정수여야 합니다.'
@@ -988,6 +998,12 @@ router.post('/approve-score', requireAdmin, async (req, res) => {
             `UPDATE users SET mock_exam_score = $1, score_status = 'approved' WHERE id = $2`,
             [s, user_id]
         );
+        await client.query(
+            `UPDATE exam_scores
+             SET verified_status = 'approved', updated_at = NOW()
+             WHERE user_id = $1`,
+            [user_id]
+        );
 
         await writeAdminAuditLog(client, {
             action: 'admin.approve_score',
@@ -1027,6 +1043,14 @@ router.post('/reject-score', requireAdmin, async (req, res) => {
 
         await client.query(
             `UPDATE users SET score_status = 'rejected', score_image_url = NULL WHERE id = $1`,
+            [user_id]
+        );
+        await client.query(
+            `UPDATE exam_scores
+             SET verified_status = 'rejected',
+                 score_image_url = NULL,
+                 updated_at = NOW()
+             WHERE user_id = $1`,
             [user_id]
         );
 
