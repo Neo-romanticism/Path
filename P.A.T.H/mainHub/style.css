@@ -729,6 +729,25 @@ body.light .onboarding-bubble { background: #FFFFFF; }
     background: rgba(240,68,82,0.07);
 }
 
+/* Keep settings copy readable on dark surfaces. */
+body:not(.light) #panel-settings .settings-section-title,
+body:not(.light) #panel-settings .settings-label {
+    color: #D7E3FA;
+}
+body:not(.light) #panel-settings .settings-note,
+body:not(.light) #modal-account-security .settings-note {
+    color: #AFC1DE;
+}
+body:not(.light) #panel-settings .settings-note strong,
+body:not(.light) #modal-account-security .settings-note strong {
+    color: var(--text-primary);
+}
+body:not(.light) #panel-settings .settings-select,
+body:not(.light) #panel-settings .settings-select option {
+    color: var(--text-primary);
+    background: #1D2536;
+}
+
 /* ════════════════════════════════════
    TOGGLE SWITCH (iOS style)
 ════════════════════════════════════ */
