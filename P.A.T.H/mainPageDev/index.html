@@ -17,8 +17,6 @@
     <script>
     (function () {
         function resolveApiOrigin() {
-            var envOrigin = String(window.PATH_API_ORIGIN || '').trim();
-            if (envOrigin) return envOrigin.replace(/\/$/, '');
             return '';
         }
 
@@ -937,13 +935,6 @@ function toggleTheme() {
             s.onload = loadRoomsScript;
             s.onerror = onError || loadRoomsScript;
             document.body.appendChild(s);
-        }
-
-        if (apiOrigin) {
-            appendSocket(apiOrigin + '/socket.io/socket.io.js', function () {
-                appendSocket('/socket.io/socket.io.js');
-            });
-            return;
         }
 
         appendSocket('/socket.io/socket.io.js');

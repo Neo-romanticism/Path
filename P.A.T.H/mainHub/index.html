@@ -26,9 +26,7 @@
     <!-- socket.io client – supports split web/api origin deployments -->
     <script>
     (function () {
-        var raw = String(window.PATH_API_ORIGIN || '').trim();
-        var apiOrigin = raw ? raw.replace(/\/$/, '') : '';
-        var src = (apiOrigin ? apiOrigin : '') + '/socket.io/socket.io.js';
+        var src = '/socket.io/socket.io.js';
         var s = document.createElement('script');
         s.src = src;
         s.defer = true;

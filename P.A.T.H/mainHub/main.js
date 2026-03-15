@@ -1,8 +1,6 @@
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function resolveApiOrigin() {
-    const envOrigin = String(window.PATH_API_ORIGIN || '').trim();
-    if (envOrigin) return envOrigin.replace(/\/$/, '');
     return '';
 }
 
