@@ -598,12 +598,6 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   color: var(--msg-sub);
 }
 
-.msg-header__right {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
 .msg-header__badge {
   min-width: 20px;
   height: 20px;
