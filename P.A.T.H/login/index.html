@@ -621,9 +621,12 @@
 <body class="login-page">
 <script>
 (function(){
+    const prefersLight = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+    const fallback = prefersLight ? 'light' : 'dark';
+
     function setLightMode(isLight) {
         if (window.PathTheme && typeof window.PathTheme.setLightMode === 'function') {
-            return window.PathTheme.setLightMode(isLight, { fallback: 'light' });
+            return window.PathTheme.setLightMode(isLight, { fallback: fallback });
         }
         document.body.classList.toggle('light', isLight);
         localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
@@ -637,8 +640,8 @@
     }
 
     const initialMode = (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function')
-        ? window.PathTheme.applyStoredTheme({ fallback: 'light' })
-        : setLightMode((localStorage.getItem('path_theme') || 'light') === 'light');
+        ? window.PathTheme.applyStoredTheme({ fallback: fallback })
+        : setLightMode((localStorage.getItem('path_theme') || fallback) === 'light');
 
     document.addEventListener('DOMContentLoaded', function(){
         syncThemeButton(initialMode);

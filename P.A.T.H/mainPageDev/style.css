@@ -247,6 +247,9 @@ body.tab-calendar-active .focus-container {
 
 .page-tabs {
     margin-bottom: 20px;
+    position: relative;
+    z-index: 8;
+    overflow: visible;
 }
 
 .mode-group {
@@ -5846,6 +5849,9 @@ body.path-interface:not(.light) {
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(14px);
     border: 1px solid rgba(44, 52, 69, 0.08);
+    position: relative;
+    z-index: 32;
+    overflow: visible;
 }
 
 .page-tab-btn {
@@ -5954,6 +5960,8 @@ body.tab-more-closing::after {
     border: 1px solid rgba(44, 52, 69, 0.08);
     box-shadow: 0 16px 36px rgba(13, 25, 44, 0.08);
     backdrop-filter: blur(14px);
+    position: relative;
+    z-index: 1;
 }
 
 #tab-study {

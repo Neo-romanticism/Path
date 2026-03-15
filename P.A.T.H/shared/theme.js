@@ -4,8 +4,27 @@
     var DEFAULT_KEY = 'path_theme';
     var DEFAULT_MODE = 'light';
 
+    function getSystemMode() {
+        try {
+            if (global.matchMedia && global.matchMedia('(prefers-color-scheme: light)').matches) {
+                return 'light';
+            }
+        } catch (_) {}
+        return 'dark';
+    }
+
+    function normalizeFallback(fallback) {
+        if (fallback === 'light' || fallback === 'dark') {
+            return fallback;
+        }
+        if (fallback === 'system') {
+            return getSystemMode();
+        }
+        return DEFAULT_MODE;
+    }
+
     function normalizeMode(mode, fallback) {
-        var safeFallback = fallback === 'dark' ? 'dark' : DEFAULT_MODE;
+        var safeFallback = normalizeFallback(fallback);
         return mode === 'dark' || mode === 'light' ? mode : safeFallback;
     }
 
@@ -29,15 +48,16 @@
     function readMode(options) {
         var opts = options || {};
         var key = opts.key || DEFAULT_KEY;
-        var fallback = normalizeMode(opts.fallback, DEFAULT_MODE);
+        var fallback = normalizeFallback(opts.fallback);
         return normalizeMode(getStorageValue(key), fallback);
     }
 
     function applyMode(mode, options) {
         var opts = options || {};
-        var fallback = normalizeMode(opts.fallback, DEFAULT_MODE);
+        var fallback = normalizeFallback(opts.fallback);
         var normalizedMode = normalizeMode(mode, fallback);
         var body = opts.body || document.body;
+        var root = document.documentElement;
 
         if (body && body.classList) {
             body.classList.toggle('light', normalizedMode === 'light');
@@ -47,6 +67,16 @@
         }
         if (body && body.style) {
             body.style.colorScheme = normalizedMode;
+        }
+
+        if (root && root.classList) {
+            root.classList.toggle('light', normalizedMode === 'light');
+        }
+        if (root && typeof root.setAttribute === 'function') {
+            root.setAttribute('data-theme-mode', normalizedMode);
+        }
+        if (root && root.style) {
+            root.style.colorScheme = normalizedMode;
         }
 
         return normalizedMode;
@@ -60,7 +90,7 @@
     function setMode(mode, options) {
         var opts = options || {};
         var key = opts.key || DEFAULT_KEY;
-        var fallback = normalizeMode(opts.fallback, DEFAULT_MODE);
+        var fallback = normalizeFallback(opts.fallback);
         var normalizedMode = normalizeMode(mode, fallback);
 
         setStorageValue(key, normalizedMode);

@@ -58,12 +58,15 @@
 <body class="world-hub-page">
 <script>
 (function(){
+    const prefersLight = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+    const fallback = prefersLight ? 'light' : 'dark';
+
     if (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function') {
-        window.PathTheme.applyStoredTheme({ fallback: 'light' });
+        window.PathTheme.applyStoredTheme({ fallback: fallback });
         return;
     }
 
-    const mode = localStorage.getItem('path_theme') || 'light';
+    const mode = localStorage.getItem('path_theme') || fallback;
     document.body.classList.toggle('light', mode === 'light');
 })();
 </script>

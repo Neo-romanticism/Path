@@ -652,3 +652,275 @@ body.setup-profile-page .btn-submit:hover:not(:disabled) {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Theme safety overrides ---------- */
+
+/* Login dark mode should keep deep surfaces instead of light cards. */
+body.login-page:not(.light) {
+  background:
+    radial-gradient(circle at 10% 12%, rgba(48, 112, 242, 0.2), transparent 34%),
+    radial-gradient(circle at 88% 14%, rgba(24, 66, 140, 0.24), transparent 30%),
+    linear-gradient(180deg, #0c1424 0%, #08111f 74%, #070d19 100%);
+  color: #e7efff;
+}
+
+body.login-page:not(.light) .auth-shell .tagline {
+  color: #9ab0d6;
+}
+
+body.login-page:not(.light) .auth-shell .card {
+  border: 1px solid rgba(122, 158, 220, 0.24);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.48);
+  background: rgba(10, 21, 40, 0.86);
+}
+
+body.login-page:not(.light) .auth-shell .btn-oauth {
+  border-color: rgba(122, 158, 220, 0.26);
+  background: rgba(16, 31, 54, 0.75);
+}
+
+body.login-page:not(.light) .auth-shell input:focus,
+body.login-page:not(.light) .auth-shell select:focus {
+  border-color: #5f8ee2;
+  box-shadow: 0 0 0 4px rgba(43, 110, 242, 0.22);
+}
+
+/* Study hub dark mode: neutralize light-only redesign surfaces. */
+body.path-interface:not(.light) {
+  background:
+    radial-gradient(circle at 12% 6%, rgba(43, 110, 242, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(19, 52, 106, 0.2), transparent 34%),
+    linear-gradient(180deg, #121927 0%, #0c1320 100%);
+}
+
+body.path-interface:not(.light) .status-bar,
+body.path-interface:not(.light) .tab-panel,
+body.path-interface:not(.light) .timer-settings-panel,
+body.path-interface:not(.light) .lecture-panel {
+  border-color: rgba(130, 164, 221, 0.2);
+  background: rgba(16, 27, 46, 0.88);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.3);
+}
+
+body.path-interface:not(.light) .status-label,
+body.path-interface:not(.light) .home-panel-sub,
+body.path-interface:not(.light) .home-hub-sub,
+body.path-interface:not(.light) .home-stat-label {
+  color: #95acd2;
+}
+
+body.path-interface:not(.light) .status-val,
+body.path-interface:not(.light) .home-hero-title,
+body.path-interface:not(.light) .home-panel h3,
+body.path-interface:not(.light) .home-stat-value,
+body.path-interface:not(.light) .mode-btn.active,
+body.path-interface:not(.light) .page-tab-btn.active {
+  color: #eef3ff;
+}
+
+body.path-interface:not(.light) .home-hero-card {
+  border-color: rgba(99, 139, 214, 0.45);
+  background: linear-gradient(140deg, rgba(43, 110, 242, 0.24), rgba(47, 98, 192, 0.2) 55%, rgba(15, 37, 79, 0.4));
+}
+
+body.path-interface:not(.light) .home-hub-btn,
+body.path-interface:not(.light) .home-panel,
+body.path-interface:not(.light) .home-stat-card,
+body.path-interface:not(.light) .subject-control,
+body.path-interface:not(.light) .setup-group,
+body.path-interface:not(.light) .planner-paper {
+  border-color: rgba(117, 151, 211, 0.22);
+  background: rgba(14, 25, 43, 0.84);
+}
+
+body.path-interface:not(.light) .page-more-menu {
+  border: 1px solid rgba(112, 152, 221, 0.3);
+  background: rgba(14, 25, 42, 0.94);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.36);
+}
+
+body.path-interface:not(.light) .page-tabs,
+body.path-interface:not(.light) .mode-group {
+  border-color: rgba(111, 150, 217, 0.24);
+  background: rgba(12, 22, 38, 0.82);
+}
+
+/* World hub light mode should not inherit dark-only redesign surface. */
+body.world-hub-page.light,
+body.light:has(#ui-overlay) {
+  color: #1f2b43;
+}
+
+body.world-hub-page.light .hud-header,
+body.light:has(#ui-overlay) .hud-header {
+  background: linear-gradient(180deg, rgba(249, 252, 255, 0.95), rgba(243, 247, 255, 0.93));
+  border-bottom-color: rgba(78, 124, 211, 0.2);
+}
+
+body.world-hub-page.light .fab-rail,
+body.world-hub-page.light .glass-panel,
+body.world-hub-page.light .pill-action,
+body.light:has(#ui-overlay) .fab-rail,
+body.light:has(#ui-overlay) .glass-panel,
+body.light:has(#ui-overlay) .pill-action {
+  border-color: rgba(70, 113, 199, 0.24);
+  box-shadow: 0 14px 28px rgba(16, 44, 91, 0.14);
+}
+
+body.world-hub-page.light .pill-action,
+body.light:has(#ui-overlay) .pill-action {
+  background: linear-gradient(135deg, #2e71f5, #5d95ff);
+}
+
+body.world-hub-page.light .glass-panel,
+body.light:has(#ui-overlay) .glass-panel {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.94));
+}
+
+body.world-hub-page.light #keyboard-guide,
+body.world-hub-page.light #coordinates-display,
+body.world-hub-page.light #minimap,
+body.light:has(#ui-overlay) #keyboard-guide,
+body.light:has(#ui-overlay) #coordinates-display,
+body.light:has(#ui-overlay) #minimap {
+  border-color: rgba(72, 115, 201, 0.2) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Community dark mode: preserve high-contrast dark cards and chrome. */
+body.community-page:not(.light),
+body:not(.light):has(.c-header) {
+  background:
+    radial-gradient(circle at 8% 10%, rgba(43, 110, 242, 0.14), transparent 26%),
+    linear-gradient(180deg, #101622 0%, #0b111c 100%);
+}
+
+body.community-page:not(.light) .c-header,
+body.community-page:not(.light) .c-category-bar,
+body.community-page:not(.light) .c-sortbar,
+body:not(.light):has(.c-header) .c-header,
+body:not(.light):has(.c-header) .c-category-bar,
+body:not(.light):has(.c-header) .c-sortbar {
+  background: rgba(13, 22, 38, 0.86);
+  border-bottom-color: rgba(106, 143, 211, 0.24);
+}
+
+body.community-page:not(.light) .c-header__title,
+body.community-page:not(.light) .c-hot-section__title,
+body.community-page:not(.light) .post-row__title,
+body:not(.light):has(.c-header) .c-header__title,
+body:not(.light):has(.c-header) .c-hot-section__title,
+body:not(.light):has(.c-header) .post-row__title {
+  color: #e9efff;
+}
+
+body.community-page:not(.light) .c-cat-chip.is-active,
+body.community-page:not(.light) .c-sort-chip.is-active,
+body:not(.light):has(.c-header) .c-cat-chip.is-active,
+body:not(.light):has(.c-header) .c-sort-chip.is-active {
+  background: #2a67e1;
+  color: #f9fbff;
+  border-color: #2a67e1;
+}
+
+body.community-page:not(.light) .post-row,
+body.community-page:not(.light) .c-hot-list li,
+body.community-page:not(.light) .c-search-inner,
+body.community-page:not(.light) .c-ad-container,
+body:not(.light):has(.c-header) .post-row,
+body:not(.light):has(.c-header) .c-hot-list li,
+body:not(.light):has(.c-header) .c-search-inner,
+body:not(.light):has(.c-header) .c-ad-container {
+  border-color: rgba(110, 147, 212, 0.22);
+  background: rgba(13, 24, 43, 0.84);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+body.community-page:not(.light) .c-hot-section,
+body:not(.light):has(.c-header) .c-hot-section {
+  border: 1px solid rgba(112, 149, 213, 0.25);
+  background: rgba(13, 24, 42, 0.78);
+}
+
+/* Apply dark mode: tune tokens and key panels for legibility. */
+body.apply-page:not(.light),
+body:not(.light):has(.app-header) {
+  --blue-bg: #14294a;
+  --teal-bg: #102942;
+  --gray-50: #0f1724;
+  --gray-100: #152133;
+  --gray-200: #27374f;
+  --gray-400: #8ba2c3;
+  --gray-600: #afc1da;
+  --gray-900: #edf3ff;
+
+  background:
+    radial-gradient(circle at 86% 8%, rgba(43, 110, 242, 0.16), transparent 32%),
+    linear-gradient(180deg, #0f1725 0%, #0a111d 100%);
+  color: var(--gray-900);
+}
+
+body.apply-page:not(.light) .app-header,
+body.apply-page:not(.light) .tab-nav,
+body:not(.light):has(.app-header) .app-header,
+body:not(.light):has(.app-header) .tab-nav {
+  background: rgba(10, 20, 35, 0.88);
+  border-bottom-color: rgba(109, 146, 209, 0.26);
+}
+
+body.apply-page:not(.light) .header-subtitle,
+body:not(.light):has(.app-header) .header-subtitle {
+  color: #9ab1d4;
+}
+
+body.apply-page:not(.light) .header-tickets,
+body:not(.light):has(.app-header) .header-tickets {
+  color: #d8e7ff;
+  background: rgba(40, 83, 158, 0.34);
+  border-color: rgba(110, 153, 225, 0.4);
+}
+
+body.apply-page:not(.light) .card,
+body.apply-page:not(.light) .group-card,
+body.apply-page:not(.light) .analysis-board,
+body.apply-page:not(.light) .score-dashboard,
+body.apply-page:not(.light) .modal-sheet,
+body:not(.light):has(.app-header) .card,
+body:not(.light):has(.app-header) .group-card,
+body:not(.light):has(.app-header) .analysis-board,
+body:not(.light):has(.app-header) .score-dashboard,
+body:not(.light):has(.app-header) .modal-sheet {
+  border: 1px solid rgba(110, 147, 212, 0.24);
+  background: rgba(12, 24, 42, 0.86);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.33);
+}
+
+body.apply-page:not(.light) .score-dashboard,
+body:not(.light):has(.app-header) .score-dashboard {
+  background: linear-gradient(145deg, rgba(22, 39, 67, 0.88), rgba(11, 23, 42, 0.94));
+}
+
+body.apply-page:not(.light) .field input,
+body.apply-page:not(.light) .field select,
+body:not(.light):has(.app-header) .field input,
+body:not(.light):has(.app-header) .field select {
+  border-color: rgba(114, 151, 214, 0.28);
+  background: rgba(15, 29, 49, 0.88);
+  color: #edf3ff;
+}
+
+body.apply-page:not(.light) .field input:focus,
+body.apply-page:not(.light) .field select:focus,
+body.apply-page:not(.light) .modal-search-wrap input:focus,
+body:not(.light):has(.app-header) .field input:focus,
+body:not(.light):has(.app-header) .field select:focus,
+body:not(.light):has(.app-header) .modal-search-wrap input:focus {
+  border-color: #7fa7ef;
+  box-shadow: 0 0 0 3px rgba(43, 110, 242, 0.26);
+}
+
+body.apply-page:not(.light) .badge-blue,
+body:not(.light):has(.app-header) .badge-blue {
+  background: rgba(52, 98, 182, 0.36);
+  color: #dbe9ff;
+}

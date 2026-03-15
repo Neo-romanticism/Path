@@ -44,6 +44,12 @@ const BALLOON_AURAS = {
     'royal': { id: 'royal', name: '로열 크라운', price: 9000, desc: '보랏빛 왕관형 오오라' }
 };
 
+function getSystemFallbackTheme() {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+        ? 'light'
+        : 'dark';
+}
+
 function getBalloonSrc(skinId, isLight) {
     const skin = BALLOON_SKINS[skinId] || BALLOON_SKINS['default'];
     return isLight ? skin.lightImg : skin.darkImg;
@@ -81,7 +87,7 @@ function toggleTheme(forceLight) {
         ? forceLight
         : !document.body.classList.contains('light');
     if (window.PathTheme && typeof window.PathTheme.setLightMode === 'function') {
-        window.PathTheme.setLightMode(isLight, { fallback: 'light' });
+        window.PathTheme.setLightMode(isLight, { fallback: getSystemFallbackTheme() });
     } else {
         document.body.classList.toggle('light', isLight);
         localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
