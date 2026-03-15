@@ -355,6 +355,11 @@ app.use('/assets', express.static(path.join(projectRoot, 'P.A.T.H', 'assets'), s
 app.use('/shared', express.static(path.join(projectRoot, 'P.A.T.H', 'shared'), staticOptions));
 app.use('/login', express.static(path.join(projectRoot, 'P.A.T.H', 'login'), noCacheStaticOptions));
 app.use('/study-hub/assets', express.static(path.join(projectRoot, 'P.A.T.H', 'mainHub', 'assets'), staticOptions));
+app.get('/study-hub', (req, res) => {
+  const queryIndex = req.url.indexOf('?');
+  const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+  return res.redirect(301, `/study-hub/${query}`);
+});
 app.use('/study-hub', express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'), noCacheStaticOptions));
 app.use('/mainHub', (req, res) => {
   const queryIndex = req.url.indexOf('?');
