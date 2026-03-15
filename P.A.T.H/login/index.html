@@ -409,6 +409,22 @@
             color: #0f9d58;
         }
 
+        .verify-box {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-sm);
+            background: var(--surface-muted);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .verify-title {
+            font-size: 12px;
+            color: var(--text-sub);
+            font-weight: 700;
+        }
+
         .error-msg {
             min-height: 18px;
             color: var(--danger);
@@ -691,6 +707,25 @@ function toggleTheme() {
         </form>
 
         <form class="form" id="form-register">
+            <div class="verify-box" id="register-verify-box">
+                <div class="verify-title">회원가입 전 휴대폰 인증이 필요합니다.</div>
+                <div class="field">
+                    <label for="reg-phone">전화번호</label>
+                    <input type="text" id="reg-phone" placeholder="01012345678" inputmode="numeric" autocomplete="tel">
+                </div>
+                <div class="recovery-actions" style="margin-top:0;">
+                    <button type="button" id="btn-register-send-code">인증번호 받기</button>
+                </div>
+                <div class="field" style="margin-top:0;">
+                    <label for="reg-phone-code">인증번호 6자리</label>
+                    <input type="text" id="reg-phone-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+                </div>
+                <div class="recovery-actions" style="margin-top:0;">
+                    <button type="button" class="primary" id="btn-register-verify-code">인증 완료</button>
+                </div>
+                <div id="reg-phone-msg" class="recovery-msg"></div>
+            </div>
+
             <div class="field">
                 <label>실명</label>
                 <input type="text" id="reg-name" placeholder="실명 입력" autocomplete="name">
@@ -782,6 +817,8 @@ function toggleTheme() {
     </main>
 
     <script>
+        let registerPhoneVerified = false;
+
         (async () => {
             try {
                 const r = await fetch('/api/auth/me', { credentials: 'include' });
@@ -794,6 +831,9 @@ function toggleTheme() {
             document.getElementById('tab-register').classList.toggle('active', tab === 'register');
             document.getElementById('form-login').classList.toggle('active', tab === 'login');
             document.getElementById('form-register').classList.toggle('active', tab === 'register');
+            if (tab === 'register') {
+                refreshRegisterVerificationStatus();
+            }
         }
 
         function toggleNsu() {
@@ -812,7 +852,88 @@ function toggleTheme() {
         function checkSubmit() {
             const privacyChecked = document.getElementById('reg-privacy').checked;
             const eulaChecked = document.getElementById('reg-eula').checked;
-            document.getElementById('reg-submit').disabled = !(privacyChecked && eulaChecked);
+            document.getElementById('reg-submit').disabled = !(privacyChecked && eulaChecked && registerPhoneVerified);
+        }
+
+        function setRegisterPhoneMessage(message, ok) {
+            const el = document.getElementById('reg-phone-msg');
+            if (!el) return;
+            el.textContent = message || '';
+            el.classList.toggle('ok', !!ok);
+        }
+
+        function resetRegisterPhoneVerification(reasonMessage) {
+            registerPhoneVerified = false;
+            if (reasonMessage) setRegisterPhoneMessage(reasonMessage, false);
+            checkSubmit();
+        }
+
+        async function refreshRegisterVerificationStatus() {
+            try {
+                const r = await fetch('/api/auth/verification-status', { credentials: 'include' });
+                const data = await r.json();
+                registerPhoneVerified = !!(r.ok && data.verified);
+                if (registerPhoneVerified) {
+                    setRegisterPhoneMessage('휴대폰 인증이 완료되었습니다.', true);
+                }
+                checkSubmit();
+            } catch (_) {
+                registerPhoneVerified = false;
+                checkSubmit();
+            }
+        }
+
+        async function sendRegisterVerificationCode() {
+            setRegisterPhoneMessage('', false);
+            const phone = document.getElementById('reg-phone').value.trim();
+            if (!phone) {
+                setRegisterPhoneMessage('전화번호를 입력해주세요.', false);
+                return;
+            }
+            try {
+                const r = await fetch('/api/auth/send-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone })
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    setRegisterPhoneMessage(data.error || '인증번호 발송에 실패했습니다.', false);
+                    return;
+                }
+                resetRegisterPhoneVerification(data.message || '인증번호가 발송되었습니다.');
+            } catch (_) {
+                setRegisterPhoneMessage('서버 연결 오류', false);
+            }
+        }
+
+        async function verifyRegisterPhoneCode() {
+            setRegisterPhoneMessage('', false);
+            const phone = document.getElementById('reg-phone').value.trim();
+            const code = document.getElementById('reg-phone-code').value.trim();
+            if (!phone || !code) {
+                setRegisterPhoneMessage('전화번호와 인증번호를 입력해주세요.', false);
+                return;
+            }
+            try {
+                const r = await fetch('/api/auth/verify-phone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, code })
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    setRegisterPhoneMessage(data.error || '전화번호 인증에 실패했습니다.', false);
+                    return;
+                }
+                registerPhoneVerified = true;
+                setRegisterPhoneMessage(data.message || '휴대폰 인증이 완료되었습니다.', true);
+                checkSubmit();
+            } catch (_) {
+                setRegisterPhoneMessage('서버 연결 오류', false);
+            }
         }
 
         const COMMON_PASSWORDS = new Set([
@@ -1095,6 +1216,19 @@ function toggleTheme() {
             if (privacyCheckbox) privacyCheckbox.addEventListener('change', checkSubmit);
             if (eulaCheckbox) eulaCheckbox.addEventListener('change', checkSubmit);
 
+            const regPhoneInput = document.getElementById('reg-phone');
+            if (regPhoneInput) {
+                regPhoneInput.addEventListener('input', function () {
+                    resetRegisterPhoneVerification('전화번호가 변경되었습니다. 다시 인증해주세요.');
+                });
+            }
+
+            const regSendBtn = document.getElementById('btn-register-send-code');
+            if (regSendBtn) regSendBtn.addEventListener('click', sendRegisterVerificationCode);
+
+            const regVerifyBtn = document.getElementById('btn-register-verify-code');
+            if (regVerifyBtn) regVerifyBtn.addEventListener('click', verifyRegisterPhoneCode);
+
             const privacyToggle = document.getElementById('privacy-toggle');
             if (privacyToggle) privacyToggle.addEventListener('click', togglePrivacy);
             const eulaToggle = document.getElementById('eula-toggle');
@@ -1173,6 +1307,7 @@ function toggleTheme() {
             const privacy_agreed  = document.getElementById('reg-privacy').checked;
             const eula_agreed = document.getElementById('reg-eula').checked;
 
+            if (!registerPhoneVerified) { errEl.textContent = '휴대폰 인증을 완료해주세요.'; return; }
             if (!real_name) { errEl.textContent = '실명을 입력해주세요.'; return; }
             if (!privacy_agreed) { errEl.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
             if (!eula_agreed) { errEl.textContent = '이용약관에 동의해주세요.'; return; }
@@ -1193,6 +1328,8 @@ function toggleTheme() {
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 
+        refreshRegisterVerificationStatus();
+
         // Keep handlers reachable from global scope across WebView/browser differences.
         window.toggleTheme = toggleTheme;
         window.switchTab = switchTab;
@@ -1202,6 +1339,8 @@ function toggleTheme() {
         window.checkSubmit = checkSubmit;
         window.doLogin = doLogin;
         window.doRegister = doRegister;
+        window.sendRegisterVerificationCode = sendRegisterVerificationCode;
+        window.verifyRegisterPhoneCode = verifyRegisterPhoneCode;
         window.togglePasswordRecoveryPanel = togglePasswordRecoveryPanel;
         window.sendRecoveryCode = sendRecoveryCode;
         window.resetPasswordWithRecoveryCode = resetPasswordWithRecoveryCode;

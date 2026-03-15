@@ -98,6 +98,60 @@
             border-bottom: 1px solid #1a1a1a;
         }
         .univ-item:hover { background: #1a1a1a; color: var(--gold); }
+
+        .verify-box {
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 12px;
+            background: rgba(255,255,255,0.02);
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .verify-title {
+            font-size: 11px;
+            color: #aaa;
+            letter-spacing: 1px;
+        }
+
+        .verify-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .verify-row input[type="text"] {
+            flex: 1;
+        }
+
+        .verify-btn {
+            min-width: 110px;
+            border: 1px solid #333;
+            background: #131313;
+            color: #d7d7d7;
+            border-radius: 8px;
+            font-size: 12px;
+            padding: 0 10px;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .verify-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+
+        .verify-msg {
+            min-height: 16px;
+            font-size: 11px;
+            color: var(--accent);
+            letter-spacing: .5px;
+        }
+
+        .verify-msg.ok {
+            color: #32b36b;
+        }
     </style>
 </head>
 <body class="setup-profile-page">
@@ -120,6 +174,19 @@
         </div>
 
         <form class="form" id="profile-form" onsubmit="submitProfile(event)">
+            <div class="verify-box">
+                <div class="verify-title">소셜 회원가입 완료 전 휴대폰 인증이 필요합니다.</div>
+                <div class="verify-row">
+                    <input type="text" id="phone" placeholder="01012345678" inputmode="numeric" autocomplete="tel">
+                    <button type="button" class="verify-btn" id="btn-send-code" onclick="sendPhoneCode()">인증번호 받기</button>
+                </div>
+                <div class="verify-row">
+                    <input type="text" id="phone-code" placeholder="인증번호 6자리" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+                    <button type="button" class="verify-btn" id="btn-verify-code" onclick="verifyPhoneCode()">인증 완료</button>
+                </div>
+                <div class="verify-msg" id="verify-msg"></div>
+            </div>
+
             <div class="field">
                 <label>닉네임 *</label>
                 <input type="text" id="nickname" placeholder="2~20자" autocomplete="off" required>
@@ -151,6 +218,19 @@
 
     <script>
         let tempUserId = null;
+        let phoneVerified = false;
+
+        function setVerifyMessage(message, ok) {
+            const el = document.getElementById('verify-msg');
+            if (!el) return;
+            el.textContent = message || '';
+            el.classList.toggle('ok', !!ok);
+        }
+
+        function resetPhoneVerification(message) {
+            phoneVerified = false;
+            if (message) setVerifyMessage(message, false);
+        }
 
         async function checkSession() {
             try {
@@ -176,9 +256,79 @@
                 }
 
                 tempUserId = user.id;
+
+                // 이미 인증된 계정이면 전화 인증 단계 생략
+                if (user.phone_verified) {
+                    phoneVerified = true;
+                    setVerifyMessage('이미 휴대폰 인증이 완료된 계정입니다.', true);
+                    const phoneInput = document.getElementById('phone');
+                    const codeInput = document.getElementById('phone-code');
+                    const sendBtn = document.getElementById('btn-send-code');
+                    const verifyBtn = document.getElementById('btn-verify-code');
+                    if (phoneInput) phoneInput.disabled = true;
+                    if (codeInput) codeInput.disabled = true;
+                    if (sendBtn) sendBtn.disabled = true;
+                    if (verifyBtn) verifyBtn.disabled = true;
+                }
             } catch (e) {
                 console.error('session check error:', e);
                 navigateTo('/login/');
+            }
+        }
+
+        async function sendPhoneCode() {
+            if (phoneVerified) return;
+            setVerifyMessage('', false);
+            const phone = document.getElementById('phone').value.trim();
+            if (!phone) {
+                setVerifyMessage('전화번호를 입력해주세요.', false);
+                return;
+            }
+
+            try {
+                const r = await fetch('/api/auth/send-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone })
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    setVerifyMessage(data.error || '인증번호 발송에 실패했습니다.', false);
+                    return;
+                }
+                resetPhoneVerification(data.message || '인증번호가 발송되었습니다.');
+            } catch (e) {
+                setVerifyMessage('인증번호 발송 중 오류가 발생했습니다.', false);
+            }
+        }
+
+        async function verifyPhoneCode() {
+            if (phoneVerified) return;
+            setVerifyMessage('', false);
+            const phone = document.getElementById('phone').value.trim();
+            const code = document.getElementById('phone-code').value.trim();
+            if (!phone || !code) {
+                setVerifyMessage('전화번호와 인증번호를 모두 입력해주세요.', false);
+                return;
+            }
+
+            try {
+                const r = await fetch('/api/auth/verify-phone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, code })
+                });
+                const data = await r.json();
+                if (!r.ok) {
+                    setVerifyMessage(data.error || '전화번호 인증에 실패했습니다.', false);
+                    return;
+                }
+                phoneVerified = true;
+                setVerifyMessage(data.message || '휴대폰 인증이 완료되었습니다.', true);
+            } catch (e) {
+                setVerifyMessage('전화번호 인증 중 오류가 발생했습니다.', false);
             }
         }
 
@@ -258,6 +408,11 @@
             const is_n_su = document.getElementById('is-nsu').checked;
             const prev_university = is_n_su ? document.getElementById('prev-university').value.trim() : '';
 
+            if (!phoneVerified) {
+                errEl.textContent = '휴대폰 인증을 완료해야 회원가입을 마칠 수 있습니다.';
+                return;
+            }
+
             if (!nickname || nickname.length < 2 || nickname.length > 20) {
                 errEl.textContent = '닉네임은 2~20자여야 합니다.';
                 return;
@@ -294,6 +449,11 @@
                 errEl.textContent = '서버 연결 오류가 발생했습니다.';
             }
         }
+
+        document.getElementById('phone')?.addEventListener('input', () => {
+            if (phoneVerified) return;
+            resetPhoneVerification('전화번호가 변경되었습니다. 다시 인증해주세요.');
+        });
 
         checkSession();
     </script>

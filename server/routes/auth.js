@@ -450,27 +450,25 @@ router.post('/register', registerLimiter, async (req, res) => {
         const existing = await pool.query('SELECT id FROM users WHERE nickname = $1', [nickname]);
         if (existing.rows.length > 0) return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
 
-        // 휴대폰 인증 여부 확인 (선택사항)
-        let phoneHash = null;
-        let phoneVerified = false;
-        
-        if (req.session.verifiedPhone) {
-            // 인증 유효시간 확인 (10분)
-            const verificationAge = Date.now() - (req.session.verifiedAt || 0);
-            if (verificationAge <= 10 * 60 * 1000) {
-                // 같은 전화번호로 가입된 계정 수 확인
-                const phoneCheck = await pool.query(
-                    'SELECT COUNT(*) as count FROM users WHERE phone_hash = $1 AND phone_verified = true',
-                    [req.session.verifiedPhone]
-                );
-                const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
-                if (parseInt(phoneCheck.rows[0].count) >= accountLimit) {
-                    return res.status(409).json({ error: '이 전화번호로 더 이상 계정을 생성할 수 없습니다.' });
-                }
-                
-                phoneHash = req.session.verifiedPhone;
-                phoneVerified = true;
-            }
+        // 휴대폰 인증 여부 확인 (필수)
+        const verificationAge = Date.now() - (req.session.verifiedAt || 0);
+        if (!req.session.verifiedPhone || !req.session.verifiedAt || verificationAge > 10 * 60 * 1000) {
+            req.session.verifiedPhone = null;
+            req.session.verifiedAt = null;
+            return res.status(400).json({ error: '회원가입 전에 휴대폰 인증을 완료해주세요.' });
+        }
+
+        const phoneHash = req.session.verifiedPhone;
+        const phoneVerified = true;
+
+        // 같은 전화번호로 가입된 계정 수 확인
+        const phoneCheck = await pool.query(
+            'SELECT COUNT(*) as count FROM users WHERE phone_hash = $1 AND phone_verified = true',
+            [phoneHash]
+        );
+        const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
+        if (parseInt(phoneCheck.rows[0].count) >= accountLimit) {
+            return res.status(409).json({ error: '이 전화번호로 더 이상 계정을 생성할 수 없습니다.' });
         }
 
         const hash = await bcrypt.hash(password, 10);
@@ -1204,6 +1202,38 @@ router.post('/update-profile', requireAuth, async (req, res) => {
     }
 
     try {
+        // 휴대폰 인증 여부 확인 (필수)
+        const verificationAge = Date.now() - (req.session.verifiedAt || 0);
+        const hasFreshSessionVerification = !!(req.session.verifiedPhone && req.session.verifiedAt && verificationAge <= 10 * 60 * 1000);
+
+        const currentUserRes = await pool.query(
+            'SELECT phone_verified, phone_hash FROM users WHERE id = $1',
+            [req.session.userId]
+        );
+        if (!currentUserRes.rows.length) {
+            return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
+        }
+
+        const currentUser = currentUserRes.rows[0];
+        if (!currentUser.phone_verified && !hasFreshSessionVerification) {
+            req.session.verifiedPhone = null;
+            req.session.verifiedAt = null;
+            return res.status(400).json({ error: '휴대폰 인증을 완료한 뒤 프로필을 저장해주세요.' });
+        }
+
+        let verifiedPhoneHash = currentUser.phone_hash || null;
+        if (!currentUser.phone_verified && hasFreshSessionVerification) {
+            verifiedPhoneHash = req.session.verifiedPhone;
+            const phoneCheck = await pool.query(
+                'SELECT COUNT(*) as count FROM users WHERE phone_hash = $1 AND phone_verified = true',
+                [verifiedPhoneHash]
+            );
+            const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
+            if (parseInt(phoneCheck.rows[0].count) >= accountLimit) {
+                return res.status(409).json({ error: '이 전화번호로 더 이상 계정을 생성할 수 없습니다.' });
+            }
+        }
+
         // 닉네임 중복 체크
         const existing = await pool.query(
             'SELECT id FROM users WHERE nickname = $1 AND id != $2',
@@ -1217,10 +1247,19 @@ router.post('/update-profile', requireAuth, async (req, res) => {
         // 프로필 업데이트
         await pool.query(
             `UPDATE users 
-             SET nickname = $1, university = $2, is_n_su = $3, prev_university = $4
-             WHERE id = $5`,
-            [nickValidation.value, university, !!is_n_su, prev_university || null, req.session.userId]
+             SET nickname = $1,
+                 university = $2,
+                 is_n_su = $3,
+                 prev_university = $4,
+                 phone_hash = COALESCE(phone_hash, $5),
+                 phone_verified = true,
+                 phone_verified_at = COALESCE(phone_verified_at, NOW())
+             WHERE id = $6`,
+            [nickValidation.value, university, !!is_n_su, prev_university || null, verifiedPhoneHash, req.session.userId]
         );
+
+        req.session.verifiedPhone = null;
+        req.session.verifiedAt = null;
 
         res.json({ ok: true });
     } catch (err) {
