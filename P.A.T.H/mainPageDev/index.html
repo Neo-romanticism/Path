@@ -89,7 +89,7 @@
             <button id="btn-back-mainhub" class="exit-timer-btn" onclick="navigateTo('/study-hub/')">←</button>
             <img class="status-logo" src="/icons/icon-192.png" alt="P.A.T.H 로고">
             <span class="status-label">학습자</span>
-            <span class="status-val tier-text">CHALLENGER</span>
+            <span class="status-val tier-text">-</span>
             <span class="status-val sub" id="rank-pct">0.08%</span>
         </div>
         <div class="status-right">
@@ -196,7 +196,6 @@
                     <button type="button" class="btn-primary home-start-btn" id="home-start-btn">바로 학습 시작</button>
                     <button type="button" class="home-refresh-btn" id="home-refresh-btn">새로고침</button>
                 </div>
-                <div id="home-skin-spot" class="home-skin-spot" aria-live="polite"></div>
             </div>
 
             <div class="home-stat-row">
@@ -225,7 +224,7 @@
                     <strong>상점 · 성장</strong>
                     <span class="home-hub-sub">세금 수령, 티켓/스킨 관리</span>
                 </button>
-                <button type="button" id="home-quick-social" class="home-hub-btn">
+                <button type="button" id="home-quick-social" class="home-hub-btn" onclick="event.preventDefault();event.stopImmediatePropagation();if(typeof navigateTo==='function'){navigateTo('/messages/')}else{window.location.href='/messages/';}return false;">
                     <span class="home-hub-kicker">소셜</span>
                     <strong>친구 · 메시지</strong>
                     <span class="home-hub-sub">동맹 요청, DM, 그룹 대화</span>
@@ -953,5 +952,6 @@
         appendSocket('/socket.io/socket.io.js');
     })();
     </script>
+    <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
 </body>
 </html>

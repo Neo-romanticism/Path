@@ -1179,7 +1179,7 @@ const WorldScene = {
                 squashZ: 0.62
             });
 
-            const skinId = user.balloon_skin || 'default';
+            const skinId = 'default';
 
             let b = this.balloons.get(user.id);
             if (!b) {
@@ -1235,7 +1235,7 @@ const WorldScene = {
         });
 
         nearbyUsers.forEach((user, i) => {
-            const skinId = user.balloon_skin || 'default';
+            const skinId = 'default';
             const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, nearbyUsers.length, {
                 rowOffsetY: 110,
                 radiusStep: 82,
@@ -1331,8 +1331,7 @@ const WorldScene = {
                 squashZ: 0.58
             });
 
-            const skinId = user.balloon_skin || 'default';
-            const auraId = user.balloon_aura || 'none';
+            const skinId = 'default';
 
             if (this.balloons.has(user.id)) {
                 const b = this.balloons.get(user.id);
@@ -1348,7 +1347,6 @@ const WorldScene = {
                     b.group.userData.floatSpeed = 0.75 + h2 * 0.45;
                     b.group.userData.floatPhase = h3 * Math.PI * 2;
                     this._updateBalloonColor(b.group, skinId);
-                    this._updateBalloonAura(b.group, auraId, false);
                     b.group.visible = true;
                 }
             } else {

@@ -236,57 +236,57 @@ router.post('/buy-ticket', async (req, res) => {
     }
 });
 
-const BALLOON_SKINS = {
-    'default': { id: 'default', name: '기본 열기구', price: 0, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '처음부터 제공되는 기본 스킨' },
-    'aurora': { id: 'aurora', name: '오로라 웨이브', price: 2200, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '오로라처럼 흐르는 네온 그라데이션' },
-    'magma': { id: 'magma', name: '마그마 코어', price: 3600, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '용암 결이 살아있는 고열 스킨' },
-    'cobalt': { id: 'cobalt', name: '코발트 러너', price: 4800, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '짙은 청색과 은색 라인의 레이싱 무드' },
-    'ivory': { id: 'ivory', name: '아이보리 클래식', price: 6200, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '크림 화이트와 골드 트림의 정석 클래식' },
-    'mint': { id: 'mint', name: '민트 브리즈', price: 7600, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '민트와 크림이 섞인 산뜻한 프리미엄 톤' },
-    'midnight': { id: 'midnight', name: '미드나잇 노바', price: 9100, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '별빛이 스며드는 딥 네이비 테마' },
-    'royale': { id: 'royale', name: '로열 벨벳', price: 10800, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '버건디와 샴페인 골드의 왕실 컬러' },
-    'prism': { id: 'prism', name: '프리즘 스펙트럼', price: 12600, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '각도마다 달라 보이는 스펙트럼 글로우' },
-    'obsidian': { id: 'obsidian', name: '옵시디언 엣지', price: 14800, darkImg: 'balloon_dark.png', lightImg: 'balloon_light.png', desc: '블랙 글래스와 전기 민트 엣지 하이라이트' }
-};
-
-const BALLOON_AURAS = {
-    'none': { id: 'none', name: '없음', price: 0, desc: '기본 상태' },
-    'sun': { id: 'sun', name: '태양 후광', price: 2500, priceDiamond: 0, desc: '따뜻한 황금빛 후광' },
-    'frost': { id: 'frost', name: '서리 오오라', price: 4200, priceDiamond: 16, desc: '차가운 푸른빛 기류' },
-    'forest': { id: 'forest', name: '숲의 숨결', price: 5200, desc: '초록빛 생명 에너지' },
-    'cosmic': { id: 'cosmic', name: '코스믹 링', price: 6800, priceDiamond: 24, desc: '우주 먼지 같은 잔광' },
-    'royal': { id: 'royal', name: '로열 크라운', price: 9000, priceDiamond: 32, desc: '보랏빛 왕관형 오오라' }
-};
-
-router.get('/skins', async (req, res) => {
+router.get('/diamond/packages', (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+    res.json({
+        packages: DIAMOND_PACKAGES,
+        note: '다이아는 유료 결제로만 충전할 수 있습니다.'
+    });
+});
+
+router.post('/diamond/web/prepare', async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+
+    const packageId = String(req.body?.package_id || '');
+    const pkg = findDiamondPackage(packageId);
+    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+
+    const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
+    if (!tossClientKey) {
+        return res.status(503).json({ error: '웹 결제 키 설정이 누락되었습니다.' });
+    }
+
+    const orderId = makeDiamondOrderId(req.session.userId);
     try {
-        const userRes = await pool.query('SELECT balloon_skin, owned_skins FROM users WHERE id = $1', [req.session.userId]);
-        const user = userRes.rows[0];
-        const owned = (user.owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
-        res.json({ skins: Object.values(BALLOON_SKINS), owned, equipped: user.balloon_skin || 'default' });
+        await pool.query(
+            `INSERT INTO diamond_payment_orders (order_id, user_id, package_id, provider, amount_krw, status)
+             VALUES ($1, $2, $3, 'toss', $4, 'pending')`,
+            [orderId, req.session.userId, pkg.id, pkg.priceKrw]
+        );
+        return res.json({
+            ok: true,
+            provider: 'toss',
+            clientKey: tossClientKey,
+            orderId,
+            amount: pkg.priceKrw,
+            orderName: `${pkg.diamonds} 다이아`
+        });
     } catch (err) {
-        res.status(500).json({ error: '서버 오류' });
+        console.error('diamond/web/prepare error:', err);
+        return res.status(500).json({ error: '서버 오류' });
     }
 });
 
-router.get('/auras', async (req, res) => {
+router.post('/diamond/web/confirm', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    try {
-        const userRes = await pool.query('SELECT balloon_aura, owned_auras FROM users WHERE id = $1', [req.session.userId]);
-        const user = userRes.rows[0];
-        const owned = (user.owned_auras || 'none').split(',').map(s => s.trim()).filter(Boolean);
-        res.json({ auras: Object.values(BALLOON_AURAS), owned, equipped: user.balloon_aura || 'none' });
-    } catch (err) {
-        res.status(500).json({ error: '서버 오류' });
-    }
-});
 
-router.post('/buy-skin', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { skin_id } = req.body;
-    const skin = BALLOON_SKINS[skin_id];
-    router.get('/diamond/packages', (req, res) => {
+    const paymentKey = String(req.body?.paymentKey || '').trim();
+    const orderId = String(req.body?.orderId || '').trim();
+    const amount = parseInt(req.body?.amount, 10);
+
+    if (!paymentKey || !orderId || !Number.isInteger(amount)) {
+        return res.status(400).json({ error: '결제 확인 정보가 올바르지 않습니다.' });
+    }
 
     const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
     if (!tossSecret) {

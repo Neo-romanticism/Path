@@ -82,7 +82,7 @@ router.get('/me', async (req, res) => {
                 [req.session.userId]
             ),
             pool.query(
-                `SELECT nickname, active_title, streak_count, streak_last_date
+                `SELECT nickname, tier, active_title, streak_count, streak_last_date
                  FROM users WHERE id = $1`,
                 [req.session.userId]
             )
@@ -101,6 +101,7 @@ router.get('/me', async (req, res) => {
             total: totalNum,
             pct,
             total_sec,
+            tier: me.tier || null,
             active_title: me.active_title || null,
             active_streak: getActiveStreakFromUser(me),
             display_nickname: formatDisplayName(me.nickname, me.active_title)

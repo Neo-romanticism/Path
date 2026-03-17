@@ -163,13 +163,6 @@ async function initSchema() {
         `);
 
         await client.query(`
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS balloon_skin VARCHAR(50) DEFAULT 'default';
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_skins TEXT DEFAULT 'default';
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS balloon_aura VARCHAR(50) DEFAULT 'none';
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_auras TEXT DEFAULT 'none';
-        `);
-
-        await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_theme VARCHAR(30) DEFAULT 'default';
             ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_themes TEXT DEFAULT 'default';
         `);

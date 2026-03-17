@@ -108,9 +108,7 @@
             <button id="tutorial-btn-rank" class="fab-btn" onclick="togglePanel('panel-rank')" title="RANK" aria-label="랭킹">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
             </button>
-            <button class="fab-btn" onclick="togglePanel('panel-shop')" title="SHOP" aria-label="상점">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
-            </button>
+
             <button class="fab-btn" onclick="toggleApplyPanel()" title="모의지원" aria-label="모의지원">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </button>
@@ -209,16 +207,7 @@
         <div class="panel-content" id="notif-list">NO NEW LOGS</div>
     </div>
 
-    <div class="glass-panel hidden" id="panel-shop" style="width: 400px;">
-        <div class="panel-head">
-            <h3>SUPPLY DEPOT</h3>
-            <div class="tabs">
-                <button class="tab active" onclick="switchShopTab('item', this)">ITEMS</button>
-            </div>
-            <button class="close-btn" onclick="togglePanel('panel-shop')">×</button>
-        </div>
-        <div class="panel-content" id="shop-content"></div>
-    </div>
+
 
     <div class="glass-panel hidden" id="panel-apply" style="width: 360px;">
         <div class="panel-head">
@@ -398,7 +387,7 @@
             <div id="user-modal-body" class="modal-content"></div>
             <div class="modal-foot">
                 <button class="shop-btn" id="btn-friend-action" onclick="doFriendAction()" style="padding:8px 16px;font-size:11px;display:none;">동맹 신청</button>
-                <button class="shop-btn" id="btn-send-msg" onclick="openChatFromModal()" style="padding:8px 16px;font-size:11px;display:none;border-color:#4a9eff;color:#4a9eff;">메시지</button>
+                <button class="shop-btn" id="btn-send-msg" onclick="event.preventDefault();event.stopImmediatePropagation();if(window.selectedUser&&selectedUser.id){var _next='/messages/?dm='+encodeURIComponent(String(selectedUser.id))+'&name='+encodeURIComponent(String(selectedUser.nickname||''));if(typeof navigateTo==='function'){navigateTo(_next)}else{window.location.href=_next;}}else if(typeof navigateTo==='function'){navigateTo('/messages/')}else{window.location.href='/messages/';}return false;" style="padding:8px 16px;font-size:11px;display:none;border-color:#4a9eff;color:#4a9eff;">메시지</button>
                 <button class="shop-btn" id="btn-invade" onclick="doInvade()" style="padding:8px 16px;font-size:11px;border-color:var(--accent-gold);color:var(--accent-gold);">도전하기</button>
                 <button class="cancel-btn" onclick="closeModal('modal-user')">CLOSE</button>
             </div>
@@ -472,6 +461,7 @@
     <script src="/shared/nav.js?v=5"></script>
     <script src="bg.js?v=5"></script>
     <script src="main.js?v=11"></script>
+    <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
     <script>
     // 프로필 커스터마이저 – main.js 리셋 대비 index.html에 보관
     (function () {

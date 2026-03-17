@@ -109,8 +109,6 @@ function createVirtualClient(index, config, stats) {
             university: 'SIM',
             display_nickname: `BOT_${id}`,
             active_streak: Math.floor(rand(0, 30)),
-            balloon_skin: 'default',
-            balloon_aura: 'none',
             status_message: null,
             worldX: state.worldX,
             worldY: state.worldY,

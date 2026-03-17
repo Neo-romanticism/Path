@@ -48,7 +48,7 @@ const UI = {
         goldVal:     document.getElementById('gold-val'),
         diamondVal:  document.getElementById('diamond-val'),
         ticketVal:   document.getElementById('ticket-val'),
-        tierTag:     document.querySelector('.tier-tag'),
+        tierTag:     document.querySelector('.tier-text'),
         rankPct:     document.getElementById('rank-pct'),
         tabHomeBtn: document.getElementById('tab-home-btn'),
         tabStudyBtn: document.getElementById('tab-study-btn'),
@@ -201,11 +201,9 @@ const UI = {
             if (r.ok) {
                 const data = await r.json();
                 this.rankingInfo = data;
-                const totalHr = Math.floor((data.total_sec || 0) / 3600);
-                const totalMin = Math.floor(((data.total_sec || 0) % 3600) / 60);
                 if (this.elements.rankPct) this.elements.rankPct.textContent = data.pct + '%';
                 if (this.elements.tierTag) {
-                    this.elements.tierTag.textContent = `${totalHr}h ${totalMin}m / TOP ${data.pct}%`;
+                    this.elements.tierTag.textContent = data.tier || this.currentUser?.tier || '-';
                 }
                 return data;
             }
@@ -691,8 +689,6 @@ const UI = {
             this.elements.homeRoomList.textContent = '갱신 중...';
         }
 
-        this.ensureSkinCatalog(forceReload).catch(() => {});
-
         const [stats, ranking, rooms] = await Promise.all([
             StorageManager.fetchStudyStats(),
             StorageManager.fetchTodayRanking(50),
@@ -848,58 +844,34 @@ const UI = {
         this.updateAssets(this.currentUser);
     },
 
-    async ensureSkinCatalog(forceReload = false) {
-        const now = Date.now();
-        const staleMs = 3 * 60 * 1000;
-        const hasCatalog = this.skinCatalogById && Object.keys(this.skinCatalogById).length > 0;
-        if (!forceReload && hasCatalog && (now - this.skinCatalogFetchedAt < staleMs)) {
-            return this.skinCatalogById;
-        }
+    async renderHubApplyPanel() {
+        if (!this.elements.hubOverlayBody || !this.elements.hubOverlayConfirmBtn) return;
 
-        const data = await this.requestJson('/api/estate/skins');
-        const skins = Array.isArray(data?.skins) ? data.skins : [];
-        const nextCatalog = {};
-        skins.forEach((skin) => {
-            const id = String(skin?.id || '').trim();
-            if (!id) return;
-            nextCatalog[id] = skin;
+        this.elements.hubOverlayConfirmBtn.textContent = '닫기';
+        this.elements.hubOverlayBody.innerHTML = '<div class="hub-apply-loading">불러오는 중...</div>';
+
+        const [roundData, scoreData, applicationsData] = await Promise.all([
+            this.requestJson('/api/apply/current-round'),
+            this.requestJson('/api/apply/scores/me'),
+            this.requestJson('/api/apply/my-applications').catch(() => ({ applications: [] }))
+        ]);
+
+        const round = roundData?.round || null;
+        const score = scoreData?.scores || null;
+        const myTickets = Number(this.currentUser?.tickets || 0);
+        const activeApplications = Array.isArray(applicationsData?.applications)
+            ? applicationsData.applications
+            : [];
+        const grouped = {};
+        activeApplications.forEach((item) => {
+            const groupName = String(item?.group_type || '').trim();
+            if (!groupName || grouped[groupName]) return;
+            grouped[groupName] = item;
         });
+        const maxSlots = Number(round?.max_slots || 3);
+        const usedSlots = Number(roundData?.used_slots ?? activeApplications.length ?? 0);
+        const remainSlots = Math.max(0, maxSlots - usedSlots);
 
-        this.skinCatalogById = nextCatalog;
-        this.skinCatalogFetchedAt = now;
-
-        const owned = Array.isArray(data?.owned) ? data.owned.join(',') : undefined;
-        this.mergeCurrentUserPatch({
-            balloon_skin: data?.equipped || this.currentUser?.balloon_skin || 'default',
-            ...(owned ? { owned_skins: owned } : {})
-        });
-
-        return this.skinCatalogById;
-    },
-
-    getSkinNameById(skinId) {
-        const id = String(skinId || 'default');
-        const skin = this.skinCatalogById?.[id];
-        if (skin?.name) return skin.name;
-        if (id === 'default') return '기본 열기구';
-        return id;
-    },
-
-    getSkinToneVars(skinId) {
-        const raw = String(skinId || 'default');
-        let hash = 0;
-        for (let i = 0; i < raw.length; i += 1) {
-            hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-            hash |= 0;
-        }
-        const hue = Math.abs(hash) % 360;
-        const hue2 = (hue + 38) % 360;
-        return `--skin-h:${hue};--skin-h2:${hue2};`;
-    },
-
-    getSkinRarityMeta(skin) {
-        const price = Number(skin?.price || 0);
-        async renderHubApplyPanel() {
         const slotProgress = maxSlots > 0 ? Math.round((usedSlots / maxSlots) * 100) : 0;
 
         const scoreStateText = !score?.korean_std
@@ -3087,7 +3059,7 @@ const UI = {
         if (this.elements.goldVal)   this.elements.goldVal.innerText   = (data.gold || 0).toLocaleString();
         if (this.elements.diamondVal) this.elements.diamondVal.innerText = (data.diamond || 0).toLocaleString();
         if (this.elements.ticketVal) this.elements.ticketVal.innerText = String(data.tickets || 0).padStart(2, '0');
-        if (this.elements.tierTag)   this.elements.tierTag.innerText   = data.university || data.tier || '-';
+        if (this.elements.tierTag)   this.elements.tierTag.innerText   = data.tier || '-';
     },
 
     showResult(type, gold = 0, mode = 'timer', studyRecordId = null) {

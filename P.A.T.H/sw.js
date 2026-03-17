@@ -3,7 +3,7 @@
  * Provides offline support and caching for the PWA
  */
 
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `path-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `path-dynamic-${CACHE_VERSION}`;
 
@@ -24,6 +24,9 @@ const APP_SHELL = [
   '/mainPageDev/',
   '/mainPageDev/index.html',
   '/mainPageDev/style.css',
+  '/messages/',
+  '/messages/index.html',
+  '/messages/style.css',
 ];
 
 // Routes that should always try network first
@@ -34,6 +37,8 @@ const NETWORK_FIRST_PATTERNS = [
   /^\/study-hub\/index\.html$/,
   /^\/login\/?$/,
   /^\/login\/index\.html$/,
+  /^\/messages\/?$/,
+  /^\/messages\/index\.html$/,
 ];
 
 // Routes that are fine with cache-first (versioned static assets)

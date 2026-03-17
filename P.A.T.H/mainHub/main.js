@@ -1335,13 +1335,10 @@ function togglePanel(id) {
         el.classList.remove('hidden');
         if (id === 'panel-rank') loadRankPanel(currentRankTab);
         if (id === 'panel-notif') loadNotifPanel();
-        if (id === 'panel-shop') renderShopContent(currentShopTab);
         if (id === 'panel-settings') loadSettingsPanel();
 
     } else {
         el.classList.add('hidden');
-        // Clean up shop 3D renderers when closing shop panel
-        if (id === 'panel-shop') cleanupShopBalloonRenderers();
     }
 }
 
@@ -1378,153 +1375,7 @@ async function doLogout() {
     window.location.href = '/login/';
 }
 
-/* ── SHOP SYSTEM ── */
-let currentShopTab = 'item';
-let shopBalloonRenderers = []; // Track 3D renderers for cleanup
 
-function switchShopTab(tab, btn) {
-    currentShopTab = tab;
-    const parent = btn.parentElement;
-    parent.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    cleanupShopBalloonRenderers(); // Clean up before switching
-    renderShopContent(tab);
-}
-
-// Clean up all 3D balloon renderers
-function cleanupShopBalloonRenderers() {
-    shopBalloonRenderers.forEach(r => {
-        if (r.animationId) cancelAnimationFrame(r.animationId);
-        if (r.renderer) r.renderer.dispose();
-        if (r.scene) {
-            r.scene.traverse(obj => {
-                if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) {
-                    if (Array.isArray(obj.material)) {
-                        obj.material.forEach(m => m.dispose());
-                    } else {
-                        obj.material.dispose();
-                    }
-                }
-            });
-        }
-    });
-    shopBalloonRenderers = [];
-}
-
-async function renderShopContent(tab) {
-    const container = document.getElementById('shop-content');
-    if (!container) return;
-    container.innerHTML = '<div style="color:var(--text-sub);text-align:center;padding:20px;font-size:12px">로딩 중...</div>';
-
-        const medicalUnivs = [
-            { name: '의예과', region: '전국', basePercentile: 99.8, aliases: ['의대'] },
-            { name: '치의예과', region: '전국', basePercentile: 99.5, aliases: ['치대'] },
-            { name: '한의예과', region: '전국', basePercentile: 99.2, aliases: ['한의대'] },
-            { name: '약학과', region: '전국', basePercentile: 99.0, aliases: ['약대'] },
-            { name: '수의예과', region: '전국', basePercentile: 99.3, aliases: ['수의대'] }
-        ];
-
-        if (tab === 'item') {
-            try {
-                const univRes = await fetch('/api/university/list', { credentials: 'include' });
-                const univData = univRes.ok ? await univRes.json() : { universities: [] };
-                const rawUniversities = univData.universities || [];
-                const universities = [...medicalUnivs, ...rawUniversities];
-                const myTickets = currentUser?.tickets || 0;
-            const myGold = currentUser?.gold || 0;
-
-            container.innerHTML = `
-                <div style="padding:10px 0 6px;">
-                    <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:10px;">
-                        보유 원서비: <strong style="color:var(--gold)">${myTickets}장</strong>
-                        &nbsp;|&nbsp; 보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
-                    </div>
-                    <div style="font-size:10px;color:var(--text-sub);margin-bottom:8px;">목표 대학을 선택하면 해당 대학 기준 원서비를 구매할 수 있습니다.</div>
-                    <input type="text" id="shop-univ-search" placeholder="대학 검색..."
-                        style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);padding:7px 10px;font-size:12px;border-radius:4px;outline:none;margin-bottom:10px;"
-                        oninput="filterShopUnivList(this.value)">
-                    <div id="shop-univ-list" style="display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;"></div>
-                </div>
-            `;
-
-            window._shopUniversities = universities;
-            renderShopUnivList(universities);
-        } catch (e) {
-            container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">정보를 불러오지 못했습니다.</div>';
-        }
-    } else {
-        container.innerHTML = `
-            <div style="text-align:center;padding:30px 0;color:var(--text-dim);font-size:12px;letter-spacing:1px;">
-                준비 중입니다.
-            </div>
-        `;
-    }
-}
-
-function getTicketPriceClient(pct) {
-    if (pct >= 99) return 5000;
-    if (pct >= 97) return 3500;
-    if (pct >= 95) return 2500;
-    if (pct >= 90) return 1800;
-    if (pct >= 85) return 1200;
-    if (pct >= 80) return 800;
-    if (pct >= 70) return 500;
-    if (pct >= 60) return 300;
-    return 150;
-}
-
-function renderShopUnivList(universities) {
-    const listEl = document.getElementById('shop-univ-list');
-    if (!listEl) return;
-    if (universities.length === 0) {
-        listEl.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:16px;">검색 결과가 없습니다.</div>';
-        return;
-    }
-    listEl.innerHTML = universities.map(uni => {
-        const price = getTicketPriceClient(uni.basePercentile);
-        const isMyUniv = uni.name === currentUser?.university;
-        const tierColor = price >= 3500 ? '#FFD700' : price >= 1800 ? '#C0C0C0' : price >= 800 ? '#cd7f32' : '#888';
-        return `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid ${isMyUniv ? 'var(--gold)' : 'var(--border)'};border-radius:4px;background:${isMyUniv ? 'rgba(255,193,7,0.05)' : 'transparent'};">
-                <div style="min-width:0;">
-                    <div style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(uni.name)}${isMyUniv ? ' <span style="color:var(--gold);font-size:9px;">내 대학</span>' : ''}</div>
-                    <div style="font-size:10px;color:var(--text-sub);margin-top:1px;">${esc(uni.region)} &nbsp;·&nbsp; <span style="color:${tierColor}">TOP ${uni.basePercentile}%</span></div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px;">
-                    <span style="font-size:12px;font-weight:700;color:${tierColor};display:flex;align-items:center;gap:3px;"><img src="assets/coin.png" style="width:12px;height:12px;">${price.toLocaleString()}G</span>
-                    <button class="shop-btn" style="padding:4px 10px;font-size:10px;" onclick="buyApplicationFee('${esc(uni.name)}', ${price})">구매</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function filterShopUnivList(query) {
-    const q = query.trim().toLowerCase();
-    const all = window._shopUniversities || [];
-    const filtered = q ? all.filter(u => u.name.toLowerCase().includes(q) || (u.aliases || []).some(a => a.toLowerCase().includes(q))) : all;
-    renderShopUnivList(filtered);
-}
-
-async function buyApplicationFee(targetUniversity, unitPrice) {
-    const total = unitPrice;
-    if (!confirm(`[${targetUniversity}] 원서비 1장을 ${total.toLocaleString()}G에 구매하시겠습니까?`)) return;
-    try {
-        const r = await fetch('/api/estate/buy-ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ quantity: 1, target_university: targetUniversity })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '구매 실패'); return; }
-        alert(`[${targetUniversity}] 원서비 1장 구매 완료! (-${data.spent.toLocaleString()}G)`);
-        currentUser = mergeCurrentUser(data.user);
-        updateHUD(data.user);
-        renderShopContent('item');
-    } catch (e) { alert('오류 발생'); }
-}
 
 // ── 대학교 영지 목록 로드 ────────────────────────────────────────────
 async function loadUniversityEstates() {
@@ -2848,14 +2699,12 @@ function initWorldSocket(user) {
         }
     });
 
-    // ── Remote player appearance changed (skin/aura/status) ──────────
-    worldSocket.on('player:appearance', ({ id, balloon_skin, balloon_aura, status_message }) => {
+    // ── Remote player appearance changed (status) ──────────
+    worldSocket.on('player:appearance', ({ id, status_message }) => {
         const userId = _normalizeUserId(id);
         if (userId === null) return;
         const p = _wsNearby.get(userId);
         if (!p) return;
-        if (balloon_skin) p.balloon_skin = balloon_skin;
-        if (balloon_aura) p.balloon_aura = balloon_aura;
         if (status_message !== undefined) p.status_message = status_message;
         if (window.WorldScene && window.WorldScene.isReady) {
             window.WorldScene.updateWorldPlayers([..._wsNearby.values()], _normalizedCurrentUserForWorld());
@@ -2886,8 +2735,6 @@ function initWorldSocket(user) {
         userId:         user.id,
         nickname:       user.nickname       || '',
         university:     user.university     || '',
-        balloon_skin:   user.balloon_skin   || 'default',
-        balloon_aura:   user.balloon_aura   || 'none',
         status_message: user.status_message || null,
         worldX: pos.x,
         worldY: pos.y,
