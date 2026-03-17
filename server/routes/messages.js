@@ -215,7 +215,6 @@ router.get('/conversations', requireAuth, async (req, res) => {
                 u.nickname,
                 u.profile_image_url,
                 u.university,
-                u.balloon_skin,
                 u.is_studying,
                 last_msg,
                 last_time,

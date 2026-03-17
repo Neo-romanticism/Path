@@ -123,6 +123,44 @@ function normalizeAdminTier(rawValue, fallbackValue) {
     return { ok: true, value: resolved };
 }
 
+function parseAdminScoreField(rawValue, { label, min, max, required = true, allowDecimal = false }) {
+    const text = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
+
+    if (!text) {
+        if (!required) return { ok: true, value: null };
+        return { ok: false, error: `${label}를 입력해주세요.` };
+    }
+
+    const parsed = Number(text);
+    if (!Number.isFinite(parsed)) {
+        return { ok: false, error: `${label}는 숫자여야 합니다.` };
+    }
+
+    if (!allowDecimal && !Number.isInteger(parsed)) {
+        return { ok: false, error: `${label}는 정수여야 합니다.` };
+    }
+
+    if (parsed < min || parsed > max) {
+        return { ok: false, error: `${label}는 ${min}~${max} 범위여야 합니다.` };
+    }
+
+    return { ok: true, value: parsed };
+}
+
+function percentileToGrade(percentile) {
+    const p = Number(percentile);
+    if (!Number.isFinite(p)) return 9;
+    if (p >= 96) return 1;
+    if (p >= 89) return 2;
+    if (p >= 77) return 3;
+    if (p >= 60) return 4;
+    if (p >= 40) return 5;
+    if (p >= 23) return 6;
+    if (p >= 11) return 7;
+    if (p >= 4) return 8;
+    return 9;
+}
+
 async function getAdminRole(userId) {
     const result = await pool.query(
         'SELECT nickname, is_admin, admin_role FROM users WHERE id = $1',
@@ -369,7 +407,13 @@ router.get('/pending', requireAdmin, async (req, res) => {
                         WHEN es.verified_status = 'pending' THEN 'pending'
                         ELSE u.score_status
                     END AS score_status,
-                    u.mock_exam_score,
+                    es.korean_std, es.korean_percentile,
+                    es.math_std, es.math_percentile,
+                    es.english_std, es.english_percentile, es.english_grade,
+                    es.explore1_std, es.explore1_percentile,
+                    es.explore2_std, es.explore2_percentile,
+                    es.history_std, es.history_percentile, es.history_grade,
+                    es.second_lang_std, es.second_lang_percentile,
                     u.gpa_image_url, u.gpa_status, u.gpa_score, u.created_at,
                     es.verified_status AS apply_score_status,
                     es.updated_at AS apply_score_updated_at
@@ -505,7 +549,7 @@ router.get('/all-users', requireAdmin, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, nickname, real_name, university, prev_university, is_n_su,
-                    gold, diamond, exp, tier, tickets, mock_exam_score, score_status,
+                    gold, diamond, exp, tier, tickets, score_status,
                     score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public,
                     world_x, world_y, world_z,
                     is_admin, admin_role, user_code, created_at
@@ -530,7 +574,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     const expRaw = req.body?.exp;
     const tierRaw = typeof req.body?.tier === 'string' ? req.body.tier : '';
     const ticketsRaw = req.body?.tickets;
-    const mockExamScoreRaw = req.body?.mock_exam_score;
     const gpaScoreRaw = req.body?.gpa_score;
     const gpaPublic = req.body?.gpa_public === true || req.body?.gpa_public === 'true' || req.body?.gpa_public === 1 || req.body?.gpa_public === '1';
     const worldXRaw = req.body?.world_x;
@@ -555,9 +598,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     }
 
     const university = universityRaw.trim();
-    if (!university) {
-        return res.status(400).json({ error: '대학교를 입력해주세요.' });
-    }
     if (university.length > 100) {
         return res.status(400).json({ error: '대학교명은 100자 이하여야 합니다.' });
     }
@@ -576,7 +616,7 @@ router.post('/update-user', requireAdmin, async (req, res) => {
 
         const target = await client.query(
             `SELECT id, is_admin, admin_role,
-                    gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public,
+                    gold, diamond, exp, tier, tickets, gpa_score, gpa_public,
                     world_x, world_y, world_z
              FROM users WHERE id = $1`,
             [userId]
@@ -600,7 +640,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
         let exp = targetUser.exp;
         let tier = targetUser.tier;
         let tickets = targetUser.tickets;
-        let mockExamScore = targetUser.mock_exam_score;
         let gpaScore = targetUser.gpa_score;
         let nextGpaPublic = targetUser.gpa_public;
         let worldX = targetUser.world_x;
@@ -654,17 +693,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                 return res.status(400).json({ error: ticketsResult.error });
             }
             tickets = ticketsResult.value;
-
-            const mockExamResult = parseAdminIntegerField(mockExamScoreRaw, targetUser.mock_exam_score, {
-                min: 0,
-                max: 600,
-                error: '평가원 점수는 0~600 사이의 정수여야 합니다.'
-            });
-            if (!mockExamResult.ok) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: mockExamResult.error });
-            }
-            mockExamScore = mockExamResult.value;
 
             const gpaScoreText = gpaScoreRaw === null || gpaScoreRaw === undefined ? '' : String(gpaScoreRaw).trim();
             gpaScore = null;
@@ -733,21 +761,20 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                  exp = $8,
                  tier = $9,
                  tickets = $10,
-                 mock_exam_score = $11,
-                 gpa_score = $12,
-                 gpa_public = $13,
-                 world_x = $14,
-                 world_y = $15,
-                 world_z = $16
-             WHERE id = $17
+                 gpa_score = $11,
+                 gpa_public = $12,
+                 world_x = $13,
+                 world_y = $14,
+                 world_z = $15
+             WHERE id = $16
              RETURNING id, nickname, real_name, university, is_n_su, prev_university,
-                       gold, diamond, exp, tier, tickets, mock_exam_score, gpa_score, gpa_public,
+                       gold, diamond, exp, tier, tickets, gpa_score, gpa_public,
                        world_x, world_y, world_z,
                        is_admin, admin_role, user_code, created_at`,
             [
                 nickValidation.value,
                 realName,
-                university,
+                university || null,
                 isNSu,
                 isNSu ? prevUniversity : null,
                 gold,
@@ -755,7 +782,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                 exp,
                 tier,
                 tickets,
-                mockExamScore,
                 gpaScore,
                 nextGpaPublic,
                 worldX,
@@ -778,7 +804,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                     exp: targetUser.exp,
                     tier: targetUser.tier,
                     tickets: targetUser.tickets,
-                    mock_exam_score: targetUser.mock_exam_score,
                     gpa_score: targetUser.gpa_score,
                     gpa_public: targetUser.gpa_public,
                     world_x: targetUser.world_x,
@@ -791,7 +816,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                     exp: updatedUser.exp,
                     tier: updatedUser.tier,
                     tickets: updatedUser.tickets,
-                    mock_exam_score: updatedUser.mock_exam_score,
                     gpa_score: updatedUser.gpa_score,
                     gpa_public: updatedUser.gpa_public,
                     world_x: updatedUser.world_x,
@@ -976,42 +1000,184 @@ router.post('/set-role', requireMainAdmin, async (req, res) => {
 });
 
 router.post('/approve-score', requireAdmin, async (req, res) => {
-    const { user_id, score } = req.body;
-    const s = parseInt(score);
-    if (!user_id || isNaN(s) || s < 0 || s > 600) {
-        return res.status(400).json({ error: '유저 ID와 점수(0~600)를 확인해주세요.' });
+    const userId = parseInt(req.body?.user_id, 10);
+    if (!userId) {
+        return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
     }
+
+    const scorePayload = req.body?.scores && typeof req.body.scores === 'object'
+        ? req.body.scores
+        : null;
+    let approvedExamScores = null;
+
+    if (scorePayload) {
+        const koreanStd = parseAdminScoreField(scorePayload.korean_std, { label: '국어 표준점수', min: 0, max: 200 });
+        if (!koreanStd.ok) return res.status(400).json({ error: koreanStd.error });
+        const koreanPercentile = parseAdminScoreField(scorePayload.korean_percentile, { label: '국어 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!koreanPercentile.ok) return res.status(400).json({ error: koreanPercentile.error });
+
+        const mathStd = parseAdminScoreField(scorePayload.math_std, { label: '수학 표준점수', min: 0, max: 200 });
+        if (!mathStd.ok) return res.status(400).json({ error: mathStd.error });
+        const mathPercentile = parseAdminScoreField(scorePayload.math_percentile, { label: '수학 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!mathPercentile.ok) return res.status(400).json({ error: mathPercentile.error });
+
+        const englishStd = parseAdminScoreField(scorePayload.english_std, { label: '영어 표준점수', min: 0, max: 200 });
+        if (!englishStd.ok) return res.status(400).json({ error: englishStd.error });
+        const englishPercentile = parseAdminScoreField(scorePayload.english_percentile, { label: '영어 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!englishPercentile.ok) return res.status(400).json({ error: englishPercentile.error });
+
+        const explore1Std = parseAdminScoreField(scorePayload.explore1_std, { label: '탐구1 표준점수', min: 0, max: 100 });
+        if (!explore1Std.ok) return res.status(400).json({ error: explore1Std.error });
+        const explore1Percentile = parseAdminScoreField(scorePayload.explore1_percentile, { label: '탐구1 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!explore1Percentile.ok) return res.status(400).json({ error: explore1Percentile.error });
+
+        const explore2Std = parseAdminScoreField(scorePayload.explore2_std, { label: '탐구2 표준점수', min: 0, max: 100 });
+        if (!explore2Std.ok) return res.status(400).json({ error: explore2Std.error });
+        const explore2Percentile = parseAdminScoreField(scorePayload.explore2_percentile, { label: '탐구2 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!explore2Percentile.ok) return res.status(400).json({ error: explore2Percentile.error });
+
+        const historyStd = parseAdminScoreField(scorePayload.history_std, { label: '한국사 표준점수', min: 0, max: 100 });
+        if (!historyStd.ok) return res.status(400).json({ error: historyStd.error });
+        const historyPercentile = parseAdminScoreField(scorePayload.history_percentile, { label: '한국사 백분위', min: 0, max: 100, allowDecimal: true });
+        if (!historyPercentile.ok) return res.status(400).json({ error: historyPercentile.error });
+
+        const secondLangStd = parseAdminScoreField(scorePayload.second_lang_std, { label: '제2외국어 표준점수', min: 0, max: 100, required: false });
+        if (!secondLangStd.ok) return res.status(400).json({ error: secondLangStd.error });
+        const secondLangPercentile = parseAdminScoreField(scorePayload.second_lang_percentile, { label: '제2외국어 백분위', min: 0, max: 100, allowDecimal: true, required: false });
+        if (!secondLangPercentile.ok) return res.status(400).json({ error: secondLangPercentile.error });
+
+        const hasSecondLangStd = secondLangStd.value !== null;
+        const hasSecondLangPercentile = secondLangPercentile.value !== null;
+        if (hasSecondLangStd !== hasSecondLangPercentile) {
+            return res.status(400).json({ error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' });
+        }
+
+        approvedExamScores = {
+            korean_std: koreanStd.value,
+            korean_percentile: koreanPercentile.value,
+            math_std: mathStd.value,
+            math_percentile: mathPercentile.value,
+            english_std: englishStd.value,
+            english_percentile: englishPercentile.value,
+            english_grade: percentileToGrade(englishPercentile.value),
+            explore1_std: explore1Std.value,
+            explore1_percentile: explore1Percentile.value,
+            explore2_std: explore2Std.value,
+            explore2_percentile: explore2Percentile.value,
+            history_std: historyStd.value,
+            history_percentile: historyPercentile.value,
+            history_grade: percentileToGrade(historyPercentile.value),
+            second_lang_std: secondLangStd.value,
+            second_lang_percentile: secondLangPercentile.value,
+        };
+    } else {
+        return res.status(400).json({ error: '과목별 점수 payload(scores)가 필요합니다.' });
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
         const beforeRes = await client.query(
-            'SELECT id, mock_exam_score, score_status FROM users WHERE id = $1',
-            [user_id]
+            'SELECT id, score_status FROM users WHERE id = $1',
+            [userId]
         );
         if (!beforeRes.rows.length) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: '대상 사용자를 찾을 수 없습니다.' });
         }
 
-        const updatedRes = await client.query(
-            `UPDATE users SET mock_exam_score = $1, score_status = 'approved' WHERE id = $2`,
-            [s, user_id]
-        );
         await client.query(
-            `UPDATE exam_scores
-             SET verified_status = 'approved', updated_at = NOW()
-             WHERE user_id = $1`,
-            [user_id]
+            `UPDATE users SET score_status = 'approved' WHERE id = $1`,
+            [userId]
         );
+
+        if (approvedExamScores) {
+            await client.query(
+                `INSERT INTO exam_scores (
+                    user_id,
+                    korean_std, korean_percentile,
+                    math_std, math_percentile,
+                    english_std, english_percentile, english_grade,
+                    explore1_std, explore1_percentile,
+                    explore2_std, explore2_percentile,
+                    history_std, history_percentile, history_grade,
+                    second_lang_std, second_lang_percentile,
+                    verified_status, verified_at, updated_at
+                )
+                VALUES (
+                    $1,
+                    $2, $3,
+                    $4, $5,
+                    $6, $7, $8,
+                    $9, $10,
+                    $11, $12,
+                    $13, $14, $15,
+                    $16, $17,
+                    'approved', NOW(), NOW()
+                )
+                ON CONFLICT (user_id) DO UPDATE
+                SET korean_std = EXCLUDED.korean_std,
+                    korean_percentile = EXCLUDED.korean_percentile,
+                    math_std = EXCLUDED.math_std,
+                    math_percentile = EXCLUDED.math_percentile,
+                    english_std = EXCLUDED.english_std,
+                    english_percentile = EXCLUDED.english_percentile,
+                    english_grade = EXCLUDED.english_grade,
+                    explore1_std = EXCLUDED.explore1_std,
+                    explore1_percentile = EXCLUDED.explore1_percentile,
+                    explore2_std = EXCLUDED.explore2_std,
+                    explore2_percentile = EXCLUDED.explore2_percentile,
+                    history_std = EXCLUDED.history_std,
+                    history_percentile = EXCLUDED.history_percentile,
+                    history_grade = EXCLUDED.history_grade,
+                    second_lang_std = EXCLUDED.second_lang_std,
+                    second_lang_percentile = EXCLUDED.second_lang_percentile,
+                    verified_status = 'approved',
+                    verified_at = NOW(),
+                    updated_at = NOW()`,
+                [
+                    userId,
+                    approvedExamScores.korean_std,
+                    approvedExamScores.korean_percentile,
+                    approvedExamScores.math_std,
+                    approvedExamScores.math_percentile,
+                    approvedExamScores.english_std,
+                    approvedExamScores.english_percentile,
+                    approvedExamScores.english_grade,
+                    approvedExamScores.explore1_std,
+                    approvedExamScores.explore1_percentile,
+                    approvedExamScores.explore2_std,
+                    approvedExamScores.explore2_percentile,
+                    approvedExamScores.history_std,
+                    approvedExamScores.history_percentile,
+                    approvedExamScores.history_grade,
+                    approvedExamScores.second_lang_std,
+                    approvedExamScores.second_lang_percentile,
+                ]
+            );
+        } else {
+            await client.query(
+                `INSERT INTO exam_scores (user_id, verified_status, verified_at, updated_at)
+                 VALUES ($1, 'approved', NOW(), NOW())
+                 ON CONFLICT (user_id) DO UPDATE
+                 SET verified_status = 'approved',
+                     verified_at = COALESCE(exam_scores.verified_at, NOW()),
+                     updated_at = NOW()`,
+                [userId]
+            );
+        }
 
         await writeAdminAuditLog(client, {
             action: 'admin.approve_score',
             actorUserId: req.session.userId,
-            targetUserId: parseInt(user_id, 10),
+            targetUserId: userId,
             details: {
                 before: beforeRes.rows[0],
-                after: { mock_exam_score: s, score_status: 'approved' },
+                after: {
+                    score_status: 'approved',
+                    exam_scores: approvedExamScores,
+                },
             }
         });
 

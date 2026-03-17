@@ -1,15 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// balloonSkins.js가 window.BALLOON_SKINS를 먼저 정의합니다.
+// balloonSkins.js가 제거되어 기본 색상값을 하드코딩합니다.
 export function getBalloonColors(skinId) {
-    const skin = window.BALLOON_SKINS?.[skinId] || window.BALLOON_SKINS?.default;
-    return skin?.colors || { primary: 0xcc1a1a, secondary: 0xffffff, accent: 0xffcc00 };
+    return { primary: 0xcc1a1a, secondary: 0xffffff, accent: 0xffcc00 };
 }
 
 function getBalloonMaterial(skinId) {
-    const skin = window.BALLOON_SKINS?.[skinId] || window.BALLOON_SKINS?.default;
-    return skin?.material || { envelopeRoughness: 0.55, envelopeSheen: 0.15, seamRoughness: 0.70, accentMetalness: 0.10 };
+    return { envelopeRoughness: 0.55, envelopeSheen: 0.15, seamRoughness: 0.70, accentMetalness: 0.10 };
 }
 
 export function setBalloonDetailLevel(balloonGroup, useLowDetail) {

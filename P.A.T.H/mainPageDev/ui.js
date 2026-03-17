@@ -1,6 +1,4 @@
 const UI = {
-    OPEN_SKIN_SHOP_ONCE_KEY: 'path_open_skin_shop_once',
-    OPEN_SKIN_SHOP_FOCUS_ID_KEY: 'path_open_skin_shop_focus_id',
     defaultEngGradeRatio: [1.0, 0.97, 0.92, 0.84, 0.74, 0.6, 0.44, 0.26, 0.1],
     defaultHistGradeRatio: [1.0, 1.0, 1.0, 0.98, 0.96, 0.94, 0.92, 0.9, 0.8],
     currentMode: 'timer',
@@ -30,9 +28,6 @@ const UI = {
     hubSocialCurrentChatId: null,
     hubSocialCurrentChatNickname: '',
     hubNotifRankTab: 'today',
-    skinCatalogById: {},
-    skinCatalogFetchedAt: 0,
-    pendingFocusSkinId: '',
     moreMenuGuardRaf: 0,
     moreSheetGesture: {
         active: false,
@@ -76,7 +71,6 @@ const UI = {
         homeQuickShopBtn: document.getElementById('home-quick-shop'),
         homeQuickSocialBtn: document.getElementById('home-quick-social'),
         homeQuickNotifBtn: document.getElementById('home-quick-notif'),
-        homeSkinSpot: document.getElementById('home-skin-spot'),
         homeStatToday: document.getElementById('home-stat-today'),
         homeStatTotal: document.getElementById('home-stat-total'),
         homeStatActive: document.getElementById('home-stat-active'),
@@ -165,7 +159,6 @@ const UI = {
         this.elements.body?.classList.remove('tab-more-open', 'tab-more-closing');
 
         this.updateAssets(userData);
-        await this.ensureSkinCatalog();
         if (this.elements.bottomInfo) {
             this.elements.bottomInfo.textContent = '';
             this.elements.bottomInfo.style.display = 'none';
@@ -183,30 +176,11 @@ const UI = {
         await this.loadBalloonMetrics();
         await this.loadHomeHubData();
         this.switchTab('home');
-        this.openSkinShopFromSessionFlag();
         this.startHomeAutoRefresh();
 
         if (typeof CamManager !== 'undefined') CamManager.loadSettings();
         if (typeof applyStudyPowerSaveMode === 'function') applyStudyPowerSaveMode(false);
         console.log('P.A.T.H: UI 초기화 완료');
-    },
-
-    openSkinShopFromSessionFlag() {
-        let shouldOpen = false;
-        let focusSkinId = '';
-        try {
-            shouldOpen = sessionStorage.getItem(this.OPEN_SKIN_SHOP_ONCE_KEY) === '1';
-            focusSkinId = String(sessionStorage.getItem(this.OPEN_SKIN_SHOP_FOCUS_ID_KEY) || '').trim();
-            if (shouldOpen) sessionStorage.removeItem(this.OPEN_SKIN_SHOP_ONCE_KEY);
-            if (focusSkinId) sessionStorage.removeItem(this.OPEN_SKIN_SHOP_FOCUS_ID_KEY);
-        } catch (_) {
-            shouldOpen = false;
-            focusSkinId = '';
-        }
-
-        if (!shouldOpen) return;
-        this.pendingFocusSkinId = focusSkinId;
-        this.openHomeHubOverlay('shop');
     },
 
     setTodayDefaults() {
@@ -749,14 +723,10 @@ const UI = {
             const nickname = this.escapeHtml(row?.display_nickname || row?.nickname || '익명');
             const university = this.escapeHtml(row?.university || '소속 미설정');
             const studying = row?.is_studying ? '<span class="home-badge-live">공부중</span>' : '';
-            const skinId = String(row?.balloon_skin || 'default');
-            const skinName = this.escapeHtml(this.getSkinNameById(skinId));
-            const skinTone = this.getSkinToneVars(skinId);
-            const skinBadge = `<span class="home-badge-skin" style="${skinTone}">🎈 ${skinName}</span>`;
             return `<div class="home-row-item">
                 <div class="home-row-rank">${idx + 1}</div>
                 <div class="home-row-main">
-                    <div class="home-row-title">${nickname} ${skinBadge} ${studying}</div>
+                    <div class="home-row-title">${nickname} ${studying}</div>
                     <div class="home-row-sub">${university}</div>
                 </div>
                 <div class="home-row-val">${this.formatDuration(sec)}</div>
@@ -790,6 +760,15 @@ const UI = {
     openHomeHubOverlay(type) {
         if (!this.elements.hubOverlay || !this.elements.hubOverlayTitle || !this.elements.hubOverlayBody) return;
 
+        if (type === 'social') {
+            if (typeof window.navigateTo === 'function') {
+                window.navigateTo('/messages/');
+            } else {
+                window.location.href = '/messages/';
+            }
+            return;
+        }
+
         this.elements.hubOverlay.classList.remove('hidden');
         this.activeHubOverlay = type;
 
@@ -805,14 +784,6 @@ const UI = {
             this.elements.hubOverlayTitle.textContent = '상점 · 성장';
             this.renderHubShopPanel().catch((err) => {
                 this.elements.hubOverlayBody.innerHTML = `<div class="hub-apply-error">${this.escapeHtml(err?.message || '상점 데이터를 불러오지 못했습니다.')}</div>`;
-            });
-            return;
-        }
-
-        if (type === 'social') {
-            this.elements.hubOverlayTitle.textContent = '친구 · 메시지';
-            this.renderHubSocialPanel().catch((err) => {
-                this.elements.hubOverlayBody.innerHTML = `<div class="hub-apply-error">${this.escapeHtml(err?.message || '소셜 데이터를 불러오지 못했습니다.')}</div>`;
             });
             return;
         }
@@ -928,113 +899,7 @@ const UI = {
 
     getSkinRarityMeta(skin) {
         const price = Number(skin?.price || 0);
-        if (price <= 0) {
-            return { label: '기본', className: 'is-basic' };
-        }
-        if (price >= 12000) {
-            return { label: '시그니처', className: 'is-signature' };
-        }
-        if (price >= 9000) {
-            return { label: '레전드', className: 'is-legend' };
-        }
-        if (price >= 6000) {
-            return { label: '프리미엄', className: 'is-premium' };
-        }
-        if (price >= 3500) {
-            return { label: '레어', className: 'is-rare' };
-        }
-        return { label: '셀렉트', className: 'is-select' };
-    },
-
-    renderHomeSkinSpot() {
-        const spot = this.elements.homeSkinSpot;
-        if (!spot) return;
-
-        const skinId = String(this.currentUser?.balloon_skin || 'default');
-        const skinName = this.escapeHtml(this.getSkinNameById(skinId));
-        const rarity = this.getSkinRarityMeta(this.skinCatalogById?.[skinId]);
-        const ownedRaw = String(this.currentUser?.owned_skins || 'default');
-        const ownedCount = ownedRaw
-            .split(',')
-            .map((v) => v.trim())
-            .filter(Boolean).length;
-        const toneVars = this.getSkinToneVars(skinId);
-
-        spot.innerHTML = `
-            <div class="home-skin-card">
-                <div class="home-skin-preview" style="${toneVars}" aria-hidden="true">🎈</div>
-                <div class="home-skin-info">
-                    <span class="home-skin-label">CURRENT SKIN</span>
-                    <strong class="home-skin-name">${skinName} <span class="home-badge-skin">${this.escapeHtml(rarity.label)}</span></strong>
-                    <span class="home-skin-meta">보유 ${ownedCount}개 · 장착 ID ${this.escapeHtml(skinId)}</span>
-                </div>
-                <button type="button" class="home-skin-manage-btn" id="home-skin-manage-btn">관리</button>
-            </div>
-        `;
-
-        const manageBtn = spot.querySelector('#home-skin-manage-btn');
-        manageBtn?.addEventListener('click', () => this.openHomeHubOverlay('shop'));
-    },
-
-    buildSkinPillHtml(skinId) {
-        const id = String(skinId || 'default');
-        const toneVars = this.getSkinToneVars(id);
-        const skinName = this.escapeHtml(this.getSkinNameById(id));
-        return `<span class="hub-skin-pill" style="${toneVars}">🎈 ${skinName}</span>`;
-    },
-
-    async renderHubApplyPanel() {
-        if (!this.elements.hubOverlayBody || !this.elements.hubOverlayConfirmBtn) return;
-
-        this.elements.hubOverlayConfirmBtn.textContent = '닫기';
-        this.elements.hubOverlayBody.innerHTML = '<div class="hub-apply-loading">불러오는 중...</div>';
-
-        const [roundData, scoreData] = await Promise.all([
-            this.requestJson('/api/apply/current-round'),
-            this.requestJson('/api/apply/scores/me')
-        ]);
-
-        const round = roundData?.round || null;
-        const score = scoreData?.scores || null;
-        const myTickets = Number(this.currentUser?.tickets || 0);
-
-        if (!round) {
-            this.elements.hubOverlayBody.innerHTML = `
-                <section class="hub-apply-wrap">
-                    <div class="hub-apply-summary">
-                        <div class="hub-apply-meta-row">
-                            <span>현재 회차</span>
-                            <strong>진행 중인 입시 회차 없음</strong>
-                        </div>
-                        <div class="hub-apply-meta-row">
-                            <span>보유 원서비</span>
-                            <strong>${myTickets}장</strong>
-                        </div>
-                        <div class="hub-apply-actions-row">
-                            <button type="button" id="hub-apply-open-btn" class="btn-primary home-start-btn">입시 지원 열기</button>
-                        </div>
-                    </div>
-                </section>
-            `;
-            this.elements.hubOverlayBody.querySelector('#hub-apply-open-btn')?.addEventListener('click', () => {
-                window.location.href = '/apply/';
-            });
-            return;
-        }
-
-        const appsData = await this.requestJson(`/api/apply/applications/me?round_id=${encodeURIComponent(round.id)}`);
-        const applications = Array.isArray(appsData?.applications) ? appsData.applications : [];
-        const activeApplications = applications.filter((item) => String(item?.status || '') !== 'cancelled');
-
-        const grouped = { '가': null, '나': null, '다': null };
-        activeApplications.forEach((item) => {
-            const g = String(item?.group_type || '').trim();
-            if (['가', '나', '다'].includes(g) && !grouped[g]) grouped[g] = item;
-        });
-
-        const maxSlots = 3;
-        const usedSlots = ['가', '나', '다'].filter((g) => !!grouped[g]).length;
-        const remainSlots = Math.max(0, maxSlots - usedSlots);
+        async renderHubApplyPanel() {
         const slotProgress = maxSlots > 0 ? Math.round((usedSlots / maxSlots) * 100) : 0;
 
         const scoreStateText = !score?.korean_std
@@ -1168,92 +1033,13 @@ const UI = {
         this.elements.hubOverlayConfirmBtn.textContent = '닫기';
         this.elements.hubOverlayBody.innerHTML = '<div class="hub-apply-loading">불러오는 중...</div>';
 
-        const [taxData, skinData, auraData] = await Promise.all([
-            this.requestJson('/api/estate/tax'),
-            this.requestJson('/api/estate/skins'),
-            this.requestJson('/api/estate/auras')
-        ]);
-
-        const ownedSkins = Array.isArray(skinData?.owned) ? skinData.owned : [];
-        const ownedAuras = Array.isArray(auraData?.owned) ? auraData.owned : [];
-        const skins = Array.isArray(skinData?.skins) ? skinData.skins : [];
-        const auras = Array.isArray(auraData?.auras) ? auraData.auras : [];
+        const taxData = await this.requestJson('/api/estate/tax');
 
         const collectible = Number(taxData?.pending || 0);
         const gold = Number(taxData?.gold || this.currentUser?.gold || 0);
         const diamond = Number(taxData?.diamond || this.currentUser?.diamond || 0);
         const tickets = Number(this.currentUser?.tickets || 0);
         const ticketPrice = Number(taxData?.ticketPrice || 0);
-        const focusSkinId = String(this.pendingFocusSkinId || '').trim();
-
-        const skinHtml = skins.slice(0, 8).map((skin) => {
-            const skinId = String(skin?.id || '');
-            const owned = ownedSkins.includes(skinId);
-            const equipped = String(skinData?.equipped || 'default') === skinId;
-            const price = Number(skin?.price || 0);
-            const canAfford = owned || price <= 0 || gold >= price;
-            const needsCollect = !owned && price > gold && price <= gold + collectible;
-            const rarity = this.getSkinRarityMeta(skin);
-            const actionLabel = equipped
-                ? '장착중'
-                : owned
-                    ? '장착'
-                    : !canAfford
-                        ? needsCollect ? '수입 수령 필요' : '골드 부족'
-                        : price > 0
-                            ? `${price.toLocaleString()}G 구매`
-                            : '획득';
-            const disabled = (equipped || (!owned && !canAfford)) ? 'disabled' : '';
-            const toneVars = this.getSkinToneVars(skinId || 'default');
-            const isFocus = focusSkinId && skinId === focusSkinId;
-            const focusClass = isFocus ? ' hub-shop-item--focus' : '';
-            const statusBadges = [
-                `<span class="hub-shop-rarity-badge ${rarity.className}">${this.escapeHtml(rarity.label)}</span>`
-            ];
-            if (equipped) {
-                statusBadges.push('<span class="hub-shop-state-badge is-equipped">현재 착용</span>');
-            } else if (isFocus) {
-                statusBadges.push('<span class="hub-shop-state-badge is-focus">지금 보고 있는 스킨</span>');
-            }
-            if (!owned && !canAfford) {
-                statusBadges.push(`<span class="hub-shop-state-badge is-locked">${needsCollect ? '수입 수령 후 구매 가능' : '골드가 부족합니다'}</span>`);
-            }
-            const quickAction = isFocus && !equipped
-                ? needsCollect
-                    ? `<button type="button" class="hub-shop-quick-btn" data-shop-kind="collect" data-shop-id="collect-tax" data-shop-mode="collect">수입 먼저 받기</button>`
-                    : `<button type="button" class="hub-shop-quick-btn" data-shop-kind="skin" data-shop-id="${this.escapeHtml(skinId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" data-shop-auto-equip="${owned ? '0' : '1'}" ${(owned || canAfford) ? '' : 'disabled'}>${owned ? '바로 장착' : !canAfford ? '골드 부족' : price > 0 ? '구매 후 장착' : '획득 후 장착'}</button>`
-                : '';
-            return `<li class="hub-shop-item${focusClass}" data-skin-id="${this.escapeHtml(skinId)}">
-                <div class="hub-shop-main">
-                    <div class="hub-shop-main-top">
-                        <span class="hub-shop-skin-preview" style="${toneVars}" aria-hidden="true">🎈</span>
-                        <strong>${this.escapeHtml(skin?.name || skinId)}</strong>
-                    </div>
-                    <div class="hub-shop-badge-row">${statusBadges.join('')}</div>
-                    <span>${this.escapeHtml(skin?.desc || '')}</span>
-                </div>
-                <div class="hub-shop-item-actions">
-                    <button type="button" class="hub-shop-action-btn" data-shop-kind="skin" data-shop-id="${this.escapeHtml(skinId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" ${disabled}>${actionLabel}</button>
-                    ${quickAction}
-                </div>
-            </li>`;
-        }).join('');
-
-        const auraHtml = auras.slice(0, 8).map((aura) => {
-            const auraId = String(aura?.id || '');
-            const owned = ownedAuras.includes(auraId);
-            const equipped = String(auraData?.equipped || 'none') === auraId;
-            const price = Number(aura?.price || 0);
-            const actionLabel = equipped ? '장착중' : owned ? '장착' : price > 0 ? `${price.toLocaleString()}G 구매` : '획득';
-            const disabled = equipped ? 'disabled' : '';
-            return `<li class="hub-shop-item">
-                <div class="hub-shop-main">
-                    <strong>${this.escapeHtml(aura?.name || auraId)}</strong>
-                    <span>${this.escapeHtml(aura?.desc || '')}</span>
-                </div>
-                <button type="button" class="hub-shop-action-btn" data-shop-kind="aura" data-shop-id="${this.escapeHtml(auraId)}" data-shop-mode="${owned ? 'equip' : 'buy'}" ${disabled}>${actionLabel}</button>
-            </li>`;
-        }).join('');
 
         this.elements.hubOverlayBody.innerHTML = `
             <section class="hub-shop-wrap">
@@ -1266,17 +1052,6 @@ const UI = {
                         <button type="button" id="hub-shop-collect-btn" class="home-refresh-btn">수입 수령</button>
                         <button type="button" id="hub-shop-buy-ticket-btn" class="btn-primary home-start-btn">원서비 구매 (${ticketPrice.toLocaleString()}G)</button>
                     </div>
-                </div>
-
-                <div class="hub-shop-grid">
-                    <section class="hub-shop-panel">
-                        <h4>스킨</h4>
-                        <ul class="hub-shop-list">${skinHtml || '<li class="hub-apply-empty">스킨 데이터가 없습니다.</li>'}</ul>
-                    </section>
-                    <section class="hub-shop-panel">
-                        <h4>오오라</h4>
-                        <ul class="hub-shop-list">${auraHtml || '<li class="hub-apply-empty">오오라 데이터가 없습니다.</li>'}</ul>
-                    </section>
                 </div>
             </section>
         `;
@@ -1328,12 +1103,6 @@ const UI = {
                 await this.handleHubShopAction({ kind, id, mode, button: btn, autoEquip });
             });
         });
-
-        if (focusSkinId) {
-            const focusEl = this.elements.hubOverlayBody.querySelector(`.hub-shop-item[data-skin-id="${focusSkinId}"]`);
-            focusEl?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            this.pendingFocusSkinId = '';
-        }
     },
 
     async handleHubShopAction({ kind, id, mode, button, autoEquip = false }) {
@@ -1354,48 +1123,6 @@ const UI = {
                 alert(data?.collected > 0
                     ? `${Number(data.collected || 0).toLocaleString()}G를 수령했습니다.`
                     : (data?.message || '아직 수령할 수입이 없습니다.'));
-            } else if (kind === 'skin' && mode === 'buy') {
-                const data = await this.requestJson('/api/estate/buy-skin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skin_id: id })
-                });
-                if (data?.user) this.mergeCurrentUserPatch(data.user);
-                if (autoEquip) {
-                    await this.requestJson('/api/estate/equip-skin', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ skin_id: id })
-                    });
-                    this.mergeCurrentUserPatch({ balloon_skin: id });
-                    alert('스킨을 구매하고 바로 장착했습니다.');
-                } else {
-                    alert('스킨을 구매했습니다.');
-                }
-            } else if (kind === 'skin' && mode === 'equip') {
-                await this.requestJson('/api/estate/equip-skin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skin_id: id })
-                });
-                this.mergeCurrentUserPatch({ balloon_skin: id });
-                alert('스킨을 장착했습니다.');
-            } else if (kind === 'aura' && mode === 'buy') {
-                const data = await this.requestJson('/api/estate/buy-aura', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ aura_id: id, currency: 'gold' })
-                });
-                if (data?.user) this.mergeCurrentUserPatch(data.user);
-                alert('오오라를 구매했습니다.');
-            } else if (kind === 'aura' && mode === 'equip') {
-                await this.requestJson('/api/estate/equip-aura', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ aura_id: id })
-                });
-                this.mergeCurrentUserPatch({ balloon_aura: id });
-                alert('오오라를 장착했습니다.');
             }
 
             await this.renderHubShopPanel();
@@ -1436,10 +1163,9 @@ const UI = {
                 const id = Number(req?.friendship_id || 0);
                 const nick = this.escapeHtml(req?.nickname || '익명');
                 const univ = this.escapeHtml(req?.university || '소속 미설정');
-                const skinPill = this.buildSkinPillHtml(req?.balloon_skin || 'default');
                 return `<li class="hub-social-request-item">
                     <div class="hub-social-user-main">
-                        <strong>${nick} ${skinPill}</strong>
+                        <strong>${nick}</strong>
                         <span>${univ}</span>
                     </div>
                     <div class="hub-social-mini-actions">
@@ -1455,12 +1181,11 @@ const UI = {
                 const userId = Number(f?.id || 0);
                 const nick = this.escapeHtml(f?.nickname || '익명');
                 const univ = this.escapeHtml(f?.university || '소속 미설정');
-                const skinPill = this.buildSkinPillHtml(f?.balloon_skin || 'default');
                 const studying = f?.is_studying ? ' · 공부중' : '';
                 const activeClass = this.hubSocialCurrentChatId === userId ? 'active' : '';
                 return `<li class="hub-social-friend-item ${activeClass}">
                     <button type="button" class="hub-social-friend-main" data-social-act="open-chat" data-chat-user-id="${userId}" data-chat-user-name="${nick}">
-                        <strong>${nick} ${skinPill}</strong>
+                        <strong>${nick}</strong>
                         <span>${univ}${studying}</span>
                     </button>
                     <button type="button" class="hub-shop-action-btn hub-social-danger" data-social-act="remove-friend" data-target-id="${userId}">해제</button>
@@ -1692,13 +1417,12 @@ const UI = {
             const userId = Number(c?.other_user || 0);
             const nickRaw = c?.nickname || '익명';
             const nick = this.escapeHtml(nickRaw);
-            const skinPill = this.buildSkinPillHtml(c?.balloon_skin || 'default');
             const msg = this.escapeHtml(c?.last_msg || '대화 내역 없음');
             const activeClass = this.hubSocialCurrentChatId === userId ? 'active' : '';
             const unreadBadge = Number(c?.unread_count || 0) > 0 ? `<em>${Math.min(99, Number(c.unread_count))}</em>` : '';
             return `<li class="hub-social-convo-item ${activeClass}">
                 <button type="button" class="hub-social-convo-main" data-social-act="open-chat" data-chat-user-id="${userId}" data-chat-user-name="${nick}">
-                    <strong>${nick} ${skinPill}</strong>
+                    <strong>${nick}</strong>
                     <span>${msg}</span>
                 </button>
                 ${unreadBadge}
@@ -3364,7 +3088,6 @@ const UI = {
         if (this.elements.diamondVal) this.elements.diamondVal.innerText = (data.diamond || 0).toLocaleString();
         if (this.elements.ticketVal) this.elements.ticketVal.innerText = String(data.tickets || 0).padStart(2, '0');
         if (this.elements.tierTag)   this.elements.tierTag.innerText   = data.university || data.tier || '-';
-        this.renderHomeSkinSpot();
     },
 
     showResult(type, gold = 0, mode = 'timer', studyRecordId = null) {
@@ -3805,4 +3528,5 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initUiWhenReady, { once: true });
 } else {
     initUiWhenReady();
-}
+
+    const [stats, ranking, rooms] = await Promise.all([

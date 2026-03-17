@@ -28,15 +28,6 @@ export const ORBIT_DAMPING = 0.92;                   // inertia damping factor
 export const GROUND_Y = 0;                           // ground plane Y level
 export const BALLOON_FLOAT_Y = 80;                   // default balloon height above ground
 
-export const AURA_COLORS = {
-    none: null,
-    sun: 0xffc44d,
-    frost: 0x7fd9ff,
-    forest: 0x67d57a,
-    cosmic: 0x9e8dff,
-    royal: 0xe08bff
-};
-
 // Legacy 2D helpers kept for backward compat (coordinate overlay, etc.)
 export function worldToScene(value) {
     return -value * WORLD_SCALE;

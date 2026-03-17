@@ -16,7 +16,6 @@ import {
     BALLOON_COLLISION_REPEL,
     BALLOON_COLLISION_DAMP,
     BALLOON_COLLISION_MAX_PUSH,
-    AURA_COLORS,
     worldToScene,
     sceneToWorld,
     worldToScene3D,
@@ -819,9 +818,8 @@ const WorldScene = {
         const group = new THREE.Group();
         group.renderOrder = 100;
 
-        // Get color scheme from skin
-        const skinId = user.balloon_skin || 'default';
-        const auraId = user.balloon_aura || 'none';
+        // Create 3D balloon
+        const skinId = 'default';
 
         // Create 3D balloon instead of 2D plane
         const scale = isMe ? 2.0 : 1.25;
@@ -886,7 +884,6 @@ const WorldScene = {
             isMe,
             baseY: 0,
             isLowDetail: false,
-            auraId,
             auraGroup: null,
             auraMats: []
         };
@@ -905,8 +902,6 @@ const WorldScene = {
             group.userData.glowMat = glowMat;
             group.add(glowMesh);
         }
-
-        this._updateBalloonAura(group, auraId, isMe);
 
         this.scene.add(group);
         this.balloons.set(user.id, {
@@ -934,8 +929,6 @@ const WorldScene = {
     _ensureMyBalloon(me) {
         if (!me || me.id == null) return;
 
-        const skinId = me.balloon_skin || 'default';
-        const auraId = me.balloon_aura || 'none';
         let b = this.balloons.get(me.id);
 
         // If my id was previously rendered as remote/ranking/background,
@@ -963,8 +956,7 @@ const WorldScene = {
         if (!Number.isFinite(b.group.position.z)) b.group.position.z = 0;
         if (!Number.isFinite(b.group.userData.baseY)) b.group.userData.baseY = BALLOON_FLOAT_Y;
         b.group.visible = true;
-        this._updateBalloonColor(b.group, skinId);
-        this._updateBalloonAura(b.group, auraId, true);
+        this._updateBalloonColor(b.group, 'default');
         this.myBalloon = b;
     },
 
@@ -1188,7 +1180,6 @@ const WorldScene = {
             });
 
             const skinId = user.balloon_skin || 'default';
-            const auraId = user.balloon_aura || 'none';
 
             let b = this.balloons.get(user.id);
             if (!b) {
@@ -1213,7 +1204,6 @@ const WorldScene = {
             b.group.userData.floatSpeed = 0.8 + h2 * 0.6;
             b.group.userData.floatPhase = h3 * Math.PI * 2;
             this._updateBalloonColor(b.group, skinId);
-            this._updateBalloonAura(b.group, auraId, false);
 
             b.group.visible = true;
             if (b.group.userData.label) b.group.userData.label.visible = true;
@@ -1246,7 +1236,6 @@ const WorldScene = {
 
         nearbyUsers.forEach((user, i) => {
             const skinId = user.balloon_skin || 'default';
-            const auraId = user.balloon_aura || 'none';
             const { sx, sy, sz, h1, h2, h3 } = this._getHorizontalSlot(user.id, i, nearbyUsers.length, {
                 rowOffsetY: 110,
                 radiusStep: 82,
@@ -1286,7 +1275,6 @@ const WorldScene = {
             b.group.userData.floatPhase = h3 * Math.PI * 2;
 
             this._updateBalloonColor(b.group, skinId);
-            this._updateBalloonAura(b.group, auraId, false);
             if (b.user.status_message !== user.status_message) {
                 this.updateStatusMsg(user.id, user.status_message);
             }
@@ -1387,20 +1375,17 @@ const WorldScene = {
     },
 
     _getSrc(skinId, isLight) {
-        const skins = window.BALLOON_SKINS || {};
         const fallback = { darkImg: 'assets/balloon_dark.png', lightImg: 'assets/balloon_light.png' };
-        const s = skins[skinId] || skins.default || fallback;
-        return isLight ? (s.lightImg || fallback.lightImg) : (s.darkImg || fallback.darkImg);
+        return isLight ? fallback.lightImg : fallback.darkImg;
     },
 
     updateMyBalloon(skinId) {
         if (!this.myBalloon) return;
-        this._updateBalloonColor(this.myBalloon.group, skinId);
+        this._updateBalloonColor(this.myBalloon.group, 'default');
     },
 
     updateMyAura(auraId) {
-        if (!this.myBalloon) return;
-        this._updateBalloonAura(this.myBalloon.group, auraId || 'none', true);
+        // aura system removed
     },
 
     _updateBalloonColor(group, skinId) {
@@ -1420,77 +1405,6 @@ const WorldScene = {
         if (balloon3D.children[0] && balloon3D.children[0].material) {
             balloon3D.children[0].material.color.setHex(colors.primary);
         }
-    },
-
-    _updateBalloonAura(group, auraId, isMe) {
-        const nextAuraId = AURA_COLORS[auraId] ? auraId : 'none';
-        const ud = group.userData || {};
-
-        const sameAura = (ud.auraId || 'none') === nextAuraId;
-        if (sameAura && ((nextAuraId === 'none' && !ud.auraGroup) || (nextAuraId !== 'none' && ud.auraGroup))) {
-            return;
-        }
-
-        if (ud.auraGroup) {
-            group.remove(ud.auraGroup);
-            ud.auraGroup.traverse((obj) => {
-                if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) {
-                    if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
-                    else obj.material.dispose();
-                }
-            });
-            ud.auraGroup = null;
-            ud.auraMats = [];
-        }
-
-        ud.auraId = nextAuraId;
-        if (nextAuraId === 'none') {
-            group.userData = ud;
-            return;
-        }
-
-        const auraColor = AURA_COLORS[nextAuraId];
-        const colorR = ((auraColor >> 16) & 255) / 255;
-        const colorG = ((auraColor >> 8) & 255) / 255;
-        const colorB = (auraColor & 255) / 255;
-
-        const auraGroup = new THREE.Group();
-        const auraMats = [];
-
-        const ringGeo = new THREE.TorusGeometry(isMe ? 58 : 42, isMe ? 2.6 : 2.0, 16, 48);
-        const ringMat = new THREE.ShaderMaterial({
-            uniforms: { uTime: { value: 0 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-            fragmentShader: `uniform float uTime; varying vec2 vUv; void main() { float pulse = 0.55 + 0.45 * sin(uTime * 2.4); gl_FragColor = vec4(${colorR}, ${colorG}, ${colorB}, 0.35 * pulse); }`,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.y = isMe ? 98 : 64;
-        auraGroup.add(ring);
-        auraMats.push(ringMat);
-
-        const haloGeo = new THREE.CircleGeometry(isMe ? 80 : 56, 40);
-        const haloMat = new THREE.ShaderMaterial({
-            uniforms: { uTime: { value: 0 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-            fragmentShader: `uniform float uTime; varying vec2 vUv; void main() { float d = length(vUv - vec2(0.5)); float wave = 0.65 + 0.35 * sin(uTime * 1.8); float alpha = (1.0 - smoothstep(0.24, 0.52, d)) * 0.22 * wave; gl_FragColor = vec4(${colorR}, ${colorG}, ${colorB}, alpha); }`,
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-        });
-        const halo = new THREE.Mesh(haloGeo, haloMat);
-        halo.position.y = isMe ? 98 : 64;
-        halo.position.z = -4;
-        auraGroup.add(halo);
-        auraMats.push(haloMat);
-
-        ud.auraGroup = auraGroup;
-        ud.auraMats = auraMats;
-        group.add(auraGroup);
-        group.userData = ud;
     },
 
     focusUserById(userId) {

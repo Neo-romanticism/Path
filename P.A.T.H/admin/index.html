@@ -325,6 +325,24 @@
             margin-top: 10px;
         }
 
+        .score-input-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .score-input-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .score-input-item span {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
         .edit-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(180px, 1fr));
@@ -428,6 +446,10 @@
             }
 
             .edit-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .score-input-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -613,6 +635,107 @@
             activeTab: 'pending'
         };
 
+        const requiredScoreFields = [
+            { key: 'korean_std', label: '국어 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
+            { key: 'korean_percentile', label: '국어 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+            { key: 'math_std', label: '수학 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
+            { key: 'math_percentile', label: '수학 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+            { key: 'english_std', label: '영어 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
+            { key: 'english_percentile', label: '영어 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+            { key: 'explore1_std', label: '탐구1 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
+            { key: 'explore1_percentile', label: '탐구1 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+            { key: 'explore2_std', label: '탐구2 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
+            { key: 'explore2_percentile', label: '탐구2 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+            { key: 'history_std', label: '한국사 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
+            { key: 'history_percentile', label: '한국사 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
+        ];
+
+        const optionalScoreFields = [
+            { key: 'second_lang_std', label: '제2외국어 표준점수 (선택)', min: 0, max: 100, allowDecimal: false, placeholder: '비우면 미입력' },
+            { key: 'second_lang_percentile', label: '제2외국어 백분위 (선택)', min: 0, max: 100, allowDecimal: true, placeholder: '비우면 미입력' },
+        ];
+
+        function safeScoreValue(value) {
+            const num = Number(value);
+            return Number.isFinite(num) ? String(num) : '';
+        }
+
+        function renderScoreInputFields(userId, user) {
+            const renderField = (field) => {
+                const value = esc(safeScoreValue(user?.[field.key]));
+                const step = field.allowDecimal ? '0.1' : '1';
+                return `
+                    <label class="score-input-item">
+                        <span>${field.label}</span>
+                        <input
+                            class="field"
+                            type="number"
+                            id="score-${field.key}-${userId}"
+                            min="${field.min}"
+                            max="${field.max}"
+                            step="${step}"
+                            value="${value}"
+                            placeholder="${field.placeholder}">
+                    </label>
+                `;
+            };
+
+            return `
+                <div class="score-input-grid">
+                    ${requiredScoreFields.map(renderField).join('')}
+                </div>
+                <div class="score-input-grid">
+                    ${optionalScoreFields.map(renderField).join('')}
+                </div>
+            `;
+        }
+
+        function parseScoreFieldInput(rawValue, field, required) {
+            const text = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
+            if (!text) {
+                if (!required) return { ok: true, value: null };
+                return { ok: false, error: `${field.label}를 입력해주세요.` };
+            }
+
+            const num = Number(text);
+            if (!Number.isFinite(num)) {
+                return { ok: false, error: `${field.label}는 숫자여야 합니다.` };
+            }
+            if (!field.allowDecimal && !Number.isInteger(num)) {
+                return { ok: false, error: `${field.label}는 정수여야 합니다.` };
+            }
+            if (num < field.min || num > field.max) {
+                return { ok: false, error: `${field.label}는 ${field.min}~${field.max} 범위여야 합니다.` };
+            }
+            return { ok: true, value: num };
+        }
+
+        function collectApprovedScorePayload(userId) {
+            const scores = {};
+
+            for (const field of requiredScoreFields) {
+                const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
+                const parsed = parseScoreFieldInput(rawValue, field, true);
+                if (!parsed.ok) return parsed;
+                scores[field.key] = parsed.value;
+            }
+
+            for (const field of optionalScoreFields) {
+                const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
+                const parsed = parseScoreFieldInput(rawValue, field, false);
+                if (!parsed.ok) return parsed;
+                scores[field.key] = parsed.value;
+            }
+
+            const hasSecondLangStd = scores.second_lang_std !== null;
+            const hasSecondLangPercentile = scores.second_lang_percentile !== null;
+            if (hasSecondLangStd !== hasSecondLangPercentile) {
+                return { ok: false, error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' };
+            }
+
+            return { ok: true, value: scores };
+        }
+
         function canEditSensitiveFields() {
             return state.adminRole === 'main';
         }
@@ -639,7 +762,6 @@
             if (realName.length > 50) return '실명은 50자 이하여야 합니다.';
 
             const university = String(payload.university || '').trim();
-            if (!university) return '대학교를 입력해주세요.';
             if (university.length > 100) return '대학교명은 100자 이하여야 합니다.';
 
             const prevUniversity = String(payload.prev_university || '').trim();
@@ -671,13 +793,6 @@
             if (!isBlankSensitiveInput(payload.tickets)) {
                 const tickets = Number.parseInt(payload.tickets, 10);
                 if (!Number.isInteger(tickets) || tickets < 0) return '티켓은 0 이상의 정수여야 합니다.';
-            }
-
-            if (!isBlankSensitiveInput(payload.mock_exam_score)) {
-                const mockExam = Number.parseInt(payload.mock_exam_score, 10);
-                if (!Number.isInteger(mockExam) || mockExam < 0 || mockExam > 600) {
-                    return '평가원 점수는 0~600 범위여야 합니다.';
-                }
             }
 
             const gpaText = String(payload.gpa_score || '').trim();
@@ -950,11 +1065,10 @@
                             <span>평가원 점수 검수</span>
                             <span class="badge pending">대기</span>
                         </div>
-                        <p class="meta"><strong>기존 점수:</strong> ${user.mock_exam_score || '미등록'}</p>
                         ${user.score_image_url ? `<img class="proof" src="${esc(user.score_image_url)}" alt="점수표" onclick="window.open('${esc(user.score_image_url)}', '_blank')">` : '<p class="meta">증빙 이미지가 없습니다.</p>'}
+                        ${renderScoreInputFields(user.id, user)}
                         <div class="action-row">
-                            <input class="field" style="max-width:140px" type="number" id="score-${user.id}" min="0" max="600" placeholder="점수 0~600">
-                            <button class="btn primary" type="button" onclick="approveScore(${user.id}, this)">점수 승인</button>
+                            <button class="btn primary" type="button" onclick="approveScore(${user.id}, this)">과목 점수 승인</button>
                             <button class="btn danger" type="button" onclick="rejectScore(${user.id}, this)">점수 반려</button>
                         </div>
                     </div>
@@ -1033,7 +1147,6 @@
                 const safeDiamondValue = Number.isFinite(Number(u.diamond)) ? Number(u.diamond) : 0;
                 const safeExpValue = Number.isFinite(Number(u.exp)) ? Number(u.exp) : 0;
                 const safeTicketsValue = Number.isFinite(Number(u.tickets)) ? Number(u.tickets) : 0;
-                const safeMockExamValue = Number.isFinite(Number(u.mock_exam_score)) ? Number(u.mock_exam_score) : 0;
                 const safeGpaValue = u.gpa_score === null || u.gpa_score === undefined ? '' : Number(u.gpa_score);
                 const safeWorldXValue = Number.isFinite(Number(u.world_x)) ? Number(u.world_x) : 0;
                 const safeWorldYValue = Number.isFinite(Number(u.world_y)) ? Number(u.world_y) : 0;
@@ -1054,7 +1167,7 @@
                             <strong>골드:</strong> ${(u.gold || 0).toLocaleString()} / <strong>다이아:</strong> ${u.diamond || 0}
                             / <strong>티어:</strong> ${esc(u.tier || '-')}
                             / <strong>티켓:</strong> ${u.tickets || 0}<br>
-                            <strong>평가원 점수:</strong> ${u.mock_exam_score || '-'} / <strong>내신:</strong> ${u.gpa_score ? `${u.gpa_score}등급` : '-'}
+                            <strong>내신:</strong> ${u.gpa_score ? `${u.gpa_score}등급` : '-'}
                             ${u.gpa_public ? ' (공개)' : ''}<br>
                             <strong>월드 좌표:</strong> X ${u.world_x || 0}, Y ${u.world_y || 0}, Z ${u.world_z || 0}<br>
                             <strong>식별코드:</strong> ${esc(u.user_code || '-')}<br>
@@ -1076,7 +1189,6 @@
                                 <input class="field" id="edit-exp-${u.id}" type="number" min="0" step="1" value="${safeExpValue}" placeholder="EXP" ${sensitiveDisabled}>
                                 <input class="field" id="edit-tier-${u.id}" type="text" value="${safeTierValue}" placeholder="티어" ${sensitiveDisabled}>
                                 <input class="field" id="edit-tickets-${u.id}" type="number" min="0" step="1" value="${safeTicketsValue}" placeholder="티켓" ${sensitiveDisabled}>
-                                <input class="field" id="edit-mock-exam-${u.id}" type="number" min="0" max="600" step="1" value="${safeMockExamValue}" placeholder="평가원 점수 0~600" ${sensitiveDisabled}>
                                 <input class="field" id="edit-gpa-score-${u.id}" type="number" min="1" max="9" step="0.01" value="${safeGpaValue}" placeholder="내신 1.0~9.0 (비우면 제거)" ${sensitiveDisabled}>
                                 <input class="field" id="edit-world-x-${u.id}" type="number" min="-100000" max="100000" step="1" value="${safeWorldXValue}" placeholder="월드 X 좌표" ${sensitiveDisabled}>
                                 <input class="field" id="edit-world-y-${u.id}" type="number" min="-100000" max="100000" step="1" value="${safeWorldYValue}" placeholder="월드 Y 좌표" ${sensitiveDisabled}>
@@ -1119,7 +1231,6 @@
             const expEl = document.getElementById(`edit-exp-${userId}`);
             const tierEl = document.getElementById(`edit-tier-${userId}`);
             const ticketsEl = document.getElementById(`edit-tickets-${userId}`);
-            const mockExamEl = document.getElementById(`edit-mock-exam-${userId}`);
             const gpaScoreEl = document.getElementById(`edit-gpa-score-${userId}`);
             const gpaPublicEl = document.getElementById(`edit-gpa-public-${userId}`);
             const worldXEl = document.getElementById(`edit-world-x-${userId}`);
@@ -1136,7 +1247,6 @@
             if (expEl) expEl.value = Number.isFinite(Number(user.exp)) ? Number(user.exp) : 0;
             if (tierEl) tierEl.value = user.tier || '';
             if (ticketsEl) ticketsEl.value = Number.isFinite(Number(user.tickets)) ? Number(user.tickets) : 0;
-            if (mockExamEl) mockExamEl.value = Number.isFinite(Number(user.mock_exam_score)) ? Number(user.mock_exam_score) : 0;
             if (gpaScoreEl) gpaScoreEl.value = user.gpa_score === null || user.gpa_score === undefined ? '' : Number(user.gpa_score);
             if (gpaPublicEl) gpaPublicEl.checked = !!user.gpa_public;
             if (worldXEl) worldXEl.value = Number.isFinite(Number(user.world_x)) ? Number(user.world_x) : 0;
@@ -1163,7 +1273,6 @@
                 payload.exp = document.getElementById(`edit-exp-${userId}`)?.value || '0';
                 payload.tier = document.getElementById(`edit-tier-${userId}`)?.value || '';
                 payload.tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
-                payload.mock_exam_score = document.getElementById(`edit-mock-exam-${userId}`)?.value || '0';
                 payload.gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
                 payload.gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
                 payload.world_x = document.getElementById(`edit-world-x-${userId}`)?.value || '0';
@@ -1328,10 +1437,9 @@
         }
 
         async function approveScore(userId, button) {
-            const scoreInput = document.getElementById(`score-${userId}`);
-            const score = Number.parseInt(scoreInput?.value, 10);
-            if (Number.isNaN(score) || score < 0 || score > 600) {
-                alert('점수는 0~600 범위에서 입력해주세요.');
+            const parsed = collectApprovedScorePayload(userId);
+            if (!parsed.ok) {
+                alert(parsed.error);
                 return;
             }
 
@@ -1339,9 +1447,9 @@
                 await apiFetch('/api/admin/approve-score', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, score })
+                    body: JSON.stringify({ user_id: userId, scores: parsed.value })
                 });
-                setNotice(`유저 ${userId} 평가원 점수 승인 완료`, 'ok');
+                setNotice(`유저 ${userId} 과목별 점수 승인 완료`, 'ok');
                 await refreshAll(false);
             }).catch((error) => {
                 setNotice(error.message, 'error');

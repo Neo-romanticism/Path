@@ -450,7 +450,7 @@ router.post('/complete', async (req, res) => {
                  target_duration_sec = 0,
                  current_study_subject_id = NULL
              WHERE id = $3
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score, active_title, streak_count, streak_last_date`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, active_title, streak_count, streak_last_date`,
             [earnedGold, earnedExp, req.session.userId]
         );
 
@@ -526,7 +526,7 @@ router.post('/upload-proof', requireAuth, uploadProof.array('studyProof', 10), a
                 `UPDATE users
                  SET gold = gold + $1
                  WHERE id = $2
-                 RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score`,
+                 RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, is_studying`,
                 [bonusGold, req.session.userId]
             );
             userRow = userRes.rows[0] || null;
@@ -579,7 +579,7 @@ router.get('/stats', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
         const userResult = await pool.query(
-            'SELECT id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, mock_exam_score, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
+            'SELECT id, nickname, university, gold, diamond, exp, tier, tickets, is_studying, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
             [req.session.userId]
         );
         const recordsResult = await pool.query(

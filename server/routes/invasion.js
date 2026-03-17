@@ -2,7 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { findUniversity } = require('../data/universities');
 const { evaluateMilestoneTitles, formatDisplayName, refreshBountyBoard } = require('../utils/progression');
-const { normalCDF, calcAcceptProb, percentileToCutline, getSigma } = require('../utils/admissionCalc');
+const { getKanInfo } = require('../utils/admissionCalc');
 
 const router = express.Router();
 
@@ -10,6 +10,11 @@ const router = express.Router();
 function getBasePercentile(universityName) {
     const uni = findUniversity(universityName);
     return uni ? uni.basePercentile : null;
+}
+
+function inferTrack(scores) {
+    const mathSubject = String(scores?.math_subject || '').trim();
+    return (mathSubject === '미적분' || mathSubject === '기하') ? '자연' : '인문';
 }
 
 // ── 모의지원: 도전하기 ────────────────────────────────────────────────
@@ -26,15 +31,21 @@ router.post('/attack', async (req, res) => {
         await refreshBountyBoard(client);
 
         const attackerRes = await client.query(
-            'SELECT id, nickname, tickets, university, mock_exam_score, score_status FROM users WHERE id = $1 FOR UPDATE',
+            'SELECT id, nickname, tickets, university, score_status FROM users WHERE id = $1 FOR UPDATE',
             [req.session.userId]
         );
         const attacker = attackerRes.rows[0];
         if (!attacker) { await client.query('ROLLBACK'); return res.status(404).json({ error: '유저를 찾을 수 없습니다.' }); }
         if (attacker.tickets < 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: '원서비가 없습니다.' }); }
-        if (!attacker.mock_exam_score || attacker.mock_exam_score < 1) {
+
+        const attackerScoreRes = await client.query(
+            `SELECT * FROM exam_scores WHERE user_id = $1 AND verified_status = 'approved'`,
+            [req.session.userId]
+        );
+        const attackerScores = attackerScoreRes.rows[0] || null;
+        if (!attackerScores?.korean_std || !attackerScores?.math_std || !attackerScores?.explore1_std || !attackerScores?.explore2_std) {
             await client.query('ROLLBACK');
-            return res.status(400).json({ error: '평가원 모의고사 점수를 먼저 등록해주세요.' });
+            return res.status(400).json({ error: '인증된 과목 점수(국/수/탐1/탐2)가 필요합니다.' });
         }
 
         // 하루 지원 횟수 확인
@@ -50,7 +61,7 @@ router.post('/attack', async (req, res) => {
         }
 
         const defenderRes = await client.query(
-            'SELECT id, nickname, university, mock_exam_score FROM users WHERE id = $1 FOR UPDATE',
+            'SELECT id, nickname, university FROM users WHERE id = $1 FOR UPDATE',
             [defender_id]
         );
         const defender = defenderRes.rows[0];
@@ -60,21 +71,20 @@ router.post('/attack', async (req, res) => {
         const targetUniversity = defender.university;
         const basePercentile = getBasePercentile(targetUniversity);
 
-        let attackerWins;
-        let acceptProb;
-
-        if (basePercentile !== null) {
-            acceptProb = calcAcceptProb(attacker.mock_exam_score, basePercentile);
-            attackerWins = Math.random() < acceptProb;
-        } else {
-            // 대학 정보 없으면 직접 점수 비교 fallback
-            if (!defender.mock_exam_score || defender.mock_exam_score < 1) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: '상대방이 아직 점수를 등록하지 않았습니다.' });
-            }
-            acceptProb = attacker.mock_exam_score > defender.mock_exam_score ? 0.7 : 0.3;
-            attackerWins = Math.random() < acceptProb;
+        if (basePercentile === null) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '대상 대학의 입결 정보가 없어 도전할 수 없습니다.' });
         }
+
+        const attackerTrack = inferTrack(attackerScores);
+        const kanInfo = getKanInfo(attackerScores, targetUniversity, '', attackerTrack);
+        if (!kanInfo) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: '과목 점수 환산에 실패했습니다.' });
+        }
+
+        const acceptProb = Math.max(0.05, Math.min(0.95, Number(kanInfo.prob || 0) / 100));
+        const attackerWins = Math.random() < acceptProb;
 
         const invasionResult = attackerWins ? 'WIN' : 'LOSS';
 
@@ -84,7 +94,7 @@ router.post('/attack', async (req, res) => {
             `INSERT INTO invasions (attacker_id, defender_id, attacker_study_sec, defender_study_sec, result, loot_gold)
              VALUES ($1,$2,$3,$4,$5,$6)`,
             [req.session.userId, defender_id,
-             attacker.mock_exam_score, Math.round(acceptProb * 100),
+               Math.round(Number(kanInfo.userScore || 0)), Math.round(acceptProb * 100),
              invasionResult, 0]
         );
 
@@ -115,7 +125,7 @@ router.post('/attack', async (req, res) => {
         const grantedTitles = await evaluateMilestoneTitles(client, req.session.userId);
 
         const finalRes = await client.query(
-            'SELECT id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
+            'SELECT id, nickname, university, gold, diamond, exp, tier, tickets, active_title, streak_count, streak_last_date FROM users WHERE id = $1',
             [req.session.userId]
         );
 
@@ -129,7 +139,7 @@ router.post('/attack', async (req, res) => {
         res.json({
             ok: true,
             result: invasionResult,
-            attacker_score: attacker.mock_exam_score,
+            attacker_score: Math.round(Number(kanInfo.userScore || 0)),
             target_university: targetUniversity,
             accept_prob: Math.round(acceptProb * 100),
             defender_nickname: defender.nickname,
@@ -156,27 +166,31 @@ router.get('/accept-prob', async (req, res) => {
     if (!university) return res.status(400).json({ error: '대학명을 입력해주세요.' });
 
     try {
-        const userRes = await pool.query(
-            'SELECT mock_exam_score FROM users WHERE id = $1',
+        const scoreRes = await pool.query(
+            `SELECT * FROM exam_scores WHERE user_id = $1 AND verified_status = 'approved'`,
             [req.session.userId]
         );
-        const userScore = userRes.rows[0]?.mock_exam_score || 0;
+        const userScores = scoreRes.rows[0] || null;
         const basePercentile = getBasePercentile(university);
 
         if (!basePercentile) {
             return res.json({ accept_prob: null, message: '대학 정보 없음' });
         }
-        if (!userScore || userScore < 1) {
+        if (!userScores?.korean_std || !userScores?.math_std || !userScores?.explore1_std || !userScores?.explore2_std) {
             return res.json({ accept_prob: null, message: '점수 미등록' });
         }
 
-        const prob = calcAcceptProb(userScore, basePercentile);
-        const cutline = Math.round(percentileToCutline(basePercentile));
+        const track = inferTrack(userScores);
+        const kanInfo = getKanInfo(userScores, university, '', track);
+        if (!kanInfo) {
+            return res.json({ accept_prob: null, message: '환산 실패' });
+        }
+
         res.json({
-            accept_prob: Math.round(prob * 100),
-            cutline,
-            user_score: userScore,
-            base_percentile: basePercentile
+            accept_prob: Number(kanInfo.prob || 0),
+            cutline: Number(kanInfo.cutline || 0),
+            user_score: Number(kanInfo.userScore || 0),
+            base_percentile: Number(kanInfo.basePercentile || basePercentile)
         });
     } catch (err) {
         console.error('accept-prob error:', err);
@@ -189,7 +203,7 @@ router.get('/my-applications', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     try {
         const userRes = await pool.query(
-            'SELECT mock_exam_score, score_status, tickets FROM users WHERE id = $1',
+            'SELECT score_status, tickets FROM users WHERE id = $1',
             [req.session.userId]
         );
         const user = userRes.rows[0];
@@ -212,23 +226,17 @@ router.get('/my-applications', async (req, res) => {
             [req.session.userId]
         );
 
-        // 각 이력에 대해 현재 대학 컷트라인으로 확률 재계산
-        const applications = logsRes.rows.map(row => {
-            const bp = getBasePercentile(row.target_university);
-            const userScore = row.my_score;
-            let acceptProb = row.accept_prob_stored;
-            let cutline = null;
-            if (bp && userScore) {
-                acceptProb = Math.round(calcAcceptProb(userScore, bp) * 100);
-                cutline = Math.round(percentileToCutline(bp));
-            }
-            return { ...row, accept_prob: acceptProb, cutline };
-        });
+        // 저장 시점 확률을 그대로 노출 (과거 컷 변경에 따라 재계산하지 않음)
+        const applications = logsRes.rows.map((row) => ({
+            ...row,
+            accept_prob: row.accept_prob_stored,
+            cutline: null,
+        }));
 
         res.json({
             max_slots: 6,
             used_slots: usedSlots,
-            my_score: user.mock_exam_score || 0,
+            my_score: null,
             score_status: user.score_status,
             tickets: user.tickets,
             applications

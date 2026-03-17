@@ -21,38 +21,10 @@ if (typeof window.fetch === 'function' && !window.__pathApiFetchPatched) {
     window.__pathApiFetchPatched = true;
 }
 
-const BALLOON_SKINS = (window.BALLOON_SKINS && Object.keys(window.BALLOON_SKINS).length > 0)
-    ? window.BALLOON_SKINS
-    : {
-        default: {
-            id: 'default',
-            name: '기본 열기구',
-            price: 0,
-            darkImg: 'assets/balloon_dark.png',
-            lightImg: 'assets/balloon_light.png',
-            desc: '기본 제공 열기구',
-            colors: { primary: 0xcc1a1a, secondary: 0xffffff, accent: 0xffcc00 }
-        }
-    };
-
-const BALLOON_AURAS = {
-    'none': { id: 'none', name: '없음', price: 0, desc: '기본 상태' },
-    'sun': { id: 'sun', name: '태양 후광', price: 2500, desc: '따뜻한 황금빛 후광' },
-    'frost': { id: 'frost', name: '서리 오오라', price: 4200, desc: '차가운 푸른빛 기류' },
-    'forest': { id: 'forest', name: '숲의 숨결', price: 5200, desc: '초록빛 생명 에너지' },
-    'cosmic': { id: 'cosmic', name: '코스믹 링', price: 6800, desc: '우주 먼지 같은 잔광' },
-    'royal': { id: 'royal', name: '로열 크라운', price: 9000, desc: '보랏빛 왕관형 오오라' }
-};
-
 function getSystemFallbackTheme() {
     return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
         ? 'light'
         : 'dark';
-}
-
-function getBalloonSrc(skinId, isLight) {
-    const skin = BALLOON_SKINS[skinId] || BALLOON_SKINS['default'];
-    return isLight ? skin.lightImg : skin.darkImg;
 }
 
 const UI_SETTINGS_KEY = 'path_ui_settings';
@@ -578,13 +550,12 @@ window.applyCurrentUserUpdate = applyCurrentUserUpdate;
 function updateMyBuilding(user) {
     const img = document.getElementById('my-castle-img');
     const isLight = document.body.classList.contains('light');
-    const skinId = user?.balloon_skin || 'default';
-    const src = getBalloonSrc(skinId, isLight);
+    const src = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
     if (img) { img.src = src; img.style.width = '160px'; }
     const label = document.getElementById('my-castle-label');
     if (label) label.textContent = user?.university || 'MY BALLOON';
     if (window.WorldScene && window.WorldScene.isReady) {
-        window.WorldScene.updateMyBalloon(skinId);
+        window.WorldScene.updateMyBalloon('default');
     }
 }
 
@@ -743,7 +714,6 @@ async function openEstate() {
     try {
         const r = await fetch('/api/estate/tax', { credentials: 'include' });
         const data = await r.json();
-        const score = currentUser?.mock_exam_score || 0;
         const scoreStatus = currentUser?.score_status || 'none';
 
         let rateParts = [];
@@ -757,7 +727,7 @@ async function openEstate() {
 
         let scoreSection = '';
         if (scoreStatus === 'approved') {
-            scoreSection = `<div class="estate-val" style="color:#4CAF50">✓ 인증 완료 · ${score}점</div>`;
+            scoreSection = `<div class="estate-val" style="color:#4CAF50">✓ 성적표 인증 완료</div>`;
         } else if (scoreStatus === 'pending') {
             scoreSection = `<div class="estate-val" style="color:#f1c40f">⏳ 관리자 심사 대기 중</div>`;
         } else if (scoreStatus === 'rejected') {
@@ -1442,183 +1412,6 @@ function cleanupShopBalloonRenderers() {
     shopBalloonRenderers = [];
 }
 
-// Create 3D balloon colors (matches scene.js)
-function getBalloonColors(colorScheme) {
-    const skin = BALLOON_SKINS[colorScheme] || BALLOON_SKINS.default;
-    const colors = skin?.colors || BALLOON_SKINS.default?.colors || {};
-    const palette = Array.isArray(colors.palette) && colors.palette.length > 1 ? colors.palette : null;
-    return {
-        primary: colors.primary ?? palette?.[0] ?? 0xcc1a1a,
-        secondary: colors.secondary ?? palette?.[1] ?? 0xffffff,
-        accent: colors.accent ?? palette?.[2] ?? 0xffcc00
-    };
-}
-
-// Create 3D balloon model (matches scene.js)
-function make3DBalloonPreview(scale, colorScheme) {
-    const group = new THREE.Group();
-    const colors = getBalloonColors(colorScheme);
-
-    // Main balloon envelope (spherical shape)
-    const balloonGeo = new THREE.SphereGeometry(scale * 40, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.75);
-    const balloonMat = new THREE.MeshStandardMaterial({
-        color: colors.primary,
-        roughness: 0.7,
-        metalness: 0.1,
-        side: THREE.DoubleSide
-    });
-    const balloonMesh = new THREE.Mesh(balloonGeo, balloonMat);
-    balloonMesh.position.y = scale * 20;
-    group.add(balloonMesh);
-
-    // Vertical stripes on balloon for visual detail
-    const numStripes = 8;
-    for (let i = 0; i < numStripes; i++) {
-        const angle = (i / numStripes) * Math.PI * 2;
-        const stripeGeo = new THREE.PlaneGeometry(scale * 8, scale * 60);
-        const stripeMat = new THREE.MeshStandardMaterial({
-            color: colors.secondary,
-            roughness: 0.7,
-            metalness: 0.1,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.6
-        });
-        const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-        stripe.position.x = Math.cos(angle) * scale * 35;
-        stripe.position.z = Math.sin(angle) * scale * 35;
-        stripe.position.y = scale * 20;
-        stripe.lookAt(0, scale * 20, 0);
-        group.add(stripe);
-    }
-
-    // Top cap of balloon
-    const capGeo = new THREE.SphereGeometry(scale * 8, 12, 8);
-    const capMat = new THREE.MeshStandardMaterial({
-        color: colors.accent,
-        roughness: 0.6,
-        metalness: 0.2
-    });
-    const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.y = scale * 50;
-    group.add(cap);
-
-    // Basket (rectangular box)
-    const basketGeo = new THREE.BoxGeometry(scale * 20, scale * 15, scale * 20);
-    const basketMat = new THREE.MeshStandardMaterial({
-        color: 0x8b6914,
-        roughness: 0.9,
-        metalness: 0.0
-    });
-    const basket = new THREE.Mesh(basketGeo, basketMat);
-    basket.position.y = scale * -25;
-    group.add(basket);
-
-    // Basket ropes connecting to balloon
-    const ropeMat = new THREE.MeshStandardMaterial({
-        color: 0x654321,
-        roughness: 0.95,
-        metalness: 0.0
-    });
-
-    const ropePositions = [
-        { x: scale * 10, z: scale * 10 },
-        { x: -scale * 10, z: scale * 10 },
-        { x: scale * 10, z: -scale * 10 },
-        { x: -scale * 10, z: -scale * 10 }
-    ];
-
-    ropePositions.forEach(pos => {
-        const ropeGeo = new THREE.CylinderGeometry(scale * 0.5, scale * 0.5, scale * 35, 4);
-        const rope = new THREE.Mesh(ropeGeo, ropeMat);
-        rope.position.set(pos.x, scale * -5, pos.z);
-        group.add(rope);
-    });
-
-    return group;
-}
-
-// Create a mini 3D scene for a balloon preview
-function createBalloonPreviewCanvas(skinId, size = 80) {
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    canvas.style.width = size + 'px';
-    canvas.style.height = size + 'px';
-    canvas.style.display = 'block';
-    canvas.style.margin = '0 auto 6px';
-
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setSize(size, size);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-    const scene = new THREE.Scene();
-
-    const camera = new THREE.PerspectiveCamera(45, 1, 1, 1000);
-    camera.position.set(0, 0, 120);
-    camera.lookAt(0, 0, 0);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 7);
-    scene.add(directionalLight);
-
-    // Prefer the world renderer's real model so shop and in-world visuals match exactly.
-    const balloon = typeof window.createShopBalloonModel === 'function'
-        ? window.createShopBalloonModel(0.8, skinId)
-        : make3DBalloonPreview(0.8, skinId);
-    scene.add(balloon);
-
-    // Animation loop with rotation
-    let rotation = 0;
-    const animate = () => {
-        rotation += 0.01;
-        balloon.rotation.y = rotation;
-        renderer.render(scene, camera);
-        const animationId = requestAnimationFrame(animate);
-
-        // Store animation ID for cleanup
-        rendererData.animationId = animationId;
-    };
-
-    const rendererData = { renderer, scene, balloon, animationId: null };
-    shopBalloonRenderers.push(rendererData);
-
-    animate();
-
-    return canvas;
-}
-
-// Build a resilient skin preview element.
-// Prefer 3D canvas, but gracefully fall back to image preview when WebGL is unavailable.
-function createSkinPreviewElement(skin, isLight, size = 80) {
-    const fallbackImg = document.createElement('img');
-    fallbackImg.alt = `${skin?.name || 'balloon'} preview`;
-    fallbackImg.width = size;
-    fallbackImg.height = size;
-    fallbackImg.style.cssText = `width:${size}px;height:${size}px;display:block;margin:0 auto 6px;object-fit:contain;`;
-
-    const fallbackSrc = isLight ? 'assets/balloon_light.png' : 'assets/balloon_dark.png';
-    const skinSrc = skin
-        ? `assets/${isLight ? (skin.lightImg || skin.darkImg) : (skin.darkImg || skin.lightImg)}`
-        : fallbackSrc;
-    fallbackImg.src = skinSrc;
-    fallbackImg.onerror = () => {
-        // Some premium image assets may not exist yet in this build.
-        fallbackImg.src = fallbackSrc;
-    };
-
-    try {
-        if (typeof THREE === 'undefined' || !THREE || !THREE.WebGLRenderer) return fallbackImg;
-        return createBalloonPreviewCanvas(skin?.id || 'default', size);
-    } catch (_) {
-        return fallbackImg;
-    }
-}
-
 async function renderShopContent(tab) {
     const container = document.getElementById('shop-content');
     if (!container) return;
@@ -1659,146 +1452,6 @@ async function renderShopContent(tab) {
             renderShopUnivList(universities);
         } catch (e) {
             container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">정보를 불러오지 못했습니다.</div>';
-        }
-    } else if (tab === 'skin') {
-        try {
-            const skinRes = await fetch('/api/estate/skins', { credentials: 'include' });
-            const skinData = skinRes.ok ? await skinRes.json() : { skins: [], owned: ['default'], equipped: 'default' };
-            const { skins, owned, equipped } = skinData;
-            const myGold = currentUser?.gold || 0;
-            const isLight = document.body.classList.contains('light');
-
-            container.innerHTML = `
-                <div style="padding:10px 0 6px;">
-                    <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">
-                        보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
-                    </div>
-                    <div id="skin-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
-                </div>
-            `;
-
-            const grid = container.querySelector('#skin-grid');
-            skins.forEach(skin => {
-                const isOwned = owned.includes(skin.id);
-                const isEquipped = equipped === skin.id;
-
-                const card = document.createElement('div');
-                card.style.cssText = `border:1px solid ${isEquipped ? 'var(--accent-gold)' : 'var(--border)'};border-radius:6px;padding:10px;text-align:center;background:${isEquipped ? 'rgba(255,193,7,0.07)' : 'transparent'};position:relative;`;
-
-                // Create a container div for the canvas
-                const canvasContainer = document.createElement('div');
-                canvasContainer.style.cssText = 'width:80px;height:80px;margin:0 auto 6px;';
-                card.appendChild(canvasContainer);
-
-                // Add text content
-                const nameDiv = document.createElement('div');
-                nameDiv.style.cssText = 'font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;';
-                nameDiv.textContent = skin.name;
-                card.appendChild(nameDiv);
-
-                const priceDiv = document.createElement('div');
-                priceDiv.style.cssText = 'font-size:10px;color:var(--text-sub);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:3px;';
-                if (skin.price === 0) {
-                    priceDiv.textContent = '무료';
-                } else {
-                    priceDiv.innerHTML = `<img src="assets/coin.png" style="width:10px;height:10px;">${skin.price.toLocaleString()}G`;
-                }
-                card.appendChild(priceDiv);
-
-                // Add button
-                const btnDiv = document.createElement('div');
-                if (isEquipped) {
-                    btnDiv.style.cssText = 'font-size:10px;color:var(--accent-gold);letter-spacing:1px;';
-                    btnDiv.innerHTML = '✓ 장착 중';
-                } else if (isOwned) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="equipSkin('${skin.id}')">장착</button>`;
-                } else if (skin.price === 0) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', 0)">획득</button>`;
-                } else {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buySkin('${skin.id}', ${skin.price})">${skin.price.toLocaleString()}G 구매</button>`;
-                }
-                card.appendChild(btnDiv);
-
-                grid.appendChild(card);
-
-                const previewEl = createSkinPreviewElement(skin, isLight, 80);
-                canvasContainer.appendChild(previewEl);
-            });
-        } catch (e) {
-            container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">로드 실패</div>';
-        }
-    } else if (tab === 'aura') {
-        try {
-            const auraRes = await fetch('/api/estate/auras', { credentials: 'include' });
-            const auraData = auraRes.ok ? await auraRes.json() : { auras: [], owned: ['none'], equipped: 'none' };
-            const { auras, owned, equipped } = auraData;
-            const myGold = currentUser?.gold || 0;
-
-            container.innerHTML = `
-                <div style="padding:10px 0 6px;">
-                    <div style="font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:12px;">
-                        보유 골드: <strong style="color:var(--gold)">${myGold.toLocaleString()}G</strong>
-                    </div>
-                    <div id="aura-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
-                </div>
-            `;
-
-            const grid = container.querySelector('#aura-grid');
-            auras.forEach(aura => {
-                const isOwned = owned.includes(aura.id);
-                const isEquipped = equipped === aura.id;
-
-                const card = document.createElement('div');
-                card.style.cssText = `border:1px solid ${isEquipped ? 'var(--accent-gold)' : 'var(--border)'};border-radius:6px;padding:10px;text-align:center;background:${isEquipped ? 'rgba(255,193,7,0.07)' : 'transparent'};position:relative;`;
-
-                const preview = document.createElement('div');
-                const auraColor = {
-                    none: '#7f8798',
-                    sun: '#ffc44d',
-                    frost: '#7fd9ff',
-                    forest: '#67d57a',
-                    cosmic: '#9e8dff',
-                    royal: '#e08bff'
-                }[aura.id] || '#8aa1ff';
-                preview.style.cssText = `width:54px;height:54px;margin:0 auto 8px;border-radius:50%;border:2px solid ${auraColor};box-shadow:0 0 0 4px ${auraColor}22, 0 0 16px ${auraColor}66 inset;`;
-                card.appendChild(preview);
-
-                const nameDiv = document.createElement('div');
-                nameDiv.style.cssText = 'font-size:11px;font-weight:600;color:var(--text);margin-bottom:2px;';
-                nameDiv.textContent = aura.name;
-                card.appendChild(nameDiv);
-
-                const descDiv = document.createElement('div');
-                descDiv.style.cssText = 'font-size:9px;color:#7b8498;margin-bottom:6px;min-height:24px;';
-                descDiv.textContent = aura.desc || '';
-                card.appendChild(descDiv);
-
-                const priceDiv = document.createElement('div');
-                priceDiv.style.cssText = 'font-size:10px;color:var(--text-sub);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:3px;';
-                if (aura.price === 0) {
-                    priceDiv.textContent = '무료';
-                } else {
-                    priceDiv.innerHTML = `<img src="assets/coin.png" style="width:10px;height:10px;">${aura.price.toLocaleString()}G`;
-                }
-                card.appendChild(priceDiv);
-
-                const btnDiv = document.createElement('div');
-                if (isEquipped) {
-                    btnDiv.style.cssText = 'font-size:10px;color:var(--accent-gold);letter-spacing:1px;';
-                    btnDiv.innerHTML = '✓ 장착 중';
-                } else if (isOwned) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="equipAura('${aura.id}')">장착</button>`;
-                } else if (aura.price === 0) {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buyAura('${aura.id}', 0)">획득</button>`;
-                } else {
-                    btnDiv.innerHTML = `<button class="shop-btn" style="padding:4px 12px;font-size:10px;" onclick="buyAura('${aura.id}', ${aura.price})">${aura.price.toLocaleString()}G 구매</button>`;
-                }
-                card.appendChild(btnDiv);
-
-                grid.appendChild(card);
-            });
-        } catch (e) {
-            container.innerHTML = '<div style="color:var(--accent);text-align:center;padding:20px;font-size:12px">로드 실패</div>';
         }
     } else {
         container.innerHTML = `
@@ -1870,95 +1523,6 @@ async function buyApplicationFee(targetUniversity, unitPrice) {
         currentUser = mergeCurrentUser(data.user);
         updateHUD(data.user);
         renderShopContent('item');
-    } catch (e) { alert('오류 발생'); }
-}
-
-async function buySkin(skinId, price) {
-    const skin = BALLOON_SKINS[skinId];
-    if (!skin) return;
-    if (price > 0 && !confirm(`[${skin.name}]을 ${price.toLocaleString()}G에 구매하시겠습니까?`)) return;
-    try {
-        const r = await fetch('/api/estate/buy-skin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ skin_id: skinId })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '구매 실패'); return; }
-        if (currentUser) {
-            currentUser.gold = data.user.gold;
-            currentUser.owned_skins = data.user.owned_skins;
-            updateHUD(currentUser);
-        }
-        alert(`[${skin.name}] 획득 완료!`);
-        renderShopContent('skin');
-    } catch (e) { alert('오류 발생'); }
-}
-
-async function equipSkin(skinId) {
-    try {
-        const r = await fetch('/api/estate/equip-skin', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ skin_id: skinId })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '장착 실패'); return; }
-        if (currentUser) {
-            currentUser.balloon_skin = skinId;
-            updateMyBuilding(currentUser);
-            if (window.WorldScene) window.WorldScene.updateMyBalloon(skinId);
-        }
-        if (worldSocket?.connected) {
-            worldSocket.emit('player:appearance', { balloon_skin: skinId });
-        }
-        renderShopContent('skin');
-    } catch (e) { alert('오류 발생'); }
-}
-
-async function buyAura(auraId, price) {
-    const aura = BALLOON_AURAS[auraId];
-    if (!aura) return;
-    if (price > 0 && !confirm(`[${aura.name}]을 ${price.toLocaleString()}G에 구매하시겠습니까?`)) return;
-    try {
-        const r = await fetch('/api/estate/buy-aura', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ aura_id: auraId })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '구매 실패'); return; }
-        if (currentUser) {
-            currentUser.gold = data.user.gold;
-            currentUser.owned_auras = data.user.owned_auras;
-            updateHUD(currentUser);
-        }
-        alert(`[${aura.name}] 획득 완료!`);
-        renderShopContent('aura');
-    } catch (e) { alert('오류 발생'); }
-}
-
-async function equipAura(auraId) {
-    try {
-        const r = await fetch('/api/estate/equip-aura', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ aura_id: auraId })
-        });
-        const data = await r.json();
-        if (!r.ok) { alert(data.error || '장착 실패'); return; }
-        if (currentUser) {
-            currentUser.balloon_aura = auraId;
-            if (window.WorldScene) window.WorldScene.updateMyAura(auraId);
-        }
-        if (worldSocket?.connected) {
-            worldSocket.emit('player:appearance', { balloon_aura: auraId });
-        }
-        renderShopContent('aura');
     } catch (e) { alert('오류 발생'); }
 }
 

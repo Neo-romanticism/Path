@@ -180,7 +180,7 @@ router.post('/collect-tax', async (req, res) => {
         const final = await client.query(
             `UPDATE users SET gold = gold + $1, last_tax_collected_at = NOW()
              WHERE id = $2
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
             [collected, req.session.userId]
         );
 
@@ -221,7 +221,7 @@ router.post('/buy-ticket', async (req, res) => {
         const final = await client.query(
             `UPDATE users SET gold = gold - $1, tickets = tickets + $2
              WHERE id = $3
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
             [price, qty, req.session.userId]
         );
 
@@ -286,189 +286,7 @@ router.post('/buy-skin', async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     const { skin_id } = req.body;
     const skin = BALLOON_SKINS[skin_id];
-    if (!skin) return res.status(400).json({ error: '존재하지 않는 스킨입니다.' });
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const userRes = await client.query('SELECT gold, owned_skins FROM users WHERE id = $1 FOR UPDATE', [req.session.userId]);
-        const user = userRes.rows[0];
-        const owned = (user.owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
-
-        if (owned.includes(skin_id)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: '이미 보유한 스킨입니다.' });
-        }
-        if (user.gold < skin.price) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: `골드가 부족합니다. 필요: ${skin.price.toLocaleString()}G` });
-        }
-
-        owned.push(skin_id);
-        const newOwned = owned.join(',');
-        const final = await client.query(
-            `UPDATE users SET gold = gold - $1, owned_skins = $2 WHERE id = $3
-             RETURNING id, gold, diamond, balloon_skin, owned_skins`,
-            [skin.price, newOwned, req.session.userId]
-        );
-        await client.query('COMMIT');
-        res.json({ ok: true, spent: skin.price, user: final.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
-    }
-});
-
-router.post('/equip-skin', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { skin_id } = req.body;
-    if (!BALLOON_SKINS[skin_id]) return res.status(400).json({ error: '존재하지 않는 스킨입니다.' });
-
-    try {
-        const userRes = await pool.query('SELECT owned_skins FROM users WHERE id = $1', [req.session.userId]);
-        const owned = (userRes.rows[0].owned_skins || 'default').split(',').map(s => s.trim()).filter(Boolean);
-        if (!owned.includes(skin_id)) return res.status(400).json({ error: '보유하지 않은 스킨입니다.' });
-
-        await pool.query('UPDATE users SET balloon_skin = $1 WHERE id = $2', [skin_id, req.session.userId]);
-        res.json({ ok: true, equipped: skin_id });
-    } catch (err) {
-        res.status(500).json({ error: '서버 오류' });
-    }
-});
-
-router.post('/buy-aura', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { aura_id, currency = 'gold' } = req.body;
-    const aura = BALLOON_AURAS[aura_id];
-    if (!aura) return res.status(400).json({ error: '존재하지 않는 오오라입니다.' });
-    const payCurrency = currency === 'diamond' ? 'diamond' : 'gold';
-    const goldPrice = Number(aura.price || 0);
-    const diamondPrice = Number(aura.priceDiamond || 0);
-
-    if (payCurrency === 'diamond' && diamondPrice <= 0) {
-        return res.status(400).json({ error: '이 오오라는 다이아 구매를 지원하지 않습니다.' });
-    }
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const userRes = await client.query('SELECT gold, diamond, owned_auras FROM users WHERE id = $1 FOR UPDATE', [req.session.userId]);
-        const user = userRes.rows[0];
-        const owned = (user.owned_auras || 'none').split(',').map(s => s.trim()).filter(Boolean);
-
-        if (owned.includes(aura_id)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: '이미 보유한 오오라입니다.' });
-        }
-        if (payCurrency === 'diamond') {
-            if ((user.diamond || 0) < diamondPrice) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: `다이아가 부족합니다. 필요: ${diamondPrice}D` });
-            }
-        } else if (user.gold < goldPrice) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: `골드가 부족합니다. 필요: ${goldPrice.toLocaleString()}G` });
-        }
-
-        owned.push(aura_id);
-        const newOwned = owned.join(',');
-        const final = payCurrency === 'diamond'
-            ? await client.query(
-                `UPDATE users SET diamond = diamond - $1, owned_auras = $2 WHERE id = $3
-                 RETURNING id, gold, diamond, balloon_aura, owned_auras`,
-                [diamondPrice, newOwned, req.session.userId]
-            )
-            : await client.query(
-                `UPDATE users SET gold = gold - $1, owned_auras = $2 WHERE id = $3
-                 RETURNING id, gold, diamond, balloon_aura, owned_auras`,
-                [goldPrice, newOwned, req.session.userId]
-            );
-        await client.query('COMMIT');
-        res.json({
-            ok: true,
-            currency: payCurrency,
-            spentGold: payCurrency === 'gold' ? goldPrice : 0,
-            spentDiamond: payCurrency === 'diamond' ? diamondPrice : 0,
-            user: final.rows[0]
-        });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
-    }
-});
-
-router.post('/equip-aura', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { aura_id } = req.body;
-    if (!BALLOON_AURAS[aura_id]) return res.status(400).json({ error: '존재하지 않는 오오라입니다.' });
-
-    try {
-        const userRes = await pool.query('SELECT owned_auras FROM users WHERE id = $1', [req.session.userId]);
-        const owned = (userRes.rows[0].owned_auras || 'none').split(',').map(s => s.trim()).filter(Boolean);
-        if (!owned.includes(aura_id)) return res.status(400).json({ error: '보유하지 않은 오오라입니다.' });
-
-        await pool.query('UPDATE users SET balloon_aura = $1 WHERE id = $2', [aura_id, req.session.userId]);
-        res.json({ ok: true, equipped: aura_id });
-    } catch (err) {
-        res.status(500).json({ error: '서버 오류' });
-    }
-});
-
-router.get('/diamond/packages', (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    res.json({
-        packages: DIAMOND_PACKAGES,
-        note: '다이아는 유료 결제로만 충전할 수 있습니다.'
-    });
-});
-
-router.post('/diamond/web/prepare', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-
-    const packageId = String(req.body?.package_id || '');
-    const pkg = findDiamondPackage(packageId);
-    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
-
-    const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
-    if (!tossClientKey) {
-        return res.status(503).json({ error: '웹 결제 키 설정이 누락되었습니다.' });
-    }
-
-    const orderId = makeDiamondOrderId(req.session.userId);
-    try {
-        await pool.query(
-            `INSERT INTO diamond_payment_orders (order_id, user_id, package_id, provider, amount_krw, status)
-             VALUES ($1, $2, $3, 'toss', $4, 'pending')`,
-            [orderId, req.session.userId, pkg.id, pkg.priceKrw]
-        );
-        return res.json({
-            ok: true,
-            provider: 'toss',
-            clientKey: tossClientKey,
-            orderId,
-            amount: pkg.priceKrw,
-            orderName: `${pkg.diamonds} 다이아`
-        });
-    } catch (err) {
-        console.error('diamond/web/prepare error:', err);
-        return res.status(500).json({ error: '서버 오류' });
-    }
-});
-
-router.post('/diamond/web/confirm', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-
-    const paymentKey = String(req.body?.paymentKey || '').trim();
-    const orderId = String(req.body?.orderId || '').trim();
-    const amount = parseInt(req.body?.amount, 10);
-
-    if (!paymentKey || !orderId || !Number.isInteger(amount)) {
-        return res.status(400).json({ error: '결제 확인 정보가 올바르지 않습니다.' });
-    }
+    router.get('/diamond/packages', (req, res) => {
 
     const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
     if (!tossSecret) {
@@ -553,7 +371,7 @@ router.post('/diamond/web/confirm', async (req, res) => {
             `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
             [pkg.diamonds, req.session.userId]
         );
 
@@ -630,7 +448,7 @@ router.post('/diamond/app/complete', async (req, res) => {
             `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
             [pkg.diamonds, req.session.userId]
         );
 
@@ -715,7 +533,7 @@ router.post('/diamond/purchase', async (req, res) => {
             `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
-             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets, mock_exam_score`,
+             RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
             [pkg.diamonds, req.session.userId]
         );
 

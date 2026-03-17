@@ -310,7 +310,6 @@ router.get('/posts', async (req, res) => {
                 `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
                         p.user_id,
                         u.nickname AS user_nickname, u.active_title,
-                        u.balloon_skin,
                         u.profile_image_url,
                     (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                         p.views, p.likes, p.comments_count, p.created_at,
@@ -370,7 +369,6 @@ router.get('/posts/hot', async (req, res) => {
             `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix,
                     p.user_id,
                     u.nickname AS user_nickname, u.active_title,
-                    u.balloon_skin,
                     u.profile_image_url,
                     (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                     p.views, p.likes, p.comments_count, p.created_at,
@@ -425,7 +423,6 @@ router.get('/posts/:id', async (req, res) => {
         const result = await pool.query(
             `SELECT p.id, p.user_id, p.category, p.title, p.body, p.image_url, p.link_url, p.nickname, p.ip_prefix,
                     u.nickname AS user_nickname, u.active_title,
-                    u.balloon_skin,
                     u.profile_image_url,
                     (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname,
                     p.views, p.likes, p.comments_count, p.created_at
@@ -798,7 +795,6 @@ router.get('/posts/:id/comments', async (req, res) => {
                     ${viewerId ? 'c.user_id = $2 AS is_mine,' : 'FALSE AS is_mine,'}
                     c.user_id IS NOT NULL AND c.user_id = p.user_id AS is_post_author,
                     u.nickname AS user_nickname, u.active_title,
-                    u.balloon_skin,
                     u.profile_image_url,
                     (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
              FROM community_comments c
@@ -848,19 +844,17 @@ router.post('/posts/:id/comments', requireLatestEulaIfAuthenticated, async (req,
         let nickname = guestNickname || '익명';
         let activeTitle = null;
         let profileImageUrl = '';
-        let balloonSkin = 'default';
         let isVerifiedNickname = false;
 
         if (req.session.userId) {
             const userRes = await client.query(
-                'SELECT id, nickname, active_title, balloon_skin, profile_image_url FROM users WHERE id = $1',
+                'SELECT id, nickname, active_title, profile_image_url FROM users WHERE id = $1',
                 [req.session.userId]
             );
             if (userRes.rows.length) {
                 authorUserId = userRes.rows[0].id;
                 nickname = userRes.rows[0].nickname;
                 activeTitle = userRes.rows[0].active_title;
-                balloonSkin = userRes.rows[0].balloon_skin || 'default';
                 profileImageUrl = normalizeProfileImageUrl(userRes.rows[0].profile_image_url);
                 isVerifiedNickname = true;
             }
@@ -882,7 +876,6 @@ router.post('/posts/:id/comments', requireLatestEulaIfAuthenticated, async (req,
         res.status(201).json({ comment: {
             ...result.rows[0],
             display_nickname: isVerifiedNickname ? formatDisplayName(nickname, activeTitle) : nickname,
-            balloon_skin: balloonSkin,
             profile_image_url: profileImageUrl,
             is_verified_nickname: isVerifiedNickname,
             is_liked: false,
@@ -1010,10 +1003,9 @@ router.get('/users/:userId', async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT id, nickname, university, tier, exp, gold,
-                    balloon_skin,
-                    profile_image_url, status_emoji, status_message,
+                          profile_image_url, status_emoji, status_message,
                     active_title, streak_count, streak_last_date,
-                    mock_exam_score, score_status
+                    score_status
              FROM users
              WHERE id = $1`,
             [userId]
@@ -1030,7 +1022,6 @@ router.get('/users/:userId', async (req, res) => {
             tier: row.tier || '브론즈',
             exp: Number(row.exp || 0),
             gold: Number(row.gold || 0),
-            balloon_skin: row.balloon_skin || 'default',
             profile_image_url: normalizeProfileImageUrl(row.profile_image_url),
             status_emoji: row.status_emoji || '',
             status_message: row.status_message || '',
@@ -1038,7 +1029,6 @@ router.get('/users/:userId', async (req, res) => {
             streak_count: Number(row.streak_count || 0),
             streak_last_date: row.streak_last_date || null,
             score_status: row.score_status || null,
-            mock_exam_score: row.score_status === 'approved' ? row.mock_exam_score : null,
         };
 
         return res.json({ user: safeUser });

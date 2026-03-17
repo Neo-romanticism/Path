@@ -11,7 +11,7 @@ function requireAuth(req, res, next) {
 router.get('/list', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(`
-                 SELECT u.id, u.nickname, u.university, u.is_studying, u.balloon_skin, u.profile_image_url,
+                 SELECT u.id, u.nickname, u.university, u.is_studying, u.profile_image_url,
                    f.id as friendship_id, f.created_at as friend_since
             FROM friendships f
             JOIN users u ON (
@@ -32,7 +32,7 @@ router.get('/list', requireAuth, async (req, res) => {
 router.get('/requests', requireAuth, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT f.id as friendship_id, u.id, u.nickname, u.university, u.balloon_skin, u.profile_image_url, f.created_at
+            SELECT f.id as friendship_id, u.id, u.nickname, u.university, u.profile_image_url, f.created_at
             FROM friendships f
             JOIN users u ON u.id = f.sender_id
             WHERE f.receiver_id = $1 AND f.status = 'pending'

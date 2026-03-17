@@ -620,6 +620,8 @@ async function initSchema() {
                 math_percentile         NUMERIC(5,2),
                 math_subject            VARCHAR(20),
                 -- 영어
+                english_std             INTEGER,
+                english_percentile      NUMERIC(5,2),
                 english_grade           SMALLINT,
                 -- 탐구1
                 explore1_subject        VARCHAR(50),
@@ -630,6 +632,8 @@ async function initSchema() {
                 explore2_std            INTEGER,
                 explore2_percentile     NUMERIC(5,2),
                 -- 한국사
+                history_std             INTEGER,
+                history_percentile      NUMERIC(5,2),
                 history_grade           SMALLINT,
                 -- 제2외국어/한문 (선택)
                 second_lang_subject     VARCHAR(50),
@@ -647,6 +651,13 @@ async function initSchema() {
             );
             CREATE INDEX IF NOT EXISTS idx_exam_scores_user_id ON exam_scores(user_id);
             CREATE INDEX IF NOT EXISTS idx_exam_scores_verified ON exam_scores(verified_status);
+        `);
+
+        await client.query(`
+            ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS english_std INTEGER;
+            ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS english_percentile NUMERIC(5,2);
+            ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS history_std INTEGER;
+            ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS history_percentile NUMERIC(5,2);
         `);
 
         // 입시 회차

@@ -23,7 +23,6 @@ export const CATEGORY_META = {
  * @param {string}  post.nickname
  * @param {number}  post.userId
  * @param {boolean} post.isVerifiedNickname
- * @param {string}  post.balloonSkin
  * @param {string}  post.profileImageUrl
  * @param {string}  post.ipPrefix
  * @param {number}  post.likes
@@ -48,10 +47,6 @@ export function PostListItem(post) {
   const verifiedBadge = post.isVerifiedNickname
     ? '<span class="user-verified-badge" aria-label="본인 닉네임 인증" title="본인 닉네임 인증">✓</span>'
     : '';
-  const skinId = String(post.balloonSkin || 'default').trim() || 'default';
-  const skinLabel = getSkinLabel(skinId);
-  const skinTone = getSkinToneVars(skinId);
-  const skinBadge = `<span class="user-skin-badge js-open-skin-shop" data-skin-id="${escHtml(skinId)}" style="${skinTone}" title="스킨 상점 열기">🎈 ${escHtml(skinLabel)}</span>`;
   const showProfileAvatar = post.isVerifiedNickname && !!post.profileImageUrl;
   const authorDataAttrs = post.isVerifiedNickname && Number(post.userId) > 0
     ? `data-user-id="${post.userId}"`
@@ -92,7 +87,7 @@ export function PostListItem(post) {
       <span class="post-row__author">
         <button class="${authorBtnClass}" type="button" ${authorDataAttrs}>
           ${showProfileAvatar ? `<img class="user-avatar-inline" src="${escHtml(post.profileImageUrl)}" alt="" loading="lazy">` : ''}
-          <span class="post-row__author-nick">${escHtml(post.nickname)}${verifiedBadge}${skinBadge}</span>
+          <span class="post-row__author-nick">${escHtml(post.nickname)}${verifiedBadge}</span>
         </button><!-- --><span class="post-author-ip">(${escHtml(post.ipPrefix)})</span>
       </span>
       <span class="post-row__sep">·</span>
@@ -163,30 +158,3 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function getSkinLabel(skinId) {
-  const map = {
-    default: '기본',
-    aurora: '오로라',
-    magma: '마그마',
-    cobalt: '코발트',
-    ivory: '아이보리',
-    mint: '민트',
-    midnight: '미드나잇',
-    royale: '로열',
-    prism: '프리즘',
-    obsidian: '옵시디언',
-  };
-  return map[skinId] || skinId;
-}
-
-function getSkinToneVars(skinId) {
-  const raw = String(skinId || 'default');
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = ((hash << 5) - hash) + raw.charCodeAt(i);
-    hash |= 0;
-  }
-  const hue = Math.abs(hash) % 360;
-  const hue2 = (hue + 38) % 360;
-  return `--skin-h:${hue};--skin-h2:${hue2};`;
-}

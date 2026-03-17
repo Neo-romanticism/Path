@@ -26,7 +26,7 @@ const MIN_WORLD_Z      = -40;
 const MAX_WORLD_Z      = 500;
 
 // In-memory player registry
-// key: socket.id  →  { userId, nickname, university, balloon_skin, balloon_aura,
+// key: socket.id  →  { userId, nickname, university,
 //                      status_message, worldX, worldY }
 const players = new Map();
 
@@ -44,8 +44,6 @@ function playerPublic(p) {
         display_nickname: p.display_nickname || p.nickname,
         active_streak: Number(p.active_streak || 0),
         university: p.university,
-        balloon_skin: p.balloon_skin,
-        balloon_aura: p.balloon_aura || 'none',
         status_message: p.status_message || null,
         worldX: p.worldX,
         worldY: p.worldY,
@@ -101,7 +99,7 @@ function setup(io) {
             const {
                 nickname = '', university = '',
                 display_nickname = '', active_streak = 0,
-                balloon_skin = 'default', balloon_aura = 'none', status_message = null,
+                status_message = null,
                 worldX = 0, worldY = 0, worldZ = 0,
             } = data;
 
@@ -166,8 +164,6 @@ function setup(io) {
                 display_nickname: display_nickname || nickname,
                 active_streak: Number(active_streak || 0),
                 university,
-                balloon_skin,
-                balloon_aura,
                 status_message,
                 worldX: clamped.worldX, worldY: clamped.worldY, worldZ: clamped.worldZ,
             });
@@ -231,12 +227,6 @@ function setup(io) {
             const player = players.get(socket.id);
             if (!player || !data) return;
 
-            if (typeof data.balloon_skin === 'string' && data.balloon_skin.trim()) {
-                player.balloon_skin = data.balloon_skin.trim();
-            }
-            if (typeof data.balloon_aura === 'string' && data.balloon_aura.trim()) {
-                player.balloon_aura = data.balloon_aura.trim();
-            }
             if (Object.prototype.hasOwnProperty.call(data, 'status_message')) {
                 const raw = data.status_message;
                 player.status_message = raw ? String(raw).slice(0, 60) : null;
@@ -244,8 +234,6 @@ function setup(io) {
 
             socket.broadcast.emit('player:appearance', {
                 id: player.userId,
-                balloon_skin: player.balloon_skin,
-                balloon_aura: player.balloon_aura || 'none',
                 status_message: player.status_message || null,
             });
         });
