@@ -125,7 +125,8 @@
             <div class="ts-note" id="ts-ui-note">학습 화면 전반에서 동일한 테마 설정을 공유합니다.</div>
 
             <div class="ts-section-title">계정 (ACCOUNT)</div>
-            <button type="button" class="ts-action-btn" onclick="doTimerLogout()">로그아웃</button>
+            <button type="button" id="ts-btn-edit-profile" class="ts-action-btn">프로필 수정</button>
+            <button type="button" id="ts-btn-logout" class="ts-action-btn">로그아웃</button>
 
             <div class="ts-section-title">캠인증 (CAM CERTIFICATION)</div>
             <div class="ts-row">
@@ -921,6 +922,55 @@
                 <div id="study-proof-status" class="study-proof-status"></div>
             </div>
             <button id="reset-btn" class="btn-primary cmd-btn">돌아가기</button>
+        </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div id="profile-edit-backdrop" class="room-sheet-backdrop hidden" onclick="if(event.target===this)closeEditProfile()">
+        <div class="room-sheet">
+            <div class="room-sheet-header">
+                <h2 class="room-sheet-title">프로필 수정</h2>
+                <button class="room-sheet-close-btn" onclick="closeEditProfile()" aria-label="닫기">×</button>
+            </div>
+            <div class="room-sheet-body" style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+                <!-- Profile Image -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                    <div id="profile-edit-avatar-preview" style="width:72px;height:72px;border-radius:50%;background:var(--surface-soft);border:2px solid var(--line-color);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;" onclick="document.getElementById('profile-edit-photo-input').click()">
+                        <span id="profile-edit-avatar-letter">?</span>
+                        <img id="profile-edit-avatar-img" style="width:100%;height:100%;object-fit:cover;display:none;" alt="프로필">
+                    </div>
+                    <label for="profile-edit-photo-input" style="font-size:11px;color:var(--text-muted);cursor:pointer;">사진 변경</label>
+                    <input type="file" id="profile-edit-photo-input" accept="image/*" style="display:none;" onchange="onProfileEditPhotoSelected(this)">
+                </div>
+                <!-- Nickname -->
+                <div class="room-form-group">
+                    <label class="room-label" for="profile-edit-nickname">닉네임</label>
+                    <input id="profile-edit-nickname" class="room-input" type="text" maxlength="20" placeholder="2~20자">
+                </div>
+                <!-- University -->
+                <div class="room-form-group" style="position:relative;">
+                    <label class="room-label" for="profile-edit-university">목표 대학교</label>
+                    <input id="profile-edit-university" class="room-input" type="text" placeholder="대학명 검색" autocomplete="off" oninput="profileEditSearchUniv(this.value)" onblur="setTimeout(()=>profileEditHideUniResults(),200)">
+                    <div id="profile-edit-univ-results" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;display:none;"></div>
+                </div>
+                <!-- N수생 -->
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="profile-edit-nsu" style="accent-color:var(--accent-blue);width:16px;height:16px;cursor:pointer;" onchange="profileEditToggleNsu()">
+                    <label for="profile-edit-nsu" style="font-size:12px;color:var(--text-secondary);cursor:pointer;">N수생입니다</label>
+                </div>
+                <!-- Prev University -->
+                <div id="profile-edit-prev-univ-field" class="room-form-group" style="position:relative;display:none;">
+                    <label class="room-label" for="profile-edit-prev-university">전적 대학교</label>
+                    <input id="profile-edit-prev-university" class="room-input" type="text" placeholder="재학/졸업한 대학" autocomplete="off" oninput="profileEditSearchPrevUniv(this.value)" onblur="setTimeout(()=>profileEditHidePrevUniResults(),200)">
+                    <div id="profile-edit-prev-univ-results" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;display:none;"></div>
+                </div>
+                <!-- Error -->
+                <div id="profile-edit-error" style="font-size:11px;color:#ff6b6b;min-height:14px;"></div>
+            </div>
+            <div style="padding:0 16px 16px;display:flex;gap:8px;">
+                <button type="button" class="room-btn-ghost" style="flex:1;" onclick="closeEditProfile()">취소</button>
+                <button type="button" class="room-btn-primary" style="flex:2;" id="profile-edit-submit-btn" onclick="submitEditProfile()">저장</button>
+            </div>
         </div>
     </div>
 

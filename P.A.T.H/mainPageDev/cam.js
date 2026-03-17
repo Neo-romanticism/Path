@@ -446,7 +446,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 설정 패널 내부 버튼들
     bindTapAction(document.querySelector('.timer-settings-close'), () => closeTimerSettings());
-    bindTapAction(document.querySelector('.ts-action-btn'), () => doTimerLogout());
+    bindTapAction(document.getElementById('ts-btn-edit-profile'), () => openEditProfile());
+    bindTapAction(document.getElementById('ts-btn-logout'), () => doTimerLogout());
     bindTapAction(document.querySelector('.ts-send-btn'), () => submitAdminInquiry());
     bindTapAction(document.querySelector('.cam-btn'), () => CamManager.switchCamera());
 
@@ -462,3 +463,181 @@ document.addEventListener('DOMContentLoaded', () => {
     bindChange('ts-cam-enabled', () => saveTimerCamSettings());
     bindChange('ts-cam-visibility', () => saveTimerCamSettings());
 });
+
+// ===== 프로필 수정 =====
+
+let _profileEditUnivList = null;
+let _profileEditPhotoFile = null;
+
+async function _profileEditGetUnivList() {
+    if (_profileEditUnivList) return _profileEditUnivList;
+    try {
+        const r = await fetch('/api/university/list', { credentials: 'include' });
+        if (r.ok) {
+            const data = await r.json();
+            _profileEditUnivList = Array.isArray(data) ? data : (Array.isArray(data.list) ? data.list : []);
+        }
+    } catch (_) {}
+    return _profileEditUnivList || [];
+}
+
+function _profileEditShowUnivDropdown(inputId, resultsId, value) {
+    const resultsEl = document.getElementById(resultsId);
+    if (!resultsEl) return;
+    if (!value) { resultsEl.style.display = 'none'; return; }
+    const list = _profileEditUnivList || [];
+    const q = value.toLowerCase();
+    const filtered = list.filter(u => (u.name || '').toLowerCase().includes(q)).slice(0, 12);
+    if (!filtered.length) { resultsEl.style.display = 'none'; return; }
+    resultsEl.innerHTML = filtered.map(u => {
+        const name = u.name.replace(/</g, '&lt;');
+        return `<div style="padding:8px 10px;font-size:13px;color:var(--text-primary);cursor:pointer;border-bottom:1px solid var(--line-color);" 
+                     onmousedown="document.getElementById('${inputId}').value='${name.replace(/'/g,"\\'")}';document.getElementById('${resultsId}').style.display='none';">${name}</div>`;
+    }).join('');
+    resultsEl.style.display = 'block';
+}
+
+function profileEditSearchUniv(value) {
+    _profileEditShowUnivDropdown('profile-edit-university', 'profile-edit-univ-results', value);
+}
+
+function profileEditHideUniResults() {
+    const el = document.getElementById('profile-edit-univ-results');
+    if (el) el.style.display = 'none';
+}
+
+function profileEditSearchPrevUniv(value) {
+    _profileEditShowUnivDropdown('profile-edit-prev-university', 'profile-edit-prev-univ-results', value);
+}
+
+function profileEditHidePrevUniResults() {
+    const el = document.getElementById('profile-edit-prev-univ-results');
+    if (el) el.style.display = 'none';
+}
+
+function profileEditToggleNsu() {
+    const cb = document.getElementById('profile-edit-nsu');
+    const field = document.getElementById('profile-edit-prev-univ-field');
+    if (field) field.style.display = (cb && cb.checked) ? '' : 'none';
+}
+
+function onProfileEditPhotoSelected(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    _profileEditPhotoFile = file;
+    const preview = document.getElementById('profile-edit-avatar-img');
+    const letter = document.getElementById('profile-edit-avatar-letter');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+        if (letter) letter.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function openEditProfile() {
+    closeTimerSettings();
+    _profileEditPhotoFile = null;
+
+    const backdrop = document.getElementById('profile-edit-backdrop');
+    if (!backdrop) return;
+
+    // 현재 유저 데이터로 폼 초기화
+    const user = (typeof UI !== 'undefined' && UI.currentUser) ? UI.currentUser : {};
+    const nickEl = document.getElementById('profile-edit-nickname');
+    const univEl = document.getElementById('profile-edit-university');
+    const nsuEl = document.getElementById('profile-edit-nsu');
+    const prevUnivEl = document.getElementById('profile-edit-prev-university');
+    const errEl = document.getElementById('profile-edit-error');
+    const preview = document.getElementById('profile-edit-avatar-img');
+    const letter = document.getElementById('profile-edit-avatar-letter');
+    const submitBtn = document.getElementById('profile-edit-submit-btn');
+    const photoInput = document.getElementById('profile-edit-photo-input');
+
+    if (nickEl) nickEl.value = user.nickname || '';
+    if (univEl) univEl.value = user.university || '';
+    if (nsuEl) nsuEl.checked = !!user.is_n_su;
+    if (prevUnivEl) prevUnivEl.value = user.prev_university || '';
+    if (errEl) errEl.textContent = '';
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '저장'; }
+    if (photoInput) photoInput.value = '';
+
+    // 프로필 사진 미리보기
+    const profileImg = user.profile_image_url;
+    if (profileImg && preview) {
+        preview.src = profileImg;
+        preview.style.display = 'block';
+        if (letter) letter.style.display = 'none';
+    } else {
+        if (preview) preview.style.display = 'none';
+        if (letter) {
+            letter.style.display = '';
+            letter.textContent = (user.nickname || '?')[0].toUpperCase();
+        }
+    }
+
+    profileEditToggleNsu();
+    backdrop.classList.remove('hidden');
+
+    // 대학 목록 사전 로드
+    _profileEditGetUnivList().catch(() => {});
+}
+
+function closeEditProfile() {
+    const backdrop = document.getElementById('profile-edit-backdrop');
+    if (backdrop) backdrop.classList.add('hidden');
+}
+
+async function submitEditProfile() {
+    const errEl = document.getElementById('profile-edit-error');
+    const submitBtn = document.getElementById('profile-edit-submit-btn');
+    const nickEl = document.getElementById('profile-edit-nickname');
+    const univEl = document.getElementById('profile-edit-university');
+    const nsuEl = document.getElementById('profile-edit-nsu');
+    const prevUnivEl = document.getElementById('profile-edit-prev-university');
+
+    if (errEl) errEl.textContent = '';
+
+    const nickname = (nickEl?.value || '').trim();
+    const university = (univEl?.value || '').trim();
+    const isNsu = !!(nsuEl?.checked);
+    const prevUniversity = (prevUnivEl?.value || '').trim();
+
+    if (!nickname) { if (errEl) errEl.textContent = '닉네임을 입력해주세요.'; return; }
+    if (!university) { if (errEl) errEl.textContent = '목표 대학교를 입력해주세요.'; return; }
+    if (isNsu && !prevUniversity) { if (errEl) errEl.textContent = 'N수생은 전적 대학교를 입력해주세요.'; return; }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '저장 중...'; }
+
+    try {
+        const fd = new FormData();
+        fd.append('nickname', nickname);
+        fd.append('university', university);
+        fd.append('is_n_su', String(isNsu));
+        if (isNsu && prevUniversity) fd.append('prev_university', prevUniversity);
+        if (_profileEditPhotoFile) fd.append('profileImage', _profileEditPhotoFile);
+
+        const r = await fetch('/api/auth/profile-custom', {
+            method: 'POST',
+            credentials: 'include',
+            body: fd
+        });
+        const data = await r.json().catch(() => ({}));
+
+        if (!r.ok) {
+            if (errEl) errEl.textContent = data.error || '저장에 실패했습니다.';
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '저장'; }
+            return;
+        }
+
+        // UI 상태 업데이트
+        if (data.user && typeof UI !== 'undefined' && typeof UI.mergeCurrentUserPatch === 'function') {
+            UI.mergeCurrentUserPatch(data.user);
+        }
+
+        closeEditProfile();
+    } catch (e) {
+        if (errEl) errEl.textContent = '네트워크 오류가 발생했습니다.';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '저장'; }
+    }
+}

@@ -26,6 +26,26 @@ function inferTrackFromCategory(category) {
     return naturalKeywords.some(keyword => c.includes(keyword)) ? '자연' : '인문';
 }
 
+function normalizeSearchText(value) {
+    return String(value || '').toLowerCase().replace(/\s+/g, '');
+}
+
+function limitResultsPerUniversity(results, maxPerUniversity = 3, maxTotal = 50) {
+    const perUniversityCount = new Map();
+    const limited = [];
+
+    for (const item of results || []) {
+        if (!item?.name) continue;
+        const current = perUniversityCount.get(item.name) || 0;
+        if (current >= maxPerUniversity) continue;
+        limited.push(item);
+        perUniversityCount.set(item.name, current + 1);
+        if (limited.length >= maxTotal) break;
+    }
+
+    return limited;
+}
+
 function requireAuth(req, res, next) {
     if (!req.session?.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
     next();
@@ -436,25 +456,79 @@ router.get('/applications/me', requireAuth, async (req, res) => {
 // ── 대학 검색 + 칸수 미리보기 ────────────────────────────────────────────
 router.get('/search', requireAuth, async (req, res) => {
     const { q, track } = req.query;
-    if (!q || q.length < 1) return res.json({ results: [] });
+    const query = String(q || '').trim();
 
     try {
         const scoreRes = await pool.query('SELECT * FROM exam_scores WHERE user_id = $1', [req.session.userId]);
         const scores = scoreRes.rows[0];
         const requestedTrack = normalizeTrack(track);
+        const { getAllUniversities } = require('../data/universities');
+
+        if (!query) {
+            const seedUnis = getAllUniversities().slice(0, 15);
+            const seededResults = [];
+
+            for (const uniMeta of seedUnis) {
+                const fullUni = findUniversity(uniMeta.name);
+                const deptList = Array.isArray(fullUni?.departments) ? fullUni.departments : [];
+
+                if (deptList.length > 0) {
+                    for (const dept of deptList.slice(0, 4)) {
+                        const deptTrack = requestedTrack || inferTrackFromCategory(dept.category);
+                        const kanInfo = scores?.korean_std
+                            ? calc.getKanInfo(scores, uniMeta.name, dept.name, deptTrack)
+                            : null;
+
+                        seededResults.push({
+                            name: uniMeta.name,
+                            university: uniMeta.name,
+                            department: dept.name,
+                            category: dept.category || null,
+                            region: uniMeta.region,
+                            type: uniMeta.type,
+                            track: deptTrack,
+                            kanInfo,
+                        });
+                        if (seededResults.length >= 80) break;
+                    }
+                } else {
+                    const fallbackTrack = requestedTrack || '인문';
+                    const kanInfo = scores?.korean_std
+                        ? calc.getKanInfo(scores, uniMeta.name, '', fallbackTrack)
+                        : null;
+                    seededResults.push({
+                        name: uniMeta.name,
+                        university: uniMeta.name,
+                        department: null,
+                        category: null,
+                        region: uniMeta.region,
+                        type: uniMeta.type,
+                        track: fallbackTrack,
+                        kanInfo,
+                    });
+                }
+
+                if (seededResults.length >= 80) break;
+            }
+
+            return res.json({ results: limitResultsPerUniversity(seededResults, 3, 50) });
+        }
 
         // 대학 목록에서 검색
-        const { getAllUniversities } = require('../data/universities');
-        const qLower = q.toLowerCase();
+        const qLower = query.toLowerCase();
+        const qNormalized = normalizeSearchText(query);
         const unis = getAllUniversities().filter(u => {
             const nameHit = String(u.name || '').toLowerCase().includes(qLower);
+            const nameNormalizedHit = normalizeSearchText(u.name).includes(qNormalized);
             const aliasHit = (u.aliases || []).some(a => String(a || '').toLowerCase().includes(qLower));
-            if (nameHit || aliasHit) return true;
+            const aliasNormalizedHit = (u.aliases || []).some(a => normalizeSearchText(a).includes(qNormalized));
+            if (nameHit || nameNormalizedHit || aliasHit || aliasNormalizedHit) return true;
 
             const fullUni = findUniversity(u.name);
             if (!fullUni || !Array.isArray(fullUni.departments)) return false;
             return fullUni.departments.some(dept =>
                 String(dept?.name || '').toLowerCase().includes(qLower)
+                || normalizeSearchText(dept?.name || '').includes(qNormalized)
             );
         });
 
@@ -470,7 +544,7 @@ router.get('/search', requireAuth, async (req, res) => {
                 return deptNameHit || uniNameHit;
             });
 
-            for (const dept of matchedDepts.slice(0, 12)) {
+            for (const dept of matchedDepts.slice(0, 5)) {
                 const deptTrack = requestedTrack || inferTrackFromCategory(dept.category);
                 const kanInfo = scores?.korean_std
                     ? calc.getKanInfo(scores, fullUni.name, dept.name, deptTrack)
@@ -487,32 +561,57 @@ router.get('/search', requireAuth, async (req, res) => {
                     kanInfo,
                 });
 
-                if (results.length >= 50) break;
+                if (results.length >= 120) break;
             }
-            if (results.length >= 50) break;
+            if (results.length >= 120) break;
         }
 
         if (results.length === 0) {
             // 학과명이 아닌 대학명만 들어오는 경우를 위한 완만한 fallback
             for (const uniMeta of unis.slice(0, 15)) {
-                const fallbackTrack = requestedTrack || '인문';
-                const kanInfo = scores?.korean_std
-                    ? calc.getKanInfo(scores, uniMeta.name, '', fallbackTrack)
-                    : null;
-                results.push({
-                    name: uniMeta.name,
-                    university: uniMeta.name,
-                    department: null,
-                    category: null,
-                    region: uniMeta.region,
-                    type: uniMeta.type,
-                    track: fallbackTrack,
-                    kanInfo,
-                });
+                const fullUni = findUniversity(uniMeta.name);
+                const deptList = Array.isArray(fullUni?.departments) ? fullUni.departments : [];
+
+                if (deptList.length > 0) {
+                    for (const dept of deptList.slice(0, 6)) {
+                        const fallbackTrack = requestedTrack || inferTrackFromCategory(dept.category);
+                        const kanInfo = scores?.korean_std
+                            ? calc.getKanInfo(scores, uniMeta.name, dept.name, fallbackTrack)
+                            : null;
+                        results.push({
+                            name: uniMeta.name,
+                            university: uniMeta.name,
+                            department: dept.name,
+                            category: dept.category || null,
+                            region: uniMeta.region,
+                            type: uniMeta.type,
+                            track: fallbackTrack,
+                            kanInfo,
+                        });
+                        if (results.length >= 120) break;
+                    }
+                } else {
+                    const fallbackTrack = requestedTrack || '인문';
+                    const kanInfo = scores?.korean_std
+                        ? calc.getKanInfo(scores, uniMeta.name, '', fallbackTrack)
+                        : null;
+                    results.push({
+                        name: uniMeta.name,
+                        university: uniMeta.name,
+                        department: null,
+                        category: null,
+                        region: uniMeta.region,
+                        type: uniMeta.type,
+                        track: fallbackTrack,
+                        kanInfo,
+                    });
+                }
+
+                if (results.length >= 120) break;
             }
         }
 
-        res.json({ results });
+        res.json({ results: limitResultsPerUniversity(results, 3, 50) });
     } catch (err) {
         console.error('apply/search 오류:', err.message);
         res.status(500).json({ error: '서버 오류' });

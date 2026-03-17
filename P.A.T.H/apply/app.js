@@ -8,6 +8,7 @@ let myApplications = {};  // group_type → application 객체
 let pendingGroup  = null; // 검색 모달에서 선택 중인 군
 let pendingEnrollId = null;
 let replacementSuggestionRequestId = 0;
+let searchRequestId = 0;
 
 // ── 초기화 ────────────────────────────────────────────────────────────────
 async function init() {
@@ -438,17 +439,40 @@ let searchTimer = null;
 function searchUniversity(q) {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(async () => {
+        const requestId = ++searchRequestId;
+        const keyword = String(q || '').trim();
+        const wrap = document.getElementById('search-results');
+        if (wrap) {
+            wrap.innerHTML = '<div class="empty-state"><span class="spinner" style="border-color:var(--gray-200);border-top-color:var(--blue)"></span></div>';
+        }
         try {
             const preferredTrack = getPreferredTrack();
             const r = await fetch(
-                `/api/apply/search?q=${encodeURIComponent(q || '서울')}&track=${encodeURIComponent(preferredTrack)}`,
+                `/api/apply/search?q=${encodeURIComponent(keyword)}&track=${encodeURIComponent(preferredTrack)}`,
                 { credentials: 'include' }
             );
-            if (!r.ok) return;
+            if (requestId !== searchRequestId) return;
+            if (!r.ok) {
+                renderSearchErrorState('검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+                return;
+            }
             const data = await r.json();
             renderSearchResults(data.results || []);
-        } catch {}
+        } catch {
+            if (requestId !== searchRequestId) return;
+            renderSearchErrorState('네트워크 상태를 확인한 뒤 다시 시도해 주세요.');
+        }
     }, 200);
+}
+
+function renderSearchErrorState(message) {
+    const wrap = document.getElementById('search-results');
+    if (!wrap) return;
+    wrap.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <p>${esc(message || '검색 중 오류가 발생했어요.')}</p>
+        </div>`;
 }
 
 function getPreferredTrack() {
@@ -476,6 +500,7 @@ function renderSearchResults(results) {
     const portfolio = computeCurrentPortfolio();
 
     wrap.innerHTML = ranked.map((u, index) => {
+        const canApply = !!String(u.department || '').trim();
         const kan = u.kanInfo;
         const risk = getRiskMeta(kan?.kan);
         const recommendation = getSearchRecommendationMeta(currentApp, u, index, portfolio);
@@ -492,16 +517,22 @@ function renderSearchResults(results) {
                </div>`
             : '<span style="font-size:12px;color:var(--gray-400)">-</span>';
 
-        const badgeHtml = recommendation.badges.length
-            ? `<div class="modal-item-badges">${recommendation.badges.map(b => `<span class="mini-badge ${b.className}">${b.label}</span>`).join('')}</div>`
+        const badges = [...recommendation.badges];
+        if (!canApply) badges.push({ className: '', label: '학과 선택 필요' });
+        const badgeHtml = badges.length
+            ? `<div class="modal-item-badges">${badges.map(b => `<span class="mini-badge ${b.className}">${b.label}</span>`).join('')}</div>`
+            : '';
+        const itemClass = canApply ? 'modal-item' : 'modal-item disabled';
+        const clickAttr = canApply
+            ? `onclick="selectUniversity(${jsQuote(u.name)}, ${jsQuote(u.department || '')}, ${jsQuote(u.track || getPreferredTrack())})"`
             : '';
         return `
-            <div class="modal-item" onclick="selectUniversity(${jsQuote(u.name)}, ${jsQuote(u.department || '')}, ${jsQuote(u.track || getPreferredTrack())})">
+            <div class="${itemClass}" ${clickAttr}>
                 <div>
                     <div class="modal-item-name">${esc(u.name)}</div>
                     <div class="modal-item-sub">${esc(u.region || '')} · ${esc(u.type || '')}${esc(deptLabel)}${esc(trackLabel)}</div>
                     ${badgeHtml}
-                    <div class="modal-item-reason">${recommendation.reason}</div>
+                    <div class="modal-item-reason">${canApply ? recommendation.reason : '학과 정보가 있는 항목을 선택해 주세요.'}</div>
                 </div>
                 ${kanHtml}
             </div>`;
@@ -509,24 +540,32 @@ function renderSearchResults(results) {
 }
 
 async function selectUniversity(universityName, departmentName, track) {
-    document.getElementById('search-modal').style.display = 'none';
-    return applyUniversityToGroup(pendingGroup, universityName, departmentName || null, track || null);
+    if (!String(departmentName || '').trim()) {
+        showToast('학과 정보가 있는 항목을 선택해 주세요.');
+        return false;
+    }
+
+    const applied = await applyUniversityToGroup(pendingGroup, universityName, departmentName || null, track || null);
+    if (applied) {
+        document.getElementById('search-modal').style.display = 'none';
+    }
+    return applied;
 }
 
 async function applyUniversityToGroup(group, universityName, departmentName = null, track = null) {
     if (!currentRound || currentRound.status !== 'open') {
         showToast('현재 지원 기간이 아닙니다.');
-        return;
+        return false;
     }
 
     if (!group || !['가', '나', '다'].includes(group)) {
         showToast('지원 군 정보를 확인할 수 없습니다.');
-        return;
+        return false;
     }
 
     if (!departmentName) {
         showToast('학과를 선택해주세요.');
-        return;
+        return false;
     }
 
     try {
@@ -551,11 +590,14 @@ async function applyUniversityToGroup(group, universityName, departmentName = nu
             renderAppliedDetail();
             renderScoreDashboard();
             showToast(`${group}군: ${universityName} ${departmentName} 지원 완료 ✓`);
+            return true;
         } else {
             showToast(data.error || '지원 실패');
+            return false;
         }
     } catch {
         showToast('네트워크 오류');
+        return false;
     }
 }
 

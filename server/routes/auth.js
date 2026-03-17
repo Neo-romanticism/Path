@@ -787,6 +787,11 @@ router.post('/profile-custom', requireAuth, (req, res) => {
         if (err) return sendMulterUploadError(res, err, PROFILE_IMAGE_MAX_SIZE);
 
         const rawNickname = typeof req.body.nickname === 'string' ? req.body.nickname.trim() : '';
+        const rawUniversity = typeof req.body.university === 'string' ? req.body.university.trim() : '';
+        const isNsu = req.body.is_n_su === 'true' || req.body.is_n_su === true;
+        const rawPrevUniversity = typeof req.body.prev_university === 'string' ? req.body.prev_university.trim() : '';
+        const hasUniversityUpdate = rawUniversity !== '';
+
         let nickname = null;
         if (rawNickname) {
             const nickValidation = validateNickname(rawNickname);
@@ -796,7 +801,11 @@ router.post('/profile-custom', requireAuth, (req, res) => {
             nickname = nickValidation.value;
         }
 
-        if (!nickname && !req.file) {
+        if (hasUniversityUpdate && isNsu && !rawPrevUniversity) {
+            return res.status(400).json({ error: 'N수생은 전적 대학교를 입력해주세요.' });
+        }
+
+        if (!nickname && !req.file && !hasUniversityUpdate) {
             return res.status(400).json({ error: '변경할 프로필 정보가 없습니다.' });
         }
 
@@ -815,10 +824,13 @@ router.post('/profile-custom', requireAuth, (req, res) => {
             const result = await pool.query(
                 `UPDATE users
                  SET nickname = COALESCE($1, nickname),
-                     profile_image_url = COALESCE($2, profile_image_url)
-                 WHERE id = $3
+                     profile_image_url = COALESCE($2, profile_image_url),
+                     university = CASE WHEN $3 THEN $4 ELSE university END,
+                     is_n_su = CASE WHEN $3 THEN $5 ELSE is_n_su END,
+                     prev_university = CASE WHEN $3 THEN $6 ELSE prev_university END
+                 WHERE id = $7
                  RETURNING ${USER_FIELDS}`,
-                [nickname, nextProfileImageUrl, req.session.userId]
+                [nickname, nextProfileImageUrl, hasUniversityUpdate, rawUniversity || null, isNsu, isNsu ? (rawPrevUniversity || null) : null, req.session.userId]
             );
 
             res.json({ ok: true, user: addPercentile(result.rows[0]) });
