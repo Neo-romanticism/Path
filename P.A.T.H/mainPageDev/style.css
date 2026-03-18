@@ -57,10 +57,10 @@ body[data-theme-mode="dark"] {
     --surface-soft: rgba(16, 24, 37, 0.84);
     --surface-hover: rgba(25, 36, 54, 0.94);
     --text-primary: #edf4ff;
-    --text-secondary: #bfd0ea;
-    --text-muted: #8ea4c6;
-    --text-sub: #9fb4d4;
-    --text-dim: #6d86aa;
+    --text-secondary: #d2def2;
+    --text-muted: #adc0dc;
+    --text-sub: #c2d2eb;
+    --text-dim: #8ea7cb;
     --line-color: rgba(130, 160, 205, 0.18);
     --shadow-main: 0 18px 40px rgba(0, 0, 0, 0.34);
     --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.22);
@@ -1949,7 +1949,7 @@ body:not(.light) .home-brief-title {
 body:not(.light) .home-hero-copy,
 body:not(.light) .home-hero-highlight span:last-child,
 body:not(.light) .home-brief-copy {
-    color: #c3d5f1;
+    color: #d7e3f7;
 }
 
 body:not(.light) .home-hero-chip,
@@ -2163,7 +2163,7 @@ body:not(.light) .balloon-ai-kicker {
 }
 
 body:not(.light) .balloon-ai-detail {
-    color: #c0cad8;
+    color: #d2def0;
 }
 
 body:not(.light) .balloon-ai-headline {
@@ -2816,7 +2816,7 @@ body:not(.light) .calendar-selected-date-label {
 }
 
 body:not(.light) .calendar-selected-date-summary {
-    color: #c3d5f1;
+    color: #d5e3f7;
 }
 
 .calendar-overview-copy {
@@ -5912,7 +5912,7 @@ body.path-interface {
         radial-gradient(1100px 560px at -10% -20%, rgba(49, 130, 246, 0.14) 0%, rgba(49, 130, 246, 0) 65%),
         radial-gradient(900px 520px at 110% -20%, rgba(0, 196, 113, 0.08) 0%, rgba(0, 196, 113, 0) 70%),
         linear-gradient(180deg, #f3f5f9 0%, #eef1f6 100%);
-    color: #191f28;
+    color: var(--text-primary);
 }
 
 body.path-interface:not(.light) {
@@ -6425,8 +6425,8 @@ body:not(.light) .planner-paper {
     border-color: rgba(255, 255, 255, 0.06);
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
     --text-primary: #edf4ff;
-    --text-secondary: #c2d3eb;
-    --text-muted: #92a8c8;
+    --text-secondary: #d4e2f6;
+    --text-muted: #afc2df;
     --line-color: rgba(138, 168, 212, 0.24);
     --surface-soft: rgba(16, 25, 39, 0.86);
     --surface-hover: rgba(24, 35, 52, 0.92);

@@ -858,6 +858,200 @@ body {
 /* ── 안전 영역 ───────────────────────────────────────────────────────── */
 .bottom-safe { height: calc(env(safe-area-inset-bottom, 0px) + 16px); }
 
+body.apply-page:not(.light),
+body.apply-page[data-theme-mode="dark"] {
+    --blue-bg: rgba(49, 130, 246, 0.16);
+    --navy: #eef4ff;
+    --teal-bg: rgba(31, 87, 191, 0.2);
+    --ink-soft: #d3e0f3;
+    --gray-50: #0d1420;
+    --gray-100: #172133;
+    --gray-200: #23314a;
+    --gray-400: #97adce;
+    --gray-600: #c6d5ea;
+    --gray-900: #f3f7ff;
+    --shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+    --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.34);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(49, 130, 246, 0.24), transparent 32%),
+        radial-gradient(circle at 92% 8%, rgba(43, 110, 242, 0.18), transparent 28%),
+        linear-gradient(180deg, #0b1220 0%, #091019 100%);
+    color: var(--gray-900);
+}
+
+body.apply-page:not(.light) .app-header,
+body.apply-page:not(.light) .tab-nav,
+body.apply-page[data-theme-mode="dark"] .app-header,
+body.apply-page[data-theme-mode="dark"] .tab-nav {
+    background: rgba(10, 17, 29, 0.9);
+    border-bottom-color: rgba(142, 169, 208, 0.18);
+}
+
+body.apply-page:not(.light) .header-subtitle,
+body.apply-page:not(.light) .tab-btn,
+body.apply-page:not(.light) .field label,
+body.apply-page:not(.light) .modal-item-sub,
+body.apply-page:not(.light) .modal-item-reason,
+body.apply-page:not(.light) .section-title,
+body.apply-page:not(.light) .score-kpi-label,
+body.apply-page:not(.light) .score-kpi-meta,
+body.apply-page:not(.light) .analysis-sub,
+body.apply-page:not(.light) .replacement-sub,
+body.apply-page:not(.light) .replacement-meta,
+body.apply-page:not(.light) .result-dept,
+body.apply-page:not(.light) .result-summary-label,
+body.apply-page:not(.light) .judgement-sub,
+body.apply-page:not(.light) .judgement-meta,
+body.apply-page:not(.light) .judgement-action,
+body.apply-page:not(.light) .empty-state,
+body.apply-page:not(.light) .upload-area p,
+body.apply-page:not(.light) .info-row .label,
+body.apply-page[data-theme-mode="dark"] .header-subtitle,
+body.apply-page[data-theme-mode="dark"] .tab-btn,
+body.apply-page[data-theme-mode="dark"] .field label,
+body.apply-page[data-theme-mode="dark"] .modal-item-sub,
+body.apply-page[data-theme-mode="dark"] .modal-item-reason,
+body.apply-page[data-theme-mode="dark"] .section-title,
+body.apply-page[data-theme-mode="dark"] .score-kpi-label,
+body.apply-page[data-theme-mode="dark"] .score-kpi-meta,
+body.apply-page[data-theme-mode="dark"] .analysis-sub,
+body.apply-page[data-theme-mode="dark"] .replacement-sub,
+body.apply-page[data-theme-mode="dark"] .replacement-meta,
+body.apply-page[data-theme-mode="dark"] .result-dept,
+body.apply-page[data-theme-mode="dark"] .result-summary-label,
+body.apply-page[data-theme-mode="dark"] .judgement-sub,
+body.apply-page[data-theme-mode="dark"] .judgement-meta,
+body.apply-page[data-theme-mode="dark"] .judgement-action,
+body.apply-page[data-theme-mode="dark"] .empty-state,
+body.apply-page[data-theme-mode="dark"] .upload-area p,
+body.apply-page[data-theme-mode="dark"] .info-row .label {
+    color: var(--gray-400);
+}
+
+body.apply-page:not(.light) .card,
+body.apply-page:not(.light) .group-card,
+body.apply-page:not(.light) .modal-sheet,
+body.apply-page:not(.light) .analysis-board,
+body.apply-page:not(.light) .score-dashboard,
+body.apply-page:not(.light) .score-kpi-mini,
+body.apply-page:not(.light) .score-kpi-mini.wide,
+body.apply-page:not(.light) .result-card,
+body.apply-page:not(.light) .result-summary-item,
+body.apply-page:not(.light) .judgement-board,
+body.apply-page:not(.light) .replacement-card,
+body.apply-page:not(.light) .strategy-row,
+body.apply-page:not(.light) .strategy-action-item,
+body.apply-page:not(.light) .replacement-item,
+body.apply-page[data-theme-mode="dark"] .card,
+body.apply-page[data-theme-mode="dark"] .group-card,
+body.apply-page[data-theme-mode="dark"] .modal-sheet,
+body.apply-page[data-theme-mode="dark"] .analysis-board,
+body.apply-page[data-theme-mode="dark"] .score-dashboard,
+body.apply-page[data-theme-mode="dark"] .score-kpi-mini,
+body.apply-page[data-theme-mode="dark"] .score-kpi-mini.wide,
+body.apply-page[data-theme-mode="dark"] .result-card,
+body.apply-page[data-theme-mode="dark"] .result-summary-item,
+body.apply-page[data-theme-mode="dark"] .judgement-board,
+body.apply-page[data-theme-mode="dark"] .replacement-card,
+body.apply-page[data-theme-mode="dark"] .strategy-row,
+body.apply-page[data-theme-mode="dark"] .strategy-action-item,
+body.apply-page[data-theme-mode="dark"] .replacement-item {
+    background: #10192a;
+    border-color: rgba(143, 170, 210, 0.18);
+    box-shadow: var(--shadow);
+}
+
+body.apply-page:not(.light) .score-kpi-card,
+body.apply-page[data-theme-mode="dark"] .score-kpi-card {
+    background: linear-gradient(180deg, rgba(19, 33, 58, 0.96) 0%, rgba(14, 24, 40, 0.98) 100%);
+    border-color: rgba(107, 154, 230, 0.28);
+    color: var(--gray-900);
+}
+
+body.apply-page:not(.light) .modal-close,
+body.apply-page:not(.light) .modal-search-wrap input,
+body.apply-page:not(.light) .field input,
+body.apply-page:not(.light) .field select,
+body.apply-page:not(.light) .result-card.failed,
+body.apply-page:not(.light) .judgement-group,
+body.apply-page[data-theme-mode="dark"] .modal-close,
+body.apply-page[data-theme-mode="dark"] .modal-search-wrap input,
+body.apply-page[data-theme-mode="dark"] .field input,
+body.apply-page[data-theme-mode="dark"] .field select,
+body.apply-page[data-theme-mode="dark"] .result-card.failed,
+body.apply-page[data-theme-mode="dark"] .judgement-group {
+    background: #162235;
+    color: var(--gray-900);
+    border-color: rgba(143, 170, 210, 0.2);
+}
+
+body.apply-page:not(.light) .card-title,
+body.apply-page:not(.light) .modal-header,
+body.apply-page:not(.light) .modal-item-name,
+body.apply-page:not(.light) .result-uni,
+body.apply-page:not(.light) .analysis-title,
+body.apply-page:not(.light) .replacement-title,
+body.apply-page:not(.light) .replacement-body,
+body.apply-page:not(.light) .replacement-item-name,
+body.apply-page:not(.light) .strategy-action-item strong,
+body.apply-page:not(.light) .strategy-row .uni,
+body.apply-page:not(.light) .judgement-title,
+body.apply-page:not(.light) .judgement-uni,
+body.apply-page:not(.light) .result-summary-value,
+body.apply-page:not(.light) .score-kpi-mini-value,
+body.apply-page[data-theme-mode="dark"] .card-title,
+body.apply-page[data-theme-mode="dark"] .modal-header,
+body.apply-page[data-theme-mode="dark"] .modal-item-name,
+body.apply-page[data-theme-mode="dark"] .result-uni,
+body.apply-page[data-theme-mode="dark"] .analysis-title,
+body.apply-page[data-theme-mode="dark"] .replacement-title,
+body.apply-page[data-theme-mode="dark"] .replacement-body,
+body.apply-page[data-theme-mode="dark"] .replacement-item-name,
+body.apply-page[data-theme-mode="dark"] .strategy-action-item strong,
+body.apply-page[data-theme-mode="dark"] .strategy-row .uni,
+body.apply-page[data-theme-mode="dark"] .judgement-title,
+body.apply-page[data-theme-mode="dark"] .judgement-uni,
+body.apply-page[data-theme-mode="dark"] .result-summary-value,
+body.apply-page[data-theme-mode="dark"] .score-kpi-mini-value {
+    color: var(--gray-900);
+}
+
+body.apply-page:not(.light) .strategy-pill,
+body.apply-page:not(.light) .mini-badge,
+body.apply-page:not(.light) .badge-gray,
+body.apply-page[data-theme-mode="dark"] .strategy-pill,
+body.apply-page[data-theme-mode="dark"] .mini-badge,
+body.apply-page[data-theme-mode="dark"] .badge-gray {
+    background: #1b2940;
+    color: var(--gray-600);
+}
+
+body.apply-page:not(.light) .replacement-empty,
+body.apply-page:not(.light) .upload-area,
+body.apply-page[data-theme-mode="dark"] .replacement-empty,
+body.apply-page[data-theme-mode="dark"] .upload-area {
+    background: rgba(16, 25, 40, 0.72);
+    border-color: rgba(143, 170, 210, 0.22);
+    color: var(--gray-400);
+}
+
+body.apply-page:not(.light) .divider,
+body.apply-page:not(.light) .judgement-table,
+body.apply-page:not(.light) .judgement-row,
+body.apply-page:not(.light) .modal-item,
+body.apply-page[data-theme-mode="dark"] .divider,
+body.apply-page[data-theme-mode="dark"] .judgement-table,
+body.apply-page[data-theme-mode="dark"] .judgement-row,
+body.apply-page[data-theme-mode="dark"] .modal-item {
+    border-color: rgba(143, 170, 210, 0.14);
+}
+
+body.apply-page:not(.light) .round-pill.closed,
+body.apply-page[data-theme-mode="dark"] .round-pill.closed {
+    background: #1b2940;
+    color: var(--gray-400);
+}
+
 @media (max-width: 480px) {
     .score-kpi-value { font-size: 30px; }
     .result-summary-grid { grid-template-columns: repeat(2, 1fr); }

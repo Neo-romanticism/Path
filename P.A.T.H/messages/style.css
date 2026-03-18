@@ -7,21 +7,22 @@
 }
 
 :root {
-  --msg-bg: #071024;
-  --msg-bg-soft: #0a1631;
-  --msg-paper: #111f3f;
-  --msg-paper-2: #162a53;
-  --msg-line: rgba(150, 184, 255, 0.25);
-  --msg-text: #eaf1ff;
-  --msg-sub: #a8bde8;
-  --msg-dim: #7d95c2;
-  --msg-accent: #2f6ef4;
-  --msg-accent-2: #4f88ff;
-  --msg-accent-soft: rgba(63, 121, 255, 0.22);
-  --msg-danger: #ff4f64;
-  --msg-danger-soft: rgba(255, 79, 100, 0.18);
-  --msg-ok: #44d091;
-  --msg-shadow: 0 20px 60px rgba(1, 5, 15, 0.55);
+  --msg-bg: #f9fafb;
+  --msg-bg-soft: #ffffff;
+  --msg-paper: rgba(255, 255, 255, 0.98);
+  --msg-paper-2: #f8f9fa;
+  --msg-paper-elev: #f1f3f5;
+  --msg-line: rgba(0, 0, 0, 0.06);
+  --msg-text: #191f28;
+  --msg-sub: #4e5968;
+  --msg-dim: #8b95a1;
+  --msg-accent: #3182f6;
+  --msg-accent-2: #1b64da;
+  --msg-accent-soft: rgba(49, 130, 246, 0.12);
+  --msg-danger: #f04452;
+  --msg-danger-soft: rgba(240, 68, 82, 0.12);
+  --msg-ok: #00c471;
+  --msg-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   --msg-radius-xl: 24px;
   --msg-radius-lg: 18px;
   --msg-radius: 14px;
@@ -30,23 +31,24 @@
   --topbar-h: 62px;
 }
 
-body.messages-page.light,
-body.messages-page[data-theme-mode="light"] {
-  --msg-bg: #eaf1ff;
-  --msg-bg-soft: #dfe9ff;
-  --msg-paper: #f8fbff;
-  --msg-paper-2: #edf3ff;
-  --msg-line: rgba(36, 83, 177, 0.18);
-  --msg-text: #17335f;
-  --msg-sub: #4f6e9d;
-  --msg-dim: #7590b8;
-  --msg-accent: #225ee0;
-  --msg-accent-2: #3f76ef;
-  --msg-accent-soft: rgba(57, 110, 232, 0.18);
-  --msg-danger: #dc3e58;
-  --msg-danger-soft: rgba(220, 62, 88, 0.12);
-  --msg-ok: #0eaa65;
-  --msg-shadow: 0 16px 40px rgba(36, 68, 124, 0.16);
+body.messages-page:not(.light),
+body.messages-page[data-theme-mode="dark"] {
+  --msg-bg: #0b1018;
+  --msg-bg-soft: #131b27;
+  --msg-paper: rgba(13, 20, 31, 0.92);
+  --msg-paper-2: #121a28;
+  --msg-paper-elev: rgba(25, 36, 54, 0.94);
+  --msg-line: rgba(130, 160, 205, 0.18);
+  --msg-text: #edf4ff;
+  --msg-sub: #bfd0ea;
+  --msg-dim: #8ea4c6;
+  --msg-accent: #4f8dff;
+  --msg-accent-2: #74a8ff;
+  --msg-accent-soft: rgba(79, 141, 255, 0.18);
+  --msg-danger: #ff6070;
+  --msg-danger-soft: rgba(255, 96, 112, 0.18);
+  --msg-ok: #00c471;
+  --msg-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
 }
 
 html,
@@ -62,8 +64,8 @@ body.messages-page {
   font-family: var(--msg-font-ui);
   color: var(--msg-text);
   background:
-    radial-gradient(1200px 720px at 6% 0%, rgba(55, 108, 235, 0.26), transparent 52%),
-    radial-gradient(900px 680px at 94% -5%, rgba(45, 82, 168, 0.25), transparent 55%),
+    radial-gradient(1100px 560px at -10% -20%, rgba(82, 151, 255, 0.16), rgba(82, 151, 255, 0) 65%),
+    radial-gradient(900px 520px at 110% -20%, rgba(49, 130, 246, 0.11), rgba(49, 130, 246, 0) 70%),
     linear-gradient(180deg, var(--msg-bg-soft) 0%, var(--msg-bg) 100%);
   -webkit-font-smoothing: antialiased;
 }
@@ -103,7 +105,7 @@ body.messages-page {
   height: 40px;
   border: 1px solid var(--msg-line);
   border-radius: 13px;
-  background: color-mix(in srgb, var(--msg-paper) 72%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 94%, transparent);
   color: var(--msg-text);
   display: inline-flex;
   align-items: center;
@@ -117,7 +119,7 @@ body.messages-page {
 .c-header__icon-btn:hover,
 .c-header__icon-btn[aria-expanded="true"] {
   transform: translateY(-1px);
-  background: color-mix(in srgb, var(--msg-paper-2) 86%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-elev) 95%, transparent);
 }
 
 .c-header__logo {
@@ -125,7 +127,7 @@ body.messages-page {
   height: 32px;
   border-radius: 11px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper) 76%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 92%, transparent);
   color: var(--msg-accent-2);
   display: inline-flex;
   align-items: center;
@@ -171,15 +173,11 @@ body.messages-page[data-theme-mode="light"] .theme-icon--moon {
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(180deg, rgba(8, 17, 38, 0.92), rgba(8, 17, 38, 0.62));
+  background: color-mix(in srgb, var(--msg-paper) 94%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--msg-line) 92%, transparent);
   z-index: 120;
-}
-
-body.messages-page.light .msg-shell-header,
-body.messages-page[data-theme-mode="light"] .msg-shell-header {
-  background: linear-gradient(180deg, rgba(234, 242, 255, 0.95), rgba(234, 242, 255, 0.72));
 }
 
 .msg-shell-header .c-header__inner {
@@ -192,7 +190,7 @@ body.messages-page[data-theme-mode="light"] .msg-shell-header {
   padding: 0 10px;
   border-radius: 999px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper) 72%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   font-size: 11px;
   font-weight: 600;
   color: var(--msg-sub);
@@ -219,7 +217,7 @@ body.messages-page[data-theme-mode="light"] .msg-shell-header {
   min-height: 0;
   border: 1px solid var(--msg-line);
   border-radius: var(--msg-radius-xl);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 94%, transparent), color-mix(in srgb, var(--msg-paper-2) 92%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 98%, transparent), color-mix(in srgb, var(--msg-paper-2) 98%, transparent));
   box-shadow: var(--msg-shadow);
 }
 
@@ -272,7 +270,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   gap: 10px;
   border: 1px solid var(--msg-line);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--msg-paper-2) 70%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   padding: 0 12px;
   min-height: 46px;
 }
@@ -304,7 +302,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   margin: 10px 14px 0;
   border: 1px solid var(--msg-line);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--msg-paper-2) 82%, transparent);
+  background: color-mix(in srgb, var(--msg-paper) 98%, transparent);
   overflow: hidden;
 }
 
@@ -379,7 +377,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .conv-item {
   width: 100%;
   border: 0;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--msg-paper-2) 90%, transparent), color-mix(in srgb, var(--msg-paper) 92%, transparent));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 98%, transparent), color-mix(in srgb, var(--msg-paper-2) 96%, transparent));
   border: 1px solid color-mix(in srgb, var(--msg-line) 80%, transparent);
   border-radius: 16px;
   padding: 12px 12px;
@@ -394,7 +392,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .conv-item:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--msg-accent) 40%, var(--msg-line));
-  background: linear-gradient(150deg, color-mix(in srgb, var(--msg-paper-2) 100%, transparent), color-mix(in srgb, var(--msg-paper) 96%, transparent));
+  background: color-mix(in srgb, var(--msg-paper-elev) 96%, transparent);
 }
 
 .conv-shell.open .conv-item {
@@ -435,9 +433,9 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(63, 125, 255, 0.32), rgba(68, 112, 219, 0.18));
+  background: linear-gradient(145deg, color-mix(in srgb, var(--msg-accent) 16%, var(--msg-paper)), color-mix(in srgb, var(--msg-paper-2) 94%, transparent));
   border: 1px solid color-mix(in srgb, var(--msg-accent) 35%, var(--msg-line));
-  color: color-mix(in srgb, var(--msg-accent-2) 78%, #ffffff);
+  color: var(--msg-accent-2);
   font-size: 16px;
   font-weight: 800;
   display: flex;
@@ -578,7 +576,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 }
 
 .msg-header--mainpage {
-  background: color-mix(in srgb, var(--msg-paper) 96%, transparent);
+  background: color-mix(in srgb, var(--msg-paper) 98%, transparent);
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--msg-line) 84%, transparent);
 }
 
@@ -702,8 +700,8 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   flex-direction: column;
   gap: 7px;
   background:
-    radial-gradient(640px 320px at 82% 0%, rgba(55, 108, 235, 0.14), rgba(55, 108, 235, 0) 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 92%, transparent), color-mix(in srgb, var(--msg-paper-2) 90%, transparent));
+    radial-gradient(640px 320px at 82% 0%, color-mix(in srgb, var(--msg-accent) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--msg-paper-2) 98%, transparent), color-mix(in srgb, var(--msg-paper) 98%, transparent));
 }
 
 .chat-placeholder {
@@ -741,7 +739,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper-2) 84%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   color: var(--msg-dim);
   font-size: 11px;
 }
@@ -765,7 +763,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .msg-bubble {
   border-radius: 16px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper-2) 84%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-elev) 88%, transparent);
   color: var(--msg-text);
   padding: 10px 12px;
   font-size: 14px;
@@ -826,7 +824,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .file-attachment {
   border: 1px solid var(--msg-line);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--msg-paper) 90%, transparent);
+  background: color-mix(in srgb, var(--msg-paper) 98%, transparent);
   padding: 10px;
   display: inline-block;
   max-width: 100%;
@@ -875,7 +873,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .file-preview {
   margin: 0 12px 10px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper-2) 85%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   border-radius: 12px;
   padding: 8px 10px;
   display: flex;
@@ -904,7 +902,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  background: color-mix(in srgb, var(--msg-paper) 90%, transparent);
+  background: color-mix(in srgb, var(--msg-paper) 98%, transparent);
 }
 
 .chat-file-btn,
@@ -913,7 +911,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   height: 40px;
   border-radius: 12px;
   border: 1px solid var(--msg-line);
-  background: color-mix(in srgb, var(--msg-paper-2) 88%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   color: var(--msg-sub);
   display: inline-flex;
   align-items: center;
@@ -947,7 +945,7 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   max-height: 124px;
   border: 1px solid var(--msg-line);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--msg-paper-2) 76%, transparent);
+  background: color-mix(in srgb, var(--msg-paper-2) 96%, transparent);
   color: var(--msg-text);
   outline: none;
   font-family: var(--msg-font-ui);
