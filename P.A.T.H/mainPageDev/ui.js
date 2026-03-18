@@ -825,6 +825,13 @@ const UI = {
     setMoreMenuOpen(open) {
         if (!this.elements.tabMoreMenu || !this.elements.tabMoreBtn) return;
 
+        const resetMoreMenuState = () => {
+            this.elements.body?.classList.remove('tab-more-open', 'tab-more-closing');
+            this.elements.tabMoreBtn.setAttribute('aria-expanded', 'false');
+            this.elements.tabMoreBtn.textContent = '더보기 ▾';
+            this.elements.tabMoreMenu.classList.add('hidden');
+        };
+
         if (this.moreMenuGuardRaf) {
             cancelAnimationFrame(this.moreMenuGuardRaf);
             this.moreMenuGuardRaf = 0;
@@ -844,19 +851,22 @@ const UI = {
             this.moreSheetGesture.active = false;
             this.moreSheetGesture.deltaY = 0;
             this.elements.tabMoreMenu.style.removeProperty('--sheet-drag-offset');
+            return;
         }
 
-        // Safety net: if menu failed to render (mobile WebView edge cases), clear dim state immediately.
+        // Some mobile WebViews report zero client rects on the first frame after display:none.
+        // Wait an extra frame and validate against computed visibility instead of layout rects.
         this.moreMenuGuardRaf = requestAnimationFrame(() => {
-            this.moreMenuGuardRaf = 0;
-            const menuVisible = !this.elements.tabMoreMenu.classList.contains('hidden')
-                && this.elements.tabMoreMenu.getClientRects().length > 0;
-            if (!menuVisible) {
-                this.elements.body?.classList.remove('tab-more-open', 'tab-more-closing');
-                this.elements.tabMoreBtn.setAttribute('aria-expanded', 'false');
-                this.elements.tabMoreBtn.textContent = '더보기 ▾';
-                this.elements.tabMoreMenu.classList.add('hidden');
-            }
+            this.moreMenuGuardRaf = requestAnimationFrame(() => {
+                this.moreMenuGuardRaf = 0;
+                const menuStyles = window.getComputedStyle(this.elements.tabMoreMenu);
+                const menuVisible = !this.elements.tabMoreMenu.classList.contains('hidden')
+                    && menuStyles.display !== 'none'
+                    && menuStyles.visibility !== 'hidden';
+                if (!menuVisible) {
+                    resetMoreMenuState();
+                }
+            });
         });
     },
 
