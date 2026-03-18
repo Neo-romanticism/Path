@@ -42,7 +42,7 @@
 </script>
 
 <header class="msg-topbar">
-  <button class="msg-topbar__back" onclick="handleBack()" aria-label="뒤로가기" id="btn-header-back">
+  <button class="msg-topbar__back" aria-label="뒤로가기" id="btn-header-back" type="button">
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <path d="M12.5 4.5L6.8 10L12.5 15.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
     </svg>
@@ -136,6 +136,76 @@
     </div>
   </section>
 </main>
+
+<script>
+(function () {
+  var backBtn = document.getElementById('btn-header-back');
+  if (!backBtn) return;
+
+  function goStudyHub() {
+    if (typeof window.navigateTo === 'function') {
+      window.navigateTo('/study-hub/');
+      return;
+    }
+    window.location.href = '/study-hub/';
+  }
+
+  function goToListView() {
+    var listPane = document.getElementById('view-list');
+    var chatPane = document.getElementById('view-chat');
+    document.body.setAttribute('data-view', 'list');
+    if (listPane) listPane.classList.remove('hidden');
+    if (chatPane) chatPane.classList.add('hidden');
+  }
+
+  function isChatViewActive() {
+    if (document.body.getAttribute('data-view') === 'chat') return true;
+    var chatPane = document.getElementById('view-chat');
+    return !!(chatPane && !chatPane.classList.contains('hidden'));
+  }
+
+  function handleBackInternal() {
+    if (isChatViewActive()) {
+      goToListView();
+      return;
+    }
+
+    if (window.history.length > 1) {
+      window.history.back();
+      window.setTimeout(function () {
+        if (document.visibilityState === 'visible') goStudyHub();
+      }, 280);
+      return;
+    }
+
+    goStudyHub();
+  }
+
+  window.handleBack = handleBackInternal;
+
+  var touchTs = 0;
+  backBtn.addEventListener('pointerup', function (event) {
+    if (event.pointerType !== 'touch') return;
+    var now = Date.now();
+    if (now - touchTs < 250) return;
+    touchTs = now;
+    event.preventDefault();
+    event.stopPropagation();
+    handleBackInternal();
+  }, { passive: false });
+
+  backBtn.addEventListener('click', function (event) {
+    var now = Date.now();
+    if (now - touchTs < 350) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    event.preventDefault();
+    handleBackInternal();
+  });
+})();
+</script>
 
 <script src="/shared/nav.js?v=5"></script>
 <script src="messages.js?v=20260315"></script>
