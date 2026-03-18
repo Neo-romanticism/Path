@@ -1164,21 +1164,21 @@ const roomInviteLimiter = rateLimit({
     legacyHeaders: false,
 });
 app.get('/og/room/:code.png', roomInviteLimiter, async (req, res) => {
-  const code = String(req.params.code || '').trim().toLowerCase().slice(0, 12);
-  if (!code) return res.status(400).type('text/plain').send('bad-request');
+    const code = String(req.params.code || '').trim().toLowerCase().slice(0, 12);
+    if (!code) return res.status(400).type('text/plain').send('bad-request');
 
-  try {
-    const room = await getRoomInvitePreviewData(code);
-    if (!room) return res.status(404).type('text/plain').send('not-found');
+    try {
+        const room = await getRoomInvitePreviewData(code);
+        if (!room) return res.status(404).type('text/plain').send('not-found');
 
-    const png = await renderRoomInviteOgPng(room);
-    res.set('Content-Type', 'image/png');
-    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
-    return res.send(png);
-  } catch (err) {
-    console.error('room og image error:', err);
-    return res.status(500).type('text/plain').send('image-generation-failed');
-  }
+        const png = await renderRoomInviteOgPng(room);
+        res.set('Content-Type', 'image/png');
+        res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+        return res.send(png);
+    } catch (err) {
+        console.error('room og image error:', err);
+        return res.status(500).type('text/plain').send('image-generation-failed');
+    }
 });
 
 app.get('/room/:code', roomInviteLimiter, async (req, res) => {
@@ -1188,9 +1188,9 @@ app.get('/room/:code', roomInviteLimiter, async (req, res) => {
     try {
         const baseUrl = getSiteBaseUrl(req);
         const canonical = `${baseUrl}/room/${code}`;
-    const room = await getRoomInvitePreviewData(code);
+        const room = await getRoomInvitePreviewData(code);
 
-    if (!room) {
+        if (!room) {
             const html = `<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><title>방을 찾을 수 없습니다 - P.A.T.H</title>
 <meta name="robots" content="noindex">
@@ -1278,8 +1278,8 @@ app.get('/room/:code', roomInviteLimiter, async (req, res) => {
     <div class="creator">방장: ${escapeHtml(room.creatorNickname)}</div>
   </div>
   <script>
-    // If user lands here from KakaoTalk/external, redirect to timer join page
-    // This allows the page to serve OG tags while still functioning as a join gateway
+    // External share crawlers need this HTML for OG tags.
+    // Actual join is handled by the CTA above.
   </script>
 </body>
 </html>`;
