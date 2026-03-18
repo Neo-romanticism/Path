@@ -41,21 +41,43 @@
 })();
 </script>
 
-<header class="msg-topbar">
-  <button class="msg-topbar__back" aria-label="뒤로가기" id="btn-header-back" type="button">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M12.5 4.5L6.8 10L12.5 15.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
-    </svg>
-  </button>
+<header class="c-header msg-shell-header" id="app-header">
+  <div class="c-header__inner">
+    <div class="c-header__left">
+      <button class="c-header__back" aria-label="뒤로가기" id="btn-header-back" type="button">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M12.5 4.5L6.8 10L12.5 15.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
 
-  <div class="msg-topbar__brand">
-    <span class="msg-topbar__eyebrow">P.A.T.H CONNECT</span>
-    <strong class="msg-topbar__title">메신저</strong>
-  </div>
+      <div class="c-header__brand">
+        <span class="c-header__logo msg-header__logo" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M7 10.5C7 7.46243 9.46243 5 12.5 5H16C18.2091 5 20 6.79086 20 9V10.5C20 12.7091 18.2091 14.5 16 14.5H14.2L10.5 18V14.5H12.5C9.46243 14.5 7 12.0376 7 9V10.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M9 9.5H15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+            <path d="M9 12H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+          </svg>
+        </span>
+        <span class="c-header__title">메시지</span>
+      </div>
+    </div>
 
-  <div class="msg-topbar__meta">
-    <span id="list-count-label" class="msg-chip">0 대화</span>
-    <span id="list-unread-total" class="msg-chip msg-chip--accent">미확인 0</span>
+    <div class="c-header__right">
+      <span id="list-count-label" class="c-header__badge msg-header-badge">0 대화</span>
+      <span id="list-unread-total" class="c-header__badge msg-header-badge msg-header-badge--accent">미확인 0</span>
+      <button class="c-header__icon-btn" id="theme-toggle" aria-label="라이트 모드 전환" aria-pressed="false" title="라이트 모드 전환" type="button">
+        <svg class="theme-icon theme-icon--sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path><path d="M12 20v2"></path>
+          <path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path>
+          <path d="M2 12h2"></path><path d="M20 12h2"></path>
+          <path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+        <svg class="theme-icon theme-icon--moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+        </svg>
+      </button>
+    </div>
   </div>
 </header>
 

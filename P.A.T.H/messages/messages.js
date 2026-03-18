@@ -13,6 +13,7 @@
   let searchHistory = [];
   let swipePointerId = null;
   let initialOpenHandled = false;
+  const themeToggleBtn = document.getElementById('theme-toggle');
 
   const conversationCache = {
     convs: [],
@@ -47,6 +48,36 @@
     return sameYear
       ? date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
       : date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' });
+  }
+
+  function isLightThemeActive() {
+    return document.body.classList.contains('light') || document.body.getAttribute('data-theme-mode') === 'light';
+  }
+
+  function getSystemFallbackTheme() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? 'light'
+      : 'dark';
+  }
+
+  function syncThemeButton() {
+    if (!themeToggleBtn) return;
+    const isLight = isLightThemeActive();
+    themeToggleBtn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
+    themeToggleBtn.setAttribute('aria-label', isLight ? '다크 모드 전환' : '라이트 모드 전환');
+    themeToggleBtn.title = isLight ? '다크 모드 전환' : '라이트 모드 전환';
+  }
+
+  function toggleTheme() {
+    const nextIsLight = !isLightThemeActive();
+    if (window.PathTheme && typeof window.PathTheme.setLightMode === 'function') {
+      window.PathTheme.setLightMode(nextIsLight, { fallback: getSystemFallbackTheme() });
+    } else {
+      document.body.classList.toggle('light', nextIsLight);
+      document.body.setAttribute('data-theme-mode', nextIsLight ? 'light' : 'dark');
+      localStorage.setItem('path_theme', nextIsLight ? 'light' : 'dark');
+    }
+    syncThemeButton();
   }
 
   function setListSummary() {
@@ -835,6 +866,8 @@
     bindInputArea();
     bindOutsideClickClose();
     bindViewObserver();
+    syncThemeButton();
+    if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
     setHeaderInfo('메시지', '대화를 선택해 주세요', '');
     setHeaderAvatar({ nickname: '메시지', profileImageUrl: '', isOnline: false, isGroup: false });
     setChatPlaceholder('대화를 선택해 주세요', '왼쪽 목록에서 상대를 선택하면 새 채팅 화면이 열립니다.');
