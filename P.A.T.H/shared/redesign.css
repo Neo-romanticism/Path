@@ -114,39 +114,55 @@ body:has(.auth-shell) {
 }
 
 /* ---------- Study Hub (mainPageDev) ---------- */
-body.path-interface {
+body.path-interface.light,
+body.path-interface[data-theme-mode="light"] {
   background:
     radial-gradient(circle at 12% 6%, rgba(49, 117, 244, 0.18), transparent 26%),
     radial-gradient(circle at 88% 8%, rgba(31, 78, 163, 0.16), transparent 30%),
     linear-gradient(180deg, #f5f9ff 0%, #edf4ff 100%);
 }
 
-body.path-interface .status-bar,
-body.path-interface .tab-panel,
-body.path-interface .timer-settings-panel,
-body.path-interface .lecture-panel {
+body.path-interface.light .status-bar,
+body.path-interface.light .tab-panel,
+body.path-interface.light .timer-settings-panel,
+body.path-interface.light .lecture-panel,
+body.path-interface[data-theme-mode="light"] .status-bar,
+body.path-interface[data-theme-mode="light"] .tab-panel,
+body.path-interface[data-theme-mode="light"] .timer-settings-panel,
+body.path-interface[data-theme-mode="light"] .lecture-panel {
   border-color: #d5e2f6;
   background: rgba(250, 253, 255, 0.92);
   box-shadow: var(--rd-shadow);
 }
 
-body.path-interface .status-label,
-body.path-interface .home-panel-sub,
-body.path-interface .home-hub-sub,
-body.path-interface .home-stat-label {
+body.path-interface.light .status-label,
+body.path-interface.light .home-panel-sub,
+body.path-interface.light .home-hub-sub,
+body.path-interface.light .home-stat-label,
+body.path-interface[data-theme-mode="light"] .status-label,
+body.path-interface[data-theme-mode="light"] .home-panel-sub,
+body.path-interface[data-theme-mode="light"] .home-hub-sub,
+body.path-interface[data-theme-mode="light"] .home-stat-label {
   color: #637ba1;
 }
 
-body.path-interface .status-val,
-body.path-interface .home-hero-title,
-body.path-interface .home-panel h3,
-body.path-interface .home-stat-value,
-body.path-interface .mode-btn.active,
-body.path-interface .page-tab-btn.active {
+body.path-interface.light .status-val,
+body.path-interface.light .home-hero-title,
+body.path-interface.light .home-panel h3,
+body.path-interface.light .home-stat-value,
+body.path-interface.light .mode-btn.active,
+body.path-interface.light .page-tab-btn.active,
+body.path-interface[data-theme-mode="light"] .status-val,
+body.path-interface[data-theme-mode="light"] .home-hero-title,
+body.path-interface[data-theme-mode="light"] .home-panel h3,
+body.path-interface[data-theme-mode="light"] .home-stat-value,
+body.path-interface[data-theme-mode="light"] .mode-btn.active,
+body.path-interface[data-theme-mode="light"] .page-tab-btn.active {
   color: #17315d;
 }
 
-body.path-interface .home-hero-card {
+body.path-interface.light .home-hero-card,
+body.path-interface[data-theme-mode="light"] .home-hero-card {
   border-color: #b7cbf0;
   background: linear-gradient(140deg, rgba(43, 110, 242, 0.16), rgba(127, 177, 255, 0.14) 55%, rgba(27, 74, 158, 0.1));
 }
@@ -159,12 +175,18 @@ body.path-interface .lecture-open-btn {
   color: #fff;
 }
 
-body.path-interface .home-hub-btn,
-body.path-interface .home-panel,
-body.path-interface .home-stat-card,
-body.path-interface .subject-control,
-body.path-interface .setup-group,
-body.path-interface .planner-paper {
+body.path-interface.light .home-hub-btn,
+body.path-interface.light .home-panel,
+body.path-interface.light .home-stat-card,
+body.path-interface.light .subject-control,
+body.path-interface.light .setup-group,
+body.path-interface.light .planner-paper,
+body.path-interface[data-theme-mode="light"] .home-hub-btn,
+body.path-interface[data-theme-mode="light"] .home-panel,
+body.path-interface[data-theme-mode="light"] .home-stat-card,
+body.path-interface[data-theme-mode="light"] .subject-control,
+body.path-interface[data-theme-mode="light"] .setup-group,
+body.path-interface[data-theme-mode="light"] .planner-paper {
   border-color: #dbe6f7;
   background: #f9fbff;
 }
@@ -196,14 +218,17 @@ body.path-interface .home-stat-row .home-stat-card {
   animation: rd-rise-in 380ms ease;
 }
 
-body.path-interface .page-more-menu {
+body.path-interface.light .page-more-menu,
+body.path-interface[data-theme-mode="light"] .page-more-menu {
   border: 1px solid #d4e1f5;
   background: #f7faff;
   box-shadow: 0 10px 24px rgba(20, 46, 98, 0.16);
 }
 
-body.path-interface .page-tabs,
-body.path-interface .mode-group {
+body.path-interface.light .page-tabs,
+body.path-interface.light .mode-group,
+body.path-interface[data-theme-mode="light"] .page-tabs,
+body.path-interface[data-theme-mode="light"] .mode-group {
   border-color: #d7e4f8;
   background: #eef4ff;
 }
