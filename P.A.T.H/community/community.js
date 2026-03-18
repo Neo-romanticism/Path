@@ -2951,7 +2951,7 @@ detailStyle.textContent = `
 .post-inline-detail__panel {
   border:1px solid var(--border-mid);
   border-radius:14px;
-  background:var(--surface-1);
+  background:var(--surface);
   padding:14px;
 }
 .post-inline-detail__head {

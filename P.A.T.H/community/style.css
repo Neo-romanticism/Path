@@ -227,7 +227,6 @@ body.light .theme-icon--moon { display: block; }
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--border-mid);
   height: 40px;
-  mx: 16px;
   margin-left: 16px;
   margin-right: 16px;
   transition: border-color var(--transition);

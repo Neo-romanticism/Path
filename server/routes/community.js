@@ -269,7 +269,7 @@ router.get('/posts', async (req, res) => {
     }
     if (q) {
         params.push(`%${q}%`);
-        conds.push(`title ILIKE $${params.length}`);
+        conds.push(`(title ILIKE $${params.length} OR body ILIKE $${params.length})`);
     }
 
     const viewerId = req.session?.userId ? parseInt(req.session.userId, 10) : null;
@@ -282,6 +282,7 @@ router.get('/posts', async (req, res) => {
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const whereWithAlias = where
         .replace(/\btitle\b/g, 'p.title')
+        .replace(/\bbody\b/g, 'p.body')
         .replace(/\blikes\b/g, 'p.likes')
         .replace(/\bcategory\b/g, 'p.category');
 
