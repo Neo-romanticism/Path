@@ -190,14 +190,14 @@
       const nicknameJson = JSON.stringify(nickname);
       const unread = Number(item.unread_count || 0);
       const imageHtml = item.profile_image_url
-        ? '<img src="' + esc(item.profile_image_url) + '" alt="' + esc(nickname) + '">' 
-        : esc(nickname).charAt(0);
+        ? '<img src="' + esc(item.profile_image_url) + '" alt="' + esc(nickname) + '">'
+        : esc(nickname.charAt(0) || 'M');
       const timeHtml = item.last_time ? '<span class="conv-last-time">' + esc(formatConversationTime(item.last_time)) + '</span>' : '';
       const unreadHtml = unread > 0 ? '<span class="conv-unread">' + Math.min(99, unread) + '</span>' : '';
 
       return [
         '<div class="conv-shell" data-kind="dm" data-id="' + Number(item.other_user) + '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
-        '  <button type="button" class="conv-item" onclick="openChatFromList(' + Number(item.other_user) + ', ' + nicknameJson + ')">',
+        '  <button type="button" class="conv-item" onclick=\'openChatFromList(' + Number(item.other_user) + ', ' + nicknameJson + ')\'>',
         '    <div class="conv-avatar ' + (unread > 0 ? 'has-unread' : '') + '">' + imageHtml + '</div>',
         '    <div class="conv-info">',
         '      <div class="conv-row-top">',
@@ -222,7 +222,7 @@
       const timeHtml = item.last_time ? '<span class="conv-last-time">' + esc(formatConversationTime(item.last_time)) + '</span>' : '';
       return [
         '<div class="conv-shell" data-kind="group" data-id="' + Number(item.room_id) + '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
-        '  <button type="button" class="conv-item" onclick="openGroupChatFromList(' + Number(item.room_id) + ', ' + roomNameJson + ')">',
+        '  <button type="button" class="conv-item" onclick=\'openGroupChatFromList(' + Number(item.room_id) + ', ' + roomNameJson + ')\'>',
         '    <div class="conv-avatar">&#128101;</div>',
         '    <div class="conv-info">',
         '      <div class="conv-row-top">',
@@ -245,8 +245,8 @@
       newFriends.map(function (item) {
         const nickname = String(item.nickname || '사용자');
         return [
-          '<button type="button" class="conv-item" onclick="openChatFromList(' + Number(item.id) + ', ' + JSON.stringify(nickname) + ')">',
-          '  <div class="conv-avatar is-new">' + esc(nickname).charAt(0) + '</div>',
+          '<button type="button" class="conv-item" onclick=\'openChatFromList(' + Number(item.id) + ', ' + JSON.stringify(nickname) + ')\'>',
+          '  <div class="conv-avatar is-new">' + esc(nickname.charAt(0) || 'M') + '</div>',
           '  <div class="conv-info">',
           '    <div class="conv-nick is-muted">' + highlightMatch(nickname) + '</div>',
           '    <div class="conv-last is-muted">첫 메시지를 보내보세요</div>',
@@ -507,6 +507,11 @@
     currentChatRoomId = null;
 
     const meta = getDmMeta(currentChatUserId);
+    if (!currentChatUserName && meta && meta.nickname) {
+      currentChatUserName = String(meta.nickname || '').trim();
+    }
+    const fileButton = document.getElementById('btn-file-attach');
+    if (fileButton) fileButton.style.display = '';
     setHeaderInfo(
       currentChatUserName || (meta && meta.nickname) || '메시지',
       meta ? (meta.is_studying ? '온라인' : (meta.university || '오프라인')) : '대화 중',

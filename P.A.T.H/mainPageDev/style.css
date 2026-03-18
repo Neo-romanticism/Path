@@ -1899,6 +1899,18 @@ body:not(.light) .home-brief-card {
     border-color: rgba(125, 183, 255, 0.16);
 }
 
+body:not(.light) .home-hero-title,
+body:not(.light) .home-hero-highlight strong,
+body:not(.light) .home-brief-title {
+    color: #eef4ff;
+}
+
+body:not(.light) .home-hero-copy,
+body:not(.light) .home-hero-highlight span:last-child,
+body:not(.light) .home-brief-copy {
+    color: #c3d5f1;
+}
+
 body:not(.light) .home-hero-chip,
 body:not(.light) .home-brief-badge {
     background: rgba(7, 21, 44, 0.72);
