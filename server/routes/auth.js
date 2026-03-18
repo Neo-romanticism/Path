@@ -8,7 +8,6 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 const { getPercentile } = require('../data/universities');
-const aligoService = require('../utils/aligo');
 const { getActiveStreakFromUser, formatDisplayName } = require('../utils/progression');
 const { getUploadDir } = require('../utils/uploadRoot');
 
@@ -330,10 +329,6 @@ function appendQueryParam(url, key, value) {
     return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
 }
 
-function cleanPhoneInput(phone) {
-    return String(phone || '').replace(/[^0-9]/g, '');
-}
-
 function maskEmail(email) {
     const value = String(email || '').trim();
     const atIndex = value.indexOf('@');
@@ -476,27 +471,6 @@ router.post('/register', registerLimiter, async (req, res) => {
         const existing = await pool.query('SELECT id FROM users WHERE nickname = $1', [nickname]);
         if (existing.rows.length > 0) return res.status(409).json({ error: '이미 사용 중인 닉네임입니다.' });
 
-        // 휴대폰 인증 여부 확인 (필수)
-        const verificationAge = Date.now() - (req.session.verifiedAt || 0);
-        if (!req.session.verifiedPhone || !req.session.verifiedAt || verificationAge > 10 * 60 * 1000) {
-            req.session.verifiedPhone = null;
-            req.session.verifiedAt = null;
-            return res.status(400).json({ error: '회원가입 전에 휴대폰 인증을 완료해주세요.' });
-        }
-
-        const phoneHash = req.session.verifiedPhone;
-        const phoneVerified = true;
-
-        // 같은 전화번호로 가입된 계정 수 확인
-        const phoneCheck = await pool.query(
-            'SELECT COUNT(*) as count FROM users WHERE phone_hash = $1 AND phone_verified = true',
-            [phoneHash]
-        );
-        const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
-        if (parseInt(phoneCheck.rows[0].count) >= accountLimit) {
-            return res.status(409).json({ error: '이 전화번호로 더 이상 계정을 생성할 수 없습니다.' });
-        }
-
         const hash = await bcrypt.hash(password, 10);
 
         // [FIX] 초기 영지(Estate) 설정 로직 변경
@@ -508,15 +482,11 @@ router.post('/register', registerLimiter, async (req, res) => {
             `INSERT INTO users (nickname, password_hash, university, real_name, privacy_agreed, is_n_su, prev_university, phone_hash, phone_verified, phone_verified_at, eula_version, eula_agreed_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
              RETURNING ${USER_FIELDS}`,
-            [nickname, hash, initialEstate, real_name, !!privacy_agreed, !!is_n_su, prev_university || null, phoneHash, phoneVerified, phoneVerified ? new Date() : null, EULA_VERSION]
+            [nickname, hash, initialEstate, real_name, !!privacy_agreed, !!is_n_su, prev_university || null, null, false, null, EULA_VERSION]
         );
         const user = result.rows[0];
         user.user_code = await ensureUserCode(user.id);
-        
-        // 인증 정보 세션에서 제거
-        req.session.verifiedPhone = null;
-        req.session.verifiedAt = null;
-        
+
         req.session.userId = user.id;
         res.json({ ok: true, user: addPercentile(user) });
     } catch (err) {
@@ -547,13 +517,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
         if (enforced?.is_admin === true) safeUser.is_admin = true;
         if (enforced?.admin_role) safeUser.admin_role = enforced.admin_role;
-        
-        // 휴대폰 미인증 계정 경고 (기존 계정 호환)
-        if (!user.phone_verified) {
-            safeUser.warning = '보안을 위해 휴대폰 인증을 완료해주세요.';
-            safeUser.needsPhoneVerification = true;
-        }
-        
+
         res.json({ ok: true, user: addPercentile(safeUser) });
     } catch (err) {
         console.error('login error:', err);
@@ -1235,53 +1199,22 @@ router.get('/google/callback', async (req, res) => {
 // ===== 프로필 업데이트 (구글 로그인 후 닉네임 설정) =====
 router.post('/update-profile', requireAuth, async (req, res) => {
     const { nickname, university, is_n_su, prev_university } = req.body;
+    const normalizedUniversity = typeof university === 'string' ? university.trim() : '';
+    const wantsNsu = !!is_n_su && !!normalizedUniversity;
+    const normalizedPrevUniversity = wantsNsu && typeof prev_university === 'string'
+        ? prev_university.trim()
+        : '';
 
     const nickValidation = validateNickname(nickname);
     if (!nickValidation.ok) {
         return res.status(400).json({ error: nickValidation.error });
     }
 
-    if (!university) {
-        return res.status(400).json({ error: '목표 대학교를 입력해주세요.' });
-    }
-
-    if (is_n_su && !prev_university) {
+    if (wantsNsu && !normalizedPrevUniversity) {
         return res.status(400).json({ error: 'N수생은 전적 대학교를 입력해주세요.' });
     }
 
     try {
-        // 휴대폰 인증 여부 확인 (필수)
-        const verificationAge = Date.now() - (req.session.verifiedAt || 0);
-        const hasFreshSessionVerification = !!(req.session.verifiedPhone && req.session.verifiedAt && verificationAge <= 10 * 60 * 1000);
-
-        const currentUserRes = await pool.query(
-            'SELECT phone_verified, phone_hash FROM users WHERE id = $1',
-            [req.session.userId]
-        );
-        if (!currentUserRes.rows.length) {
-            return res.status(404).json({ error: '유저를 찾을 수 없습니다.' });
-        }
-
-        const currentUser = currentUserRes.rows[0];
-        if (!currentUser.phone_verified && !hasFreshSessionVerification) {
-            req.session.verifiedPhone = null;
-            req.session.verifiedAt = null;
-            return res.status(400).json({ error: '휴대폰 인증을 완료한 뒤 프로필을 저장해주세요.' });
-        }
-
-        let verifiedPhoneHash = currentUser.phone_hash || null;
-        if (!currentUser.phone_verified && hasFreshSessionVerification) {
-            verifiedPhoneHash = req.session.verifiedPhone;
-            const phoneCheck = await pool.query(
-                'SELECT COUNT(*) as count FROM users WHERE phone_hash = $1 AND phone_verified = true',
-                [verifiedPhoneHash]
-            );
-            const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
-            if (parseInt(phoneCheck.rows[0].count) >= accountLimit) {
-                return res.status(409).json({ error: '이 전화번호로 더 이상 계정을 생성할 수 없습니다.' });
-            }
-        }
-
         // 닉네임 중복 체크
         const existing = await pool.query(
             'SELECT id FROM users WHERE nickname = $1 AND id != $2',
@@ -1298,16 +1231,10 @@ router.post('/update-profile', requireAuth, async (req, res) => {
              SET nickname = $1,
                  university = $2,
                  is_n_su = $3,
-                 prev_university = $4,
-                 phone_hash = COALESCE(phone_hash, $5),
-                 phone_verified = true,
-                 phone_verified_at = COALESCE(phone_verified_at, NOW())
-             WHERE id = $6`,
-            [nickValidation.value, university, !!is_n_su, prev_university || null, verifiedPhoneHash, req.session.userId]
+                 prev_university = $4
+             WHERE id = $5`,
+            [nickValidation.value, normalizedUniversity || null, wantsNsu, wantsNsu ? normalizedPrevUniversity : null, req.session.userId]
         );
-
-        req.session.verifiedPhone = null;
-        req.session.verifiedAt = null;
 
         res.json({ ok: true });
     } catch (err) {
@@ -1324,107 +1251,9 @@ router.post('/update-profile', requireAuth, async (req, res) => {
  * body: { phone: "01012345678" }
  */
 router.post('/send-verification', verificationLimiter, async (req, res) => {
-    const { phone } = req.body;
-    
-    if (!phone) {
-        return res.status(400).json({ error: '전화번호를 입력해주세요.' });
-    }
-
-    // 전화번호 형식 검증 (한국 휴대폰)
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    if (!/^01[0-9]{8,9}$/.test(cleanPhone)) {
-        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
-    }
-
-    const ip = req.ip || req.connection.remoteAddress;
-    const phoneHash = aligoService.hashPhone(cleanPhone);
-
-    try {
-        // 레이트리밋 체크 (같은 번호로 5분 내 재발송 차단)
-        const recentCheck = await pool.query(
-            `SELECT id FROM phone_verifications 
-             WHERE phone_hash = $1 AND created_at > NOW() - INTERVAL '5 minutes'
-             ORDER BY created_at DESC LIMIT 1`,
-            [phoneHash]
-        );
-
-        if (recentCheck.rows.length > 0) {
-            return res.status(429).json({ 
-                error: '인증번호는 5분에 한 번만 요청할 수 있습니다.',
-                retryAfter: 300 
-            });
-        }
-
-        // IP 기준 레이트리밋 (1시간 내 10회)
-        const ipCheck = await pool.query(
-            `SELECT COUNT(*) as count FROM phone_verifications 
-             WHERE ip_address = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
-            [ip]
-        );
-
-        if (parseInt(ipCheck.rows[0].count) >= 10) {
-            return res.status(429).json({ 
-                error: '인증번호 요청 한도를 초과했습니다. 1시간 후 다시 시도해주세요.' 
-            });
-        }
-
-        // 이미 가입된 번호인지 확인
-        const existingUser = await pool.query(
-            `SELECT id FROM users WHERE phone_hash = $1 AND phone_verified = true`,
-            [phoneHash]
-        );
-
-        if (existingUser.rows.length > 0) {
-            // 다계정 방지: 번호당 계정 수 제한 (기본 2개)
-            const accountLimit = parseInt(process.env.PHONE_ACCOUNT_LIMIT || '2');
-            if (existingUser.rows.length >= accountLimit) {
-                return res.status(409).json({ 
-                    error: '이미 이 번호로 등록된 계정이 있습니다.' 
-                });
-            }
-        }
-
-        // 인증번호 생성
-        const code = aligoService.generateCode();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5분 후 만료
-
-        // DB에 인증번호 저장
-        await pool.query(
-            `INSERT INTO phone_verifications (phone_hash, code, expires_at, ip_address)
-             VALUES ($1, $2, $3, $4)`,
-            [phoneHash, code, expiresAt, ip]
-        );
-
-        // 카카오톡 알림톡 발송
-        try {
-            const result = await aligoService.sendVerificationCode(cleanPhone, code);
-            
-            res.json({ 
-                ok: true, 
-                message: result.message,
-                type: result.type,
-                expiresIn: 300 // 5분
-            });
-        } catch (sendError) {
-            console.error('알림톡 발송 실패:', sendError.message);
-            
-            // 개발 환경에서만 콘솔에 인증번호 출력 (프로덕션에서는 절대 노출 금지)
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[개발 모드] 인증번호: ${code}`);
-                return res.json({
-                    ok: true,
-                    message: '개발 모드: 콘솔에서 인증번호를 확인하세요.',
-                    type: 'dev',
-                    expiresIn: 300
-                });
-            }
-            
-            throw sendError;
-        }
-    } catch (err) {
-        console.error('send-verification error:', err);
-        res.status(500).json({ error: '인증번호 발송에 실패했습니다.' });
-    }
+    return res.status(410).json({
+        error: '휴대폰 인증 기능이 종료되었습니다.'
+    });
 });
 
 /**
@@ -1433,67 +1262,9 @@ router.post('/send-verification', verificationLimiter, async (req, res) => {
  * body: { phone: "01012345678", code: "123456" }
  */
 router.post('/verify-phone', async (req, res) => {
-    const { phone, code } = req.body;
-
-    if (!phone || !code) {
-        return res.status(400).json({ error: '전화번호와 인증번호를 모두 입력해주세요.' });
-    }
-
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const phoneHash = aligoService.hashPhone(cleanPhone);
-
-    try {
-        // 최신 인증번호 조회
-        const result = await pool.query(
-            `SELECT id, code, expires_at, verified 
-             FROM phone_verifications 
-             WHERE phone_hash = $1 
-             ORDER BY created_at DESC 
-             LIMIT 1`,
-            [phoneHash]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: '인증번호 발송 기록이 없습니다.' });
-        }
-
-        const verification = result.rows[0];
-
-        // 이미 사용된 인증번호
-        if (verification.verified) {
-            return res.status(400).json({ error: '이미 사용된 인증번호입니다.' });
-        }
-
-        // 만료 확인
-        if (new Date() > new Date(verification.expires_at)) {
-            return res.status(400).json({ error: '인증번호가 만료되었습니다. 다시 요청해주세요.' });
-        }
-
-        // 인증번호 확인
-        if (verification.code !== code) {
-            // 실패 횟수 체크 (선택, 추후 구현 가능)
-            return res.status(400).json({ error: '인증번호가 일치하지 않습니다.' });
-        }
-
-        // 인증 성공 처리
-        await pool.query(
-            `UPDATE phone_verifications SET verified = true WHERE id = $1`,
-            [verification.id]
-        );
-
-        // 세션에 인증 정보 저장 (회원가입 시 사용)
-        req.session.verifiedPhone = phoneHash;
-        req.session.verifiedAt = Date.now();
-
-        res.json({ 
-            ok: true, 
-            message: '인증이 완료되었습니다.',
-            verified: true
-        });
-    } catch (err) {
-        console.error('verify-phone error:', err);
-        res.status(500).json({ error: '인증 처리 중 오류가 발생했습니다.' });
-    }
+    return res.status(410).json({
+        error: '휴대폰 인증 기능이 종료되었습니다.'
+    });
 });
 
 /**
@@ -1501,15 +1272,11 @@ router.post('/verify-phone', async (req, res) => {
  * GET /api/auth/verification-status
  */
 router.get('/verification-status', (req, res) => {
-    const verified = !!(req.session.verifiedPhone && req.session.verifiedAt);
-    const expiresIn = verified 
-        ? Math.max(0, Math.floor((req.session.verifiedAt + 10 * 60 * 1000 - Date.now()) / 1000))
-        : 0;
-
-    res.json({ 
-        verified,
-        expiresIn, // 인증 유효시간 (10분)
-        phone: verified ? '인증됨' : null
+    res.json({
+        verified: false,
+        expiresIn: 0,
+        phone: null,
+        disabled: true,
     });
 });
 
@@ -1520,9 +1287,10 @@ router.get('/password-recovery/options', async (req, res) => {
     if (!nickname) {
         return res.json({
             ok: true,
-            hasPhoneRecovery: false,
             hasGoogleRecovery: false,
             maskedGoogleEmail: null,
+            hasAppleRecovery: false,
+            maskedAppleEmail: null,
         });
     }
 
@@ -1535,16 +1303,16 @@ router.get('/password-recovery/options', async (req, res) => {
         if (!result.rows.length) {
             return res.json({
                 ok: true,
-                hasPhoneRecovery: false,
                 hasGoogleRecovery: false,
                 maskedGoogleEmail: null,
+                hasAppleRecovery: false,
+                maskedAppleEmail: null,
             });
         }
 
         const row = result.rows[0];
         return res.json({
             ok: true,
-            hasPhoneRecovery: row.phone_verified === true,
             hasGoogleRecovery: !!row.google_email,
             maskedGoogleEmail: maskEmail(row.google_email),
             hasAppleRecovery: !!row.apple_email,
@@ -1557,183 +1325,15 @@ router.get('/password-recovery/options', async (req, res) => {
 });
 
 router.post('/password-recovery/send-code', recoverySendLimiter, async (req, res) => {
-    const nickname = String(req.body?.nickname || '').trim();
-    const cleanPhone = cleanPhoneInput(req.body?.phone);
-
-    if (!nickname || !cleanPhone) {
-        return res.status(400).json({ error: '닉네임과 전화번호를 입력해주세요.' });
-    }
-    if (!/^01[0-9]{8,9}$/.test(cleanPhone)) {
-        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
-    }
-
-    const ip = req.ip || req.connection.remoteAddress;
-    const phoneHash = aligoService.hashPhone(cleanPhone);
-
-    try {
-        const [userResult, recentCheck, ipCheck] = await Promise.all([
-            pool.query(
-                `SELECT id
-                 FROM users
-                 WHERE nickname = $1 AND phone_hash = $2 AND phone_verified = true
-                 LIMIT 1`,
-                [nickname, phoneHash]
-            ),
-            pool.query(
-                `SELECT id FROM phone_verifications
-                 WHERE phone_hash = $1 AND created_at > NOW() - INTERVAL '5 minutes'
-                 ORDER BY created_at DESC LIMIT 1`,
-                [phoneHash]
-            ),
-            pool.query(
-                `SELECT COUNT(*) as count FROM phone_verifications
-                 WHERE ip_address = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
-                [ip]
-            )
-        ]);
-
-        if (recentCheck.rows.length > 0) {
-            return res.status(429).json({
-                error: '인증번호는 5분에 한 번만 요청할 수 있습니다.',
-                retryAfter: 300,
-            });
-        }
-
-        if (parseInt(ipCheck.rows[0].count, 10) >= 10) {
-            return res.status(429).json({
-                error: '인증번호 요청 한도를 초과했습니다. 1시간 후 다시 시도해주세요.',
-            });
-        }
-
-        // 계정 존재 여부/일치 여부는 노출하지 않고 동일 응답을 반환한다.
-        if (!userResult.rows.length) {
-            return res.json({
-                ok: true,
-                message: '입력한 정보와 일치하는 계정이 있으면 인증번호를 발송했습니다.',
-                expiresIn: 300,
-            });
-        }
-
-        const code = aligoService.generateCode();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
-        await pool.query(
-            `INSERT INTO phone_verifications (phone_hash, code, expires_at, ip_address)
-             VALUES ($1, $2, $3, $4)`,
-            [phoneHash, code, expiresAt, ip]
-        );
-
-        try {
-            await aligoService.sendVerificationCode(cleanPhone, code);
-            return res.json({
-                ok: true,
-                message: '입력한 정보와 일치하는 계정이 있으면 인증번호를 발송했습니다.',
-                expiresIn: 300,
-            });
-        } catch (sendError) {
-            console.error('password-recovery/send-code send error:', sendError.message);
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[개발 모드][복구] 인증번호: ${code}`);
-                return res.json({
-                    ok: true,
-                    message: '개발 모드: 콘솔에서 인증번호를 확인하세요.',
-                    expiresIn: 300,
-                });
-            }
-            throw sendError;
-        }
-    } catch (err) {
-        console.error('password-recovery/send-code error:', err);
-        return res.status(500).json({ error: '인증번호 발송에 실패했습니다.' });
-    }
+    return res.status(410).json({
+        error: '휴대폰 비밀번호 복구 기능이 종료되었습니다. Google 또는 Apple 로그인으로 복구해주세요.'
+    });
 });
 
 router.post('/password-recovery/reset', recoveryResetLimiter, async (req, res) => {
-    const nickname = String(req.body?.nickname || '').trim();
-    const cleanPhone = cleanPhoneInput(req.body?.phone);
-    const code = String(req.body?.code || '').trim();
-    const newPassword = typeof req.body?.new_password === 'string' ? req.body.new_password : '';
-
-    if (!nickname || !cleanPhone || !code || !newPassword) {
-        return res.status(400).json({ error: '닉네임, 전화번호, 인증번호, 새 비밀번호를 모두 입력해주세요.' });
-    }
-    if (!/^01[0-9]{8,9}$/.test(cleanPhone)) {
-        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다.' });
-    }
-    if (!/^\d{6}$/.test(code)) {
-        return res.status(400).json({ error: '인증번호는 6자리 숫자여야 합니다.' });
-    }
-
-    const phoneHash = aligoService.hashPhone(cleanPhone);
-
-    try {
-        const userResult = await pool.query(
-            `SELECT id, nickname, real_name
-             FROM users
-             WHERE nickname = $1 AND phone_hash = $2 AND phone_verified = true
-             LIMIT 1`,
-            [nickname, phoneHash]
-        );
-        if (!userResult.rows.length) {
-            return res.status(400).json({ error: '인증 정보가 올바르지 않습니다.' });
-        }
-
-        const verificationResult = await pool.query(
-            `SELECT id, code, expires_at, verified
-             FROM phone_verifications
-             WHERE phone_hash = $1
-             ORDER BY created_at DESC
-             LIMIT 1`,
-            [phoneHash]
-        );
-        if (!verificationResult.rows.length) {
-            return res.status(400).json({ error: '인증번호 요청 기록이 없습니다.' });
-        }
-
-        const verification = verificationResult.rows[0];
-        if (verification.verified) {
-            return res.status(400).json({ error: '이미 사용된 인증번호입니다. 새 인증번호를 요청해주세요.' });
-        }
-        if (new Date() > new Date(verification.expires_at)) {
-            return res.status(400).json({ error: '인증번호가 만료되었습니다. 다시 요청해주세요.' });
-        }
-        if (verification.code !== code) {
-            return res.status(400).json({ error: '인증번호가 일치하지 않습니다.' });
-        }
-
-        const user = userResult.rows[0];
-        const passwordValidation = validatePasswordStrength({
-            password: newPassword,
-            nickname: user.nickname,
-            realName: user.real_name,
-        });
-        if (!passwordValidation.ok) {
-            return res.status(400).json({ error: passwordValidation.error });
-        }
-
-        const nextHash = await bcrypt.hash(newPassword, 10);
-
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            await client.query('UPDATE phone_verifications SET verified = true WHERE id = $1', [verification.id]);
-            await client.query('UPDATE users SET password_hash = $1 WHERE id = $2', [nextHash, user.id]);
-            await client.query('COMMIT');
-        } catch (txErr) {
-            await client.query('ROLLBACK');
-            throw txErr;
-        } finally {
-            client.release();
-        }
-
-        return res.json({
-            ok: true,
-            message: '비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해주세요.',
-        });
-    } catch (err) {
-        console.error('password-recovery/reset error:', err);
-        return res.status(500).json({ error: '비밀번호 재설정에 실패했습니다.' });
-    }
+    return res.status(410).json({
+        error: '휴대폰 비밀번호 복구 기능이 종료되었습니다. Google 또는 Apple 로그인으로 복구해주세요.'
+    });
 });
 
 // 친구 신청 수신 허용/거부 설정

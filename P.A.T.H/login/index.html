@@ -671,18 +671,6 @@
         </div>
 
         <form class="form active" id="form-login">
-            <div class="field">
-                <label>닉네임</label>
-                <input type="text" id="login-nick" placeholder="닉네임 입력" autocomplete="username">
-            </div>
-            <div class="field">
-                <label>비밀번호</label>
-                <input type="password" id="login-pw" placeholder="비밀번호 입력" autocomplete="current-password">
-            </div>
-            <div class="error-msg" id="login-err"></div>
-            <button type="submit" class="btn-submit">ENTER PATH</button>
-            
-            <div class="or-separator">또는</div>
             <a href="/api/auth/google" class="btn-oauth" data-provider="google">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="currentColor"/>
@@ -699,55 +687,40 @@
                 Apple로 계속하기
             </a>
 
+            <div class="or-separator">또는 닉네임으로 로그인</div>
+
+            <div class="field">
+                <label>닉네임</label>
+                <input type="text" id="login-nick" placeholder="닉네임 입력" autocomplete="username">
+            </div>
+            <div class="field">
+                <label>비밀번호</label>
+                <input type="password" id="login-pw" placeholder="비밀번호 입력" autocomplete="current-password">
+            </div>
+            <div class="error-msg" id="login-err"></div>
+            <button type="submit" class="btn-submit">ENTER PATH</button>
+
             <div class="recovery-toggle">
                 <button type="button" id="pw-recovery-toggle" class="recovery-link">비밀번호를 잊으셨나요?</button>
             </div>
             <div id="pw-recovery-panel" class="recovery-panel">
-                <div class="recovery-help" id="pw-recovery-hint">휴대폰 본인인증으로 비밀번호를 재설정할 수 있습니다. Google 또는 Apple 연동 계정은 소셜 로그인으로도 복구할 수 있습니다.</div>
+                <div class="recovery-help" id="pw-recovery-hint">휴대폰 인증 복구는 종료되었습니다. 닉네임을 입력하면 소셜 연동 복구 가능 여부를 확인할 수 있습니다.</div>
                 <div class="field">
                     <label for="recovery-nick">닉네임</label>
                     <input type="text" id="recovery-nick" placeholder="닉네임 입력" autocomplete="username">
                 </div>
-                <div class="field" style="margin-top:8px;">
-                    <label for="recovery-phone">전화번호</label>
-                    <input type="text" id="recovery-phone" placeholder="01012345678" inputmode="numeric" autocomplete="tel">
-                </div>
-                <div class="field" style="margin-top:8px;">
-                    <label for="recovery-code">인증번호 6자리</label>
-                    <input type="text" id="recovery-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-                </div>
-                <div class="field" style="margin-top:8px;">
-                    <label for="recovery-new-pw">새 비밀번호</label>
-                    <input type="password" id="recovery-new-pw" placeholder="10자 이상 (문장형 권장)" minlength="10" maxlength="128" autocomplete="new-password">
+                <div class="recovery-actions">
+                    <button type="button" id="btn-recovery-check" class="primary">복구 옵션 확인</button>
                 </div>
                 <div class="recovery-actions">
-                    <button type="button" id="btn-recovery-send">인증번호 받기</button>
-                    <button type="button" id="btn-recovery-reset" class="primary">비밀번호 재설정</button>
+                    <button type="button" id="btn-recovery-google">Google로 로그인</button>
+                    <button type="button" id="btn-recovery-apple" class="primary">Apple로 로그인</button>
                 </div>
                 <div id="pw-recovery-msg" class="recovery-msg"></div>
             </div>
         </form>
 
         <form class="form" id="form-register">
-            <div class="verify-box" id="register-verify-box">
-                <div class="verify-title">회원가입 전 휴대폰 인증이 필요합니다.</div>
-                <div class="field">
-                    <label for="reg-phone">전화번호</label>
-                    <input type="text" id="reg-phone" placeholder="01012345678" inputmode="numeric" autocomplete="tel">
-                </div>
-                <div class="recovery-actions" style="margin-top:0;">
-                    <button type="button" id="btn-register-send-code">인증번호 받기</button>
-                </div>
-                <div class="field" style="margin-top:0;">
-                    <label for="reg-phone-code">인증번호 6자리</label>
-                    <input type="text" id="reg-phone-code" placeholder="123456" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-                </div>
-                <div class="recovery-actions" style="margin-top:0;">
-                    <button type="button" class="primary" id="btn-register-verify-code">인증 완료</button>
-                </div>
-                <div id="reg-phone-msg" class="recovery-msg"></div>
-            </div>
-
             <div class="field">
                 <label>실명</label>
                 <input type="text" id="reg-name" placeholder="실명 입력" autocomplete="name">
@@ -798,10 +771,9 @@
             <div class="privacy-box" id="privacy-box">
                 <strong>[개인정보 수집·이용 동의]</strong><br><br>
                 1. 수집 항목: 실명, 닉네임, 대학교, 비밀번호(해시), 성적/GPA 이미지, 접속·기기 정보<br>
-                2. 인증 정보: 전화번호 원문은 저장하지 않으며 인증 해시/시각만 보관<br>
-                3. 수집 목적: 서비스 제공, 본인 확인, 성적 인증, 랭킹 운영, 보안/부정이용 방지<br>
-                4. 보유 기간: 회원 탈퇴 시 즉시 파기(법령상 보관 의무 제외)<br>
-                5. 동의 거부 시 서비스 이용이 제한됩니다.<br><br>
+                2. 수집 목적: 서비스 제공, 계정 보안, 성적 인증, 랭킹 운영, 부정이용 방지<br>
+                3. 보유 기간: 회원 탈퇴 시 즉시 파기(법령상 보관 의무 제외)<br>
+                4. 동의 거부 시 서비스 이용이 제한됩니다.<br><br>
                 P.A.T.H는 수집된 개인정보를 제3자에게 제공하지 않으며,<br>
                 관련 법령에 따라 안전하게 관리합니다.
             </div>
@@ -839,8 +811,6 @@
     </main>
 
     <script>
-        let registerPhoneVerified = false;
-
         (async () => {
             try {
                 const r = await fetch('/api/auth/me', { credentials: 'include' });
@@ -853,9 +823,6 @@
             document.getElementById('tab-register').classList.toggle('active', tab === 'register');
             document.getElementById('form-login').classList.toggle('active', tab === 'login');
             document.getElementById('form-register').classList.toggle('active', tab === 'register');
-            if (tab === 'register') {
-                refreshRegisterVerificationStatus();
-            }
         }
 
         function toggleNsu() {
@@ -874,88 +841,7 @@
         function checkSubmit() {
             const privacyChecked = document.getElementById('reg-privacy').checked;
             const eulaChecked = document.getElementById('reg-eula').checked;
-            document.getElementById('reg-submit').disabled = !(privacyChecked && eulaChecked && registerPhoneVerified);
-        }
-
-        function setRegisterPhoneMessage(message, ok) {
-            const el = document.getElementById('reg-phone-msg');
-            if (!el) return;
-            el.textContent = message || '';
-            el.classList.toggle('ok', !!ok);
-        }
-
-        function resetRegisterPhoneVerification(reasonMessage) {
-            registerPhoneVerified = false;
-            if (reasonMessage) setRegisterPhoneMessage(reasonMessage, false);
-            checkSubmit();
-        }
-
-        async function refreshRegisterVerificationStatus() {
-            try {
-                const r = await fetch('/api/auth/verification-status', { credentials: 'include' });
-                const data = await r.json();
-                registerPhoneVerified = !!(r.ok && data.verified);
-                if (registerPhoneVerified) {
-                    setRegisterPhoneMessage('휴대폰 인증이 완료되었습니다.', true);
-                }
-                checkSubmit();
-            } catch (_) {
-                registerPhoneVerified = false;
-                checkSubmit();
-            }
-        }
-
-        async function sendRegisterVerificationCode() {
-            setRegisterPhoneMessage('', false);
-            const phone = document.getElementById('reg-phone').value.trim();
-            if (!phone) {
-                setRegisterPhoneMessage('전화번호를 입력해주세요.', false);
-                return;
-            }
-            try {
-                const r = await fetch('/api/auth/send-verification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ phone })
-                });
-                const data = await r.json();
-                if (!r.ok) {
-                    setRegisterPhoneMessage(data.error || '인증번호 발송에 실패했습니다.', false);
-                    return;
-                }
-                resetRegisterPhoneVerification(data.message || '인증번호가 발송되었습니다.');
-            } catch (_) {
-                setRegisterPhoneMessage('서버 연결 오류', false);
-            }
-        }
-
-        async function verifyRegisterPhoneCode() {
-            setRegisterPhoneMessage('', false);
-            const phone = document.getElementById('reg-phone').value.trim();
-            const code = document.getElementById('reg-phone-code').value.trim();
-            if (!phone || !code) {
-                setRegisterPhoneMessage('전화번호와 인증번호를 입력해주세요.', false);
-                return;
-            }
-            try {
-                const r = await fetch('/api/auth/verify-phone', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ phone, code })
-                });
-                const data = await r.json();
-                if (!r.ok) {
-                    setRegisterPhoneMessage(data.error || '전화번호 인증에 실패했습니다.', false);
-                    return;
-                }
-                registerPhoneVerified = true;
-                setRegisterPhoneMessage(data.message || '휴대폰 인증이 완료되었습니다.', true);
-                checkSubmit();
-            } catch (_) {
-                setRegisterPhoneMessage('서버 연결 오류', false);
-            }
+            document.getElementById('reg-submit').disabled = !(privacyChecked && eulaChecked);
         }
 
         const COMMON_PASSWORDS = new Set([
@@ -1066,7 +952,7 @@
             if (!hintEl) return;
 
             if (!nickname) {
-                hintEl.textContent = '휴대폰 본인인증으로 비밀번호를 재설정할 수 있습니다. Google 또는 Apple 연동 계정은 소셜 로그인으로도 복구할 수 있습니다.';
+                hintEl.textContent = '휴대폰 인증 복구는 종료되었습니다. 닉네임을 입력하면 소셜 연동 복구 가능 여부를 확인합니다.';
                 return;
             }
 
@@ -1081,7 +967,6 @@
                 }
 
                 const parts = [];
-                parts.push(data.hasPhoneRecovery ? '이 계정은 휴대폰 인증 복구를 사용할 수 있습니다.' : '휴대폰 인증 복구가 설정되지 않았을 수 있습니다.');
                 if (data.hasGoogleRecovery) {
                     const emailText = data.maskedGoogleEmail ? ` (${data.maskedGoogleEmail})` : '';
                     parts.push(`Google 연동 복구 가능${emailText}: Google로 로그인해 주세요.`);
@@ -1094,6 +979,7 @@
                 } else {
                     parts.push('Apple 연동 복구 정보가 없습니다.');
                 }
+                parts.push('휴대폰 인증 복구는 종료되었습니다.');
                 hintEl.textContent = parts.join(' ');
             } catch (_err) {
                 hintEl.textContent = '복구 옵션 확인 중 오류가 발생했습니다.';
@@ -1105,71 +991,8 @@
             return `/api/auth/${safe}${isNativeApp() ? '?platform=app' : ''}`;
         }
 
-        async function sendRecoveryCode() {
-            setRecoveryMessage('', false);
-            const nickname = document.getElementById('recovery-nick').value.trim();
-            const phone = document.getElementById('recovery-phone').value.trim();
-            if (!nickname || !phone) {
-                setRecoveryMessage('닉네임과 전화번호를 입력해주세요.', false);
-                return;
-            }
-
-            try {
-                const r = await fetch('/api/auth/password-recovery/send-code', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ nickname, phone })
-                });
-                const data = await r.json();
-                if (!r.ok) {
-                    setRecoveryMessage(data.error || '인증번호 발송에 실패했습니다.', false);
-                    return;
-                }
-                setRecoveryMessage(data.message || '가능한 경우 인증번호가 발송되었습니다.', true);
-                await loadPasswordRecoveryOptions();
-            } catch (_err) {
-                setRecoveryMessage('서버 연결 오류', false);
-            }
-        }
-
-        async function resetPasswordWithRecoveryCode() {
-            setRecoveryMessage('', false);
-            const nickname = document.getElementById('recovery-nick').value.trim();
-            const phone = document.getElementById('recovery-phone').value.trim();
-            const code = document.getElementById('recovery-code').value.trim();
-            const newPassword = document.getElementById('recovery-new-pw').value;
-
-            if (!nickname || !phone || !code || !newPassword) {
-                setRecoveryMessage('닉네임, 전화번호, 인증번호, 새 비밀번호를 모두 입력해주세요.', false);
-                return;
-            }
-            const passwordError = validatePasswordStrength(newPassword, nickname, '');
-            if (passwordError) {
-                setRecoveryMessage(passwordError, false);
-                return;
-            }
-
-            try {
-                const r = await fetch('/api/auth/password-recovery/reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ nickname, phone, code, new_password: newPassword })
-                });
-                const data = await r.json();
-                if (!r.ok) {
-                    setRecoveryMessage(data.error || '비밀번호 재설정에 실패했습니다.', false);
-                    return;
-                }
-                setRecoveryMessage(data.message || '비밀번호가 재설정되었습니다.', true);
-                document.getElementById('login-nick').value = nickname;
-                document.getElementById('login-pw').value = '';
-                document.getElementById('recovery-code').value = '';
-                document.getElementById('recovery-new-pw').value = '';
-            } catch (_err) {
-                setRecoveryMessage('서버 연결 오류', false);
-            }
+        function goToRecoveryProvider(provider) {
+            window.location.href = getOauthPath(provider);
         }
 
         async function loadUniversityOptions() {
@@ -1238,19 +1061,6 @@
             if (privacyCheckbox) privacyCheckbox.addEventListener('change', checkSubmit);
             if (eulaCheckbox) eulaCheckbox.addEventListener('change', checkSubmit);
 
-            const regPhoneInput = document.getElementById('reg-phone');
-            if (regPhoneInput) {
-                regPhoneInput.addEventListener('input', function () {
-                    resetRegisterPhoneVerification('전화번호가 변경되었습니다. 다시 인증해주세요.');
-                });
-            }
-
-            const regSendBtn = document.getElementById('btn-register-send-code');
-            if (regSendBtn) regSendBtn.addEventListener('click', sendRegisterVerificationCode);
-
-            const regVerifyBtn = document.getElementById('btn-register-verify-code');
-            if (regVerifyBtn) regVerifyBtn.addEventListener('click', verifyRegisterPhoneCode);
-
             const privacyToggle = document.getElementById('privacy-toggle');
             if (privacyToggle) privacyToggle.addEventListener('click', togglePrivacy);
             const eulaToggle = document.getElementById('eula-toggle');
@@ -1258,10 +1068,12 @@
 
             const recoveryToggle = document.getElementById('pw-recovery-toggle');
             if (recoveryToggle) recoveryToggle.addEventListener('click', togglePasswordRecoveryPanel);
-            const recoverySend = document.getElementById('btn-recovery-send');
-            if (recoverySend) recoverySend.addEventListener('click', sendRecoveryCode);
-            const recoveryReset = document.getElementById('btn-recovery-reset');
-            if (recoveryReset) recoveryReset.addEventListener('click', resetPasswordWithRecoveryCode);
+            const recoveryCheck = document.getElementById('btn-recovery-check');
+            if (recoveryCheck) recoveryCheck.addEventListener('click', loadPasswordRecoveryOptions);
+            const recoveryGoogle = document.getElementById('btn-recovery-google');
+            if (recoveryGoogle) recoveryGoogle.addEventListener('click', function () { goToRecoveryProvider('google'); });
+            const recoveryApple = document.getElementById('btn-recovery-apple');
+            if (recoveryApple) recoveryApple.addEventListener('click', function () { goToRecoveryProvider('apple'); });
             const recoveryNickInput = document.getElementById('recovery-nick');
             if (recoveryNickInput) recoveryNickInput.addEventListener('blur', loadPasswordRecoveryOptions);
 
@@ -1329,7 +1141,6 @@
             const privacy_agreed  = document.getElementById('reg-privacy').checked;
             const eula_agreed = document.getElementById('reg-eula').checked;
 
-            if (!registerPhoneVerified) { errEl.textContent = '휴대폰 인증을 완료해주세요.'; return; }
             if (!real_name) { errEl.textContent = '실명을 입력해주세요.'; return; }
             if (!privacy_agreed) { errEl.textContent = '개인정보 수집·이용에 동의해주세요.'; return; }
             if (!eula_agreed) { errEl.textContent = '이용약관에 동의해주세요.'; return; }
@@ -1350,8 +1161,6 @@
             } catch (err) { errEl.textContent = '서버 연결 오류'; }
         }
 
-        refreshRegisterVerificationStatus();
-
         // Keep handlers reachable from global scope across WebView/browser differences.
         window.toggleTheme = toggleTheme;
         window.switchTab = switchTab;
@@ -1361,11 +1170,8 @@
         window.checkSubmit = checkSubmit;
         window.doLogin = doLogin;
         window.doRegister = doRegister;
-        window.sendRegisterVerificationCode = sendRegisterVerificationCode;
-        window.verifyRegisterPhoneCode = verifyRegisterPhoneCode;
         window.togglePasswordRecoveryPanel = togglePasswordRecoveryPanel;
-        window.sendRecoveryCode = sendRecoveryCode;
-        window.resetPasswordWithRecoveryCode = resetPasswordWithRecoveryCode;
+        window.goToRecoveryProvider = goToRecoveryProvider;
     </script>
     <script>
         if ('serviceWorker' in navigator) {
