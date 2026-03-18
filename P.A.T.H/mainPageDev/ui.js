@@ -284,7 +284,29 @@ const UI = {
         });
         this.elements.homeQuickApplyBtn?.addEventListener('click', () => this.openHomeHubOverlay('apply'));
         this.elements.homeQuickShopBtn?.addEventListener('click', () => this.openHomeHubOverlay('shop'));
-        this.elements.homeQuickSocialBtn?.addEventListener('click', () => this.openHomeHubOverlay('social'));
+        if (this.elements.homeQuickSocialBtn) {
+            let socialTouchTs = 0;
+            this.elements.homeQuickSocialBtn.addEventListener('pointerup', (e) => {
+                if (e.pointerType !== 'touch') return;
+                const now = Date.now();
+                if (now - socialTouchTs < 250) return;
+                socialTouchTs = now;
+                e.preventDefault();
+                e.stopPropagation();
+                this.navigateToMessages();
+            }, { passive: false });
+
+            this.elements.homeQuickSocialBtn.addEventListener('click', (e) => {
+                const now = Date.now();
+                if (now - socialTouchTs < 350) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                e.preventDefault();
+                this.navigateToMessages();
+            });
+        }
         this.elements.homeQuickNotifBtn?.addEventListener('click', () => this.openHomeHubOverlay('notif'));
         this.elements.hubOverlayCloseBtn?.addEventListener('click', () => this.closeHomeHubOverlay());
         this.elements.hubOverlayConfirmBtn?.addEventListener('click', () => this.closeHomeHubOverlay());
@@ -753,15 +775,19 @@ const UI = {
         }).join('');
     },
 
+    navigateToMessages() {
+        if (typeof window.navigateTo === 'function') {
+            window.navigateTo('/messages/');
+            return;
+        }
+        window.location.href = '/messages/';
+    },
+
     openHomeHubOverlay(type) {
         if (!this.elements.hubOverlay || !this.elements.hubOverlayTitle || !this.elements.hubOverlayBody) return;
 
         if (type === 'social') {
-            if (typeof window.navigateTo === 'function') {
-                window.navigateTo('/messages/');
-            } else {
-                window.location.href = '/messages/';
-            }
+            this.navigateToMessages();
             return;
         }
 
