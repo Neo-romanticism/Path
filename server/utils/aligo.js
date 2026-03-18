@@ -53,7 +53,7 @@ class AligoService {
     }
 
     /**
-     * 인증번호 발송 (카카오톡 알림톡)
+     * 인증번호 발송 (SMS)
      * @param {string} phone - 수신자 전화번호 (하이픈 제거)
      * @param {string} code - 6자리 인증번호
      * @returns {Promise<object>}
@@ -63,56 +63,8 @@ class AligoService {
             throw new Error('알리고 API 설정이 필요합니다.');
         }
 
-        // 전화번호 정제 (하이픈 제거)
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-
-        try {
-            const params = {
-                apikey: this.apiKey,
-                userid: this.userId,
-                senderkey: this.plusFriendId,
-                tpl_code: this.templateCode,
-                sender: this.sender,
-                receiver_1: cleanPhone,
-                subject_1: '[P.A.T.H] 인증번호',
-                message_1: `[P.A.T.H] 인증번호는 [${code}] 입니다. 5분 이내에 입력해주세요.`,
-                // 버튼이 필요한 경우 추가
-                // button_1: JSON.stringify([
-                //     {
-                //         name: '인증하기',
-                //         linkType: 'WL',
-                //         linkTypeName: '웹링크',
-                //         linkM: 'https://your-domain.com/verify',
-                //         linkP: 'https://your-domain.com/verify'
-                //     }
-                // ]),
-                failover: 'Y', // 알림톡 실패 시 SMS로 대체 발송
-                testMode: process.env.ALIGO_TEST_MODE === 'true' ? 'Y' : 'N'
-            };
-
-            const response = await axios.post(ALIGO_API_URL, null, { params });
-
-            if (response.data.code === 0) {
-                return {
-                    success: true,
-                    messageId: response.data.info?.mid_1,
-                    type: response.data.info?.type || 'alimtalk',
-                    message: '인증번호가 발송되었습니다.'
-                };
-            } else {
-                console.error('알리고 발송 실패:', response.data);
-                throw new Error(response.data.message || '메시지 발송에 실패했습니다.');
-            }
-        } catch (error) {
-            console.error('알림톡 발송 오류:', error.response?.data || error.message);
-            
-            // 알림톡 실패 시 SMS 직접 폴백 (선택)
-            if (process.env.ALIGO_SMS_FALLBACK === 'true') {
-                return await this.sendSMS(phone, code);
-            }
-            
-            throw error;
-        }
+        // 운영 단순화를 위해 인증 발송은 SMS로 고정한다.
+        return await this.sendSMS(phone, code);
     }
 
     /**

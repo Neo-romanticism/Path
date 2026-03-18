@@ -13,6 +13,8 @@
   let searchHistory = [];
   let swipePointerId = null;
   let initialOpenHandled = false;
+  let userSearchDebounce = null;
+  let userSearchResults = [];
   const themeToggleBtn = document.getElementById('theme-toggle');
 
   const conversationCache = {
@@ -153,6 +155,139 @@
     history.classList.toggle('hidden', !open);
   }
 
+  function setUserSearchOpen(open) {
+    const el = document.getElementById('user-search-results');
+    if (!el) return;
+    el.classList.toggle('hidden', !open);
+  }
+
+  function renderUserSearchResults(users) {
+    const el = document.getElementById('user-search-results');
+    if (!el) return;
+
+    if (!Array.isArray(users) || !users.length) {
+      el.innerHTML = [
+        '<div class="user-search-head">사용자 검색</div>',
+        '<div class="user-search-empty">검색 결과가 없습니다.</div>'
+      ].join('');
+      el.classList.remove('hidden');
+      return;
+    }
+
+    const itemsHtml = users.map(function (user) {
+      const nickname = String(user.nickname || '');
+      const university = String(user.university || '');
+      const avatarHtml = user.profile_image_url
+        ? '<img src="' + esc(user.profile_image_url) + '" alt="' + esc(nickname) + '">'
+        : esc(nickname.charAt(0) || '?');
+
+      let btnLabel = '동맹 신청';
+      let btnClass = 'user-search-btn';
+      let btnDisabled = '';
+      let btnOnclick = 'sendFriendRequest(' + Number(user.id) + ', this)';
+
+      if (user.friendship_status === 'accepted') {
+        btnLabel = '동맹 중';
+        btnClass += ' is-friend';
+        btnDisabled = 'disabled';
+        btnOnclick = '';
+      } else if (user.friendship_status === 'pending') {
+        if (user.friendship_dir === 'sent') {
+          btnLabel = '신청 중';
+          btnClass += ' is-pending';
+          btnDisabled = 'disabled';
+          btnOnclick = '';
+        } else {
+          btnLabel = '신청 확인';
+          btnClass += ' is-pending';
+          btnOnclick = '';
+        }
+      } else if (user.allow_friend_requests === false) {
+        btnLabel = '신청 불가';
+        btnClass += ' is-no-allow';
+        btnDisabled = 'disabled';
+        btnOnclick = '';
+      }
+
+      return [
+        '<div class="user-search-item">',
+        '  <div class="user-search-avatar">' + avatarHtml + '</div>',
+        '  <div class="user-search-info">',
+        '    <div class="user-search-nick">' + highlightMatch(nickname) + '</div>',
+        university ? '    <div class="user-search-univ">' + esc(university) + '</div>' : '',
+        '  </div>',
+        '  <div class="user-search-action">',
+        '    <button type="button" class="' + btnClass + '" ' + btnDisabled + (btnOnclick ? ' onclick="' + btnOnclick + '"' : '') + '>',
+        '      ' + esc(btnLabel),
+        '    </button>',
+        '  </div>',
+        '</div>'
+      ].join('');
+    }).join('');
+
+    el.innerHTML = '<div class="user-search-head">사용자 검색</div>' + itemsHtml;
+    el.classList.remove('hidden');
+  }
+
+  async function fetchUserSearch(keyword) {
+    if (!keyword || keyword.length < 1) {
+      userSearchResults = [];
+      setUserSearchOpen(false);
+      return;
+    }
+    try {
+      const response = await fetch('/api/auth/users/search?q=' + encodeURIComponent(keyword), { credentials: 'include' });
+      if (!response.ok) throw new Error('search-failed');
+      const data = await response.json();
+      userSearchResults = Array.isArray(data.users) ? data.users : [];
+      renderUserSearchResults(userSearchResults);
+    } catch (error) {
+      userSearchResults = [];
+      setUserSearchOpen(false);
+    }
+  }
+
+  function triggerUserSearch(keyword) {
+    if (userSearchDebounce) clearTimeout(userSearchDebounce);
+    if (!keyword) {
+      userSearchResults = [];
+      setUserSearchOpen(false);
+      return;
+    }
+    userSearchDebounce = window.setTimeout(function () {
+      fetchUserSearch(keyword);
+    }, 320);
+  }
+
+  async function sendFriendRequest(targetId, btn) {
+    if (!targetId) return;
+    if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
+    try {
+      const response = await fetch('/api/friends/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ target_id: targetId })
+      });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) {
+        if (btn) { btn.disabled = false; btn.textContent = '동맹 신청'; }
+        alert(data.error || '동맹 신청에 실패했습니다.');
+        return;
+      }
+      // 성공 - UI 업데이트
+      if (btn) {
+        btn.textContent = '신청 완료';
+        btn.className = 'user-search-btn is-pending';
+        btn.disabled = true;
+        btn.onclick = null;
+      }
+    } catch (error) {
+      if (btn) { btn.disabled = false; btn.textContent = '동맹 신청'; }
+      alert('네트워크 오류가 발생했습니다.');
+    }
+  }
+
   function clearSearchHistory() {
     searchHistory = [];
     saveSearchHistory([]);
@@ -197,6 +332,11 @@
     renderSearchHistory();
     renderConversationList();
     setSearchHistoryOpen(false);
+    if (searchKeyword) {
+      triggerUserSearch(searchKeyword);
+    } else {
+      setUserSearchOpen(false);
+    }
   }
 
   function highlightMatch(value) {
@@ -826,6 +966,7 @@
     input.addEventListener('focus', function () {
       renderSearchHistory();
       setSearchHistoryOpen(true);
+      if (searchKeyword) triggerUserSearch(searchKeyword);
     });
 
     input.addEventListener('input', function (event) {
@@ -833,16 +974,21 @@
       renderSearchHistory();
       setSearchHistoryOpen(true);
       renderConversationList();
+      triggerUserSearch(searchKeyword);
     });
 
     input.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         const value = String(input.value || '').trim();
-        if (value) pushSearchHistory(value);
+        if (value) {
+          pushSearchHistory(value);
+          triggerUserSearch(value.toLowerCase());
+        }
         setSearchHistoryOpen(false);
       }
       if (event.key === 'Escape') {
         setSearchHistoryOpen(false);
+        setUserSearchOpen(false);
       }
     });
 
@@ -872,6 +1018,7 @@
       if (target.closest('.conv-shell')) return;
       if (target.closest('#conv-search-history')) return;
       if (target.closest('#conv-search')) return;
+      if (target.closest('#user-search-results')) return;
       closeAllConversationSwipes();
     });
   }
@@ -903,6 +1050,7 @@
 
   window.applyConversationSearch = applySearch;
   window.clearConversationSearchHistory = clearSearchHistory;
+  window.sendFriendRequest = sendFriendRequest;
   window.openChatFromList = function (userId, nickname) {
     if (nickname) pushSearchHistory(nickname);
     openChat(userId, nickname);

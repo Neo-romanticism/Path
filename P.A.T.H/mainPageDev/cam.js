@@ -553,6 +553,8 @@ async function openEditProfile() {
     const letter = document.getElementById('profile-edit-avatar-letter');
     const submitBtn = document.getElementById('profile-edit-submit-btn');
     const photoInput = document.getElementById('profile-edit-photo-input');
+    const allowFriendEl = document.getElementById('profile-edit-allow-friend-req');
+    const sliderEl = document.getElementById('profile-edit-friend-req-slider');
 
     if (nickEl) nickEl.value = user.nickname || '';
     if (univEl) univEl.value = user.university || '';
@@ -561,6 +563,11 @@ async function openEditProfile() {
     if (errEl) errEl.textContent = '';
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '저장'; }
     if (photoInput) photoInput.value = '';
+
+    // 친구 신청 수신 설정 초기화 (기본값: true)
+    const allowFriend = user.allow_friend_requests !== false;
+    if (allowFriendEl) allowFriendEl.checked = allowFriend;
+    if (sliderEl) sliderEl.style.background = allowFriend ? 'var(--accent-blue, #4f8dff)' : '#333';
 
     // 프로필 사진 미리보기
     const profileImg = user.profile_image_url;
@@ -581,6 +588,30 @@ async function openEditProfile() {
 
     // 대학 목록 사전 로드
     _profileEditGetUnivList().catch(() => {});
+}
+
+async function profileEditSaveFriendRequestSetting(allow) {
+    const slider = document.getElementById('profile-edit-friend-req-slider');
+    if (slider) slider.style.background = allow ? 'var(--accent-blue, #4f8dff)' : '#333';
+    try {
+        const r = await fetch('/api/auth/friend-request-setting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ allow_friend_requests: allow })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            console.error('friend-request-setting error:', data.error);
+            return;
+        }
+        // UI 상태 동기화
+        if (typeof UI !== 'undefined' && typeof UI.mergeCurrentUserPatch === 'function') {
+            UI.mergeCurrentUserPatch({ allow_friend_requests: allow });
+        }
+    } catch (e) {
+        console.error('friend-request-setting network error:', e);
+    }
 }
 
 function closeEditProfile() {

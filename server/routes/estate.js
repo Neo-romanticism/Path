@@ -2,12 +2,17 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const pool = require('../db');
-const { getTaxRate, getTicketPrice, getPercentile } = require('../data/universities');
-const { getActiveStreakFromUser, getStreakMultiplier, STREAK_BONUS_RATE } = require('../utils/progression');
+const { getTicketPrice, getPercentile } = require('../data/universities');
+const { getActiveStreakFromUser } = require('../utils/progression');
 
 const router = express.Router();
 
 const MAX_HOURS = 24;
+const DEFAULT_FAIR_TAX_RATE = 1.2;
+const FAIR_TAX_RATE = (() => {
+    const parsed = Number(process.env.FAIR_TAX_RATE);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_FAIR_TAX_RATE;
+})();
 
 const UI_THEMES = [
     { id: 'default',  name: '기본 다크',    priceGold: 0,    priceDiamond: 0,  preview: ['#0F1117','#1B2130','#3182F6'], description: 'P.A.T.H 기본 다크 테마' },
@@ -19,8 +24,6 @@ const UI_THEMES = [
     { id: 'midnight', name: '미드나잇',     priceGold: 1500, priceDiamond: 15, preview: ['#080D18','#0E1628','#4A90D9'], description: '깊고 고요한 미드나잇 블루' },
     { id: 'sakura',   name: '사쿠라',       priceGold: 2000, priceDiamond: 20, preview: ['#150C12','#221018','#FF9EC4'], description: '벚꽃 핑크 파스텔 테마' },
 ];
-const NSU_BONUS_RATE = 0.15;
-const GPA_BONUS_MAX = 0.5;
 const DIAMOND_PACKAGES = [
     { id: 'dia_30', diamonds: 30, priceKrw: 3900 },
     { id: 'dia_80', diamonds: 80, priceKrw: 8900 },
@@ -81,20 +84,8 @@ function timingSafeHexEqual(a, b) {
     }
 }
 
-function calcGpaBonus(gpaScore, gpaStatus) {
-    if (gpaStatus !== 'approved' || !gpaScore || gpaScore <= 0) return 0;
-    const bonus = Math.max(0, (5 - gpaScore) * 0.12);
-    return Math.min(bonus, GPA_BONUS_MAX);
-}
-
-function calcTotalRate(university, isNsu, prevUniversity, gpaScore, gpaStatus) {
-    let rate = getTaxRate(university);
-    if (isNsu && prevUniversity) {
-        const prevRate = getTaxRate(prevUniversity);
-        rate += prevRate * NSU_BONUS_RATE;
-    }
-    rate += calcGpaBonus(gpaScore, gpaStatus);
-    return rate;
+function calcTotalRate() {
+    return FAIR_TAX_RATE;
 }
 
 router.get('/tax', async (req, res) => {
@@ -105,10 +96,9 @@ router.get('/tax', async (req, res) => {
             [req.session.userId]
         );
         const user = result.rows[0];
-        const baseRate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status);
+        const baseRate = calcTotalRate();
         const activeStreak = getActiveStreakFromUser(user);
-        const streakMultiplier = getStreakMultiplier(activeStreak);
-        const rate = baseRate * streakMultiplier;
+        const rate = baseRate;
         const percentile = getPercentile(user.university);
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
@@ -128,23 +118,9 @@ router.get('/tax', async (req, res) => {
             is_n_su: user.is_n_su,
             prev_university: user.prev_university,
             active_streak: activeStreak,
-            streak_bonus_rate: activeStreak > 0 ? STREAK_BONUS_RATE : 0,
-            streak_multiplier: streakMultiplier
+            streak_bonus_rate: 0,
+            streak_multiplier: 1
         };
-
-        const taxBaseRate = getTaxRate(user.university);
-        if (user.is_n_su && user.prev_university) {
-            const bonus = getTaxRate(user.prev_university) * NSU_BONUS_RATE;
-            resp.baseRate = Math.round(taxBaseRate * 100) / 100;
-            resp.nsuBonus = Math.round(bonus * 100) / 100;
-        }
-
-        const gpaBonus = calcGpaBonus(user.gpa_score, user.gpa_status);
-        if (gpaBonus > 0) {
-            if (!resp.baseRate) resp.baseRate = Math.round(taxBaseRate * 100) / 100;
-            resp.gpaBonus = Math.round(gpaBonus * 100) / 100;
-            resp.gpaScore = parseFloat(user.gpa_score);
-        }
 
         res.json(resp);
     } catch (err) {
@@ -163,8 +139,7 @@ router.post('/collect-tax', async (req, res) => {
             [req.session.userId]
         );
         const user = userRes.rows[0];
-        const activeStreak = getActiveStreakFromUser(user);
-        const rate = calcTotalRate(user.university, user.is_n_su, user.prev_university, user.gpa_score, user.gpa_status) * getStreakMultiplier(activeStreak);
+        const rate = calcTotalRate();
 
         const hoursPassed = Math.min(
             (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,

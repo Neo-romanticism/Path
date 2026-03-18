@@ -1030,6 +1030,17 @@
                     <input id="profile-edit-prev-university" class="room-input" type="text" placeholder="재학/졸업한 대학" autocomplete="off" oninput="profileEditSearchPrevUniv(this.value)" onblur="setTimeout(()=>profileEditHidePrevUniResults(),200)">
                     <div id="profile-edit-prev-univ-results" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;display:none;"></div>
                 </div>
+                <!-- Friend Request Setting -->
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--line-color);border-radius:10px;gap:10px;">
+                    <div>
+                        <div style="font-size:12px;color:var(--text-primary);font-weight:600;">동맹 신청 받기</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">비활성화 시 다른 사용자가 동맹 신청을 보낼 수 없습니다.</div>
+                    </div>
+                    <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;">
+                        <input type="checkbox" id="profile-edit-allow-friend-req" style="opacity:0;width:0;height:0;" onchange="profileEditSaveFriendRequestSetting(this.checked)">
+                        <span id="profile-edit-friend-req-slider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:24px;transition:background 0.2s;"></span>
+                    </label>
+                </div>
                 <!-- Error -->
                 <div id="profile-edit-error" style="font-size:11px;color:#ff6b6b;min-height:14px;"></div>
             </div>

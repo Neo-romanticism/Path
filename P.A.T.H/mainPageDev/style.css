@@ -65,6 +65,7 @@ body[data-theme-mode="dark"] {
     --shadow-main: 0 18px 40px rgba(0, 0, 0, 0.34);
     --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.22);
     --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.42);
+    --accent-blue-light: rgba(49, 130, 246, 0.15);
 }
 
 * {
