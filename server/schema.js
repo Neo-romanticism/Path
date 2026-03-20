@@ -389,6 +389,8 @@ async function initSchema() {
                 ADD COLUMN IF NOT EXISTS link_url TEXT;
             ALTER TABLE community_posts
                 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+            ALTER TABLE community_posts
+                ADD COLUMN IF NOT EXISTS edit_count INTEGER NOT NULL DEFAULT 0;
 
             ALTER TABLE community_posts
                 DROP CONSTRAINT IF EXISTS community_posts_category_check;
@@ -441,6 +443,8 @@ async function initSchema() {
                 ADD COLUMN IF NOT EXISTS likes_count INTEGER NOT NULL DEFAULT 0;
             ALTER TABLE community_comments
                 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+            ALTER TABLE community_comments
+                ADD COLUMN IF NOT EXISTS edit_count INTEGER NOT NULL DEFAULT 0;
             CREATE INDEX IF NOT EXISTS idx_cc_post_id ON community_comments(post_id);
             CREATE INDEX IF NOT EXISTS idx_cc_post_created_at ON community_comments(post_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_cc_likes_created_at ON community_comments(post_id, likes_count DESC, created_at DESC);

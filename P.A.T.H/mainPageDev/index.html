@@ -172,20 +172,15 @@
 
     <!-- Main Content -->
     <main class="focus-container">
-        <div class="page-tabs" id="page-tabs">
-            <button id="tab-home-btn" class="page-tab-btn active" type="button">홈</button>
-            <button id="tab-study-btn" class="page-tab-btn" type="button">학습하기</button>
-            <button id="tab-planner-btn" class="page-tab-btn" type="button">플래너</button>
-            <div class="page-more-wrap">
-                <button id="tab-more-btn" class="page-tab-btn page-tab-more" type="button" aria-expanded="false" aria-haspopup="menu">더보기 ▾</button>
-                <div id="tab-more-menu" class="page-more-menu hidden" role="menu" aria-label="추가 탭">
-                    <button id="tab-calendar-btn" class="page-more-item" type="button" role="menuitem">캘린더</button>
-                    <button id="tab-scorecalc-btn" class="page-more-item" type="button" role="menuitem">환산점수</button>
-                    <button id="tab-balloon-btn" class="page-more-item" type="button" role="menuitem">성장 리포트</button>
-                    <button id="tab-rooms-btn" class="page-more-item" type="button" role="menuitem">그룹 🔥</button>
-                    <button id="tab-community-btn" class="page-more-item" type="button" role="menuitem">커뮤니티</button>
-                </div>
-            </div>
+        <div class="page-tabs" id="page-tabs" aria-label="주요 탭 이동">
+            <button id="tab-home-btn" class="page-tab-btn active" data-tab="home" type="button">홈</button>
+            <button id="tab-study-btn" class="page-tab-btn" data-tab="study" type="button">학습하기</button>
+            <button id="tab-planner-btn" class="page-tab-btn" data-tab="planner" type="button">플래너</button>
+            <button id="tab-calendar-btn" class="page-tab-btn" data-tab="calendar" type="button">캘린더</button>
+            <button id="tab-scorecalc-btn" class="page-tab-btn" data-tab="scorecalc" type="button">환산점수</button>
+            <button id="tab-balloon-btn" class="page-tab-btn" data-tab="balloon" type="button">성장 리포트</button>
+            <button id="tab-rooms-btn" class="page-tab-btn" data-tab="rooms" type="button">그룹</button>
+            <button id="tab-community-btn" class="page-tab-btn" type="button">커뮤니티</button>
         </div>
 
         <section id="tab-home" class="tab-panel active">
@@ -1006,7 +1001,7 @@
                         <img id="profile-edit-avatar-img" style="width:100%;height:100%;object-fit:cover;display:none;" alt="프로필">
                     </div>
                     <label for="profile-edit-photo-input" style="font-size:11px;color:var(--text-muted);cursor:pointer;">사진 변경</label>
-                    <input type="file" id="profile-edit-photo-input" accept="image/*" style="display:none;" onchange="onProfileEditPhotoSelected(this)">
+                    <input type="file" id="profile-edit-photo-input" accept="image/*" style="display:none;">
                 </div>
                 <!-- Nickname -->
                 <div class="room-form-group">
@@ -1016,18 +1011,18 @@
                 <!-- University -->
                 <div class="room-form-group" style="position:relative;">
                     <label class="room-label" for="profile-edit-university">목표 대학교</label>
-                    <input id="profile-edit-university" class="room-input" type="text" placeholder="대학명 검색" autocomplete="off" oninput="profileEditSearchUniv(this.value)" onblur="setTimeout(()=>profileEditHideUniResults(),200)">
+                    <input id="profile-edit-university" class="room-input" type="text" placeholder="대학명 검색" autocomplete="off">
                     <div id="profile-edit-univ-results" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;display:none;"></div>
                 </div>
                 <!-- N수생 -->
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" id="profile-edit-nsu" style="accent-color:var(--accent-blue);width:16px;height:16px;cursor:pointer;" onchange="profileEditToggleNsu()">
+                    <input type="checkbox" id="profile-edit-nsu" style="accent-color:var(--accent-blue);width:16px;height:16px;cursor:pointer;">
                     <label for="profile-edit-nsu" style="font-size:12px;color:var(--text-secondary);cursor:pointer;">N수생입니다</label>
                 </div>
                 <!-- Prev University -->
                 <div id="profile-edit-prev-univ-field" class="room-form-group" style="position:relative;display:none;">
                     <label class="room-label" for="profile-edit-prev-university">전적 대학교</label>
-                    <input id="profile-edit-prev-university" class="room-input" type="text" placeholder="재학/졸업한 대학" autocomplete="off" oninput="profileEditSearchPrevUniv(this.value)" onblur="setTimeout(()=>profileEditHidePrevUniResults(),200)">
+                    <input id="profile-edit-prev-university" class="room-input" type="text" placeholder="재학/졸업한 대학" autocomplete="off">
                     <div id="profile-edit-prev-univ-results" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;display:none;"></div>
                 </div>
                 <!-- Friend Request Setting -->
@@ -1037,7 +1032,7 @@
                         <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">비활성화 시 다른 사용자가 동맹 신청을 보낼 수 없습니다.</div>
                     </div>
                     <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;">
-                        <input type="checkbox" id="profile-edit-allow-friend-req" style="opacity:0;width:0;height:0;" onchange="profileEditSaveFriendRequestSetting(this.checked)">
+                        <input type="checkbox" id="profile-edit-allow-friend-req" style="opacity:0;width:0;height:0;">
                         <span id="profile-edit-friend-req-slider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:24px;transition:background 0.2s;"></span>
                     </label>
                 </div>
@@ -1054,6 +1049,7 @@
     <script src="/study-hub/wakelock.js?v=4"></script>
     <script src="/study-hub/storage.js?v=4"></script>
     <script src="/study-hub/core.js?v=4"></script>
+    <script src="/shared/profile-editor.js?v=1"></script>
     <script src="/study-hub/cam.js?v=4"></script>
     <script src="/study-hub/ui.js?v=11"></script>
     <script>

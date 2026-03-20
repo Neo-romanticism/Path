@@ -80,6 +80,8 @@ body {
   min-height: 100dvh;
   padding-bottom: 80px;
   background: var(--bg);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -1057,10 +1059,22 @@ body.community-compact .c-hot-card {
 
 .user-profile-actions {
   display: flex;
+  gap: 8px;
+}
+
+.user-profile-actions:not(.is-dual) {
+  gap: 0;
+}
+
+.user-profile-actions:not(.is-dual) .user-profile-friend-btn {
+  width: 100%;
+}
+
+.user-profile-actions.is-dual .user-profile-friend-btn {
+  flex: 1;
 }
 
 .user-profile-friend-btn {
-  width: 100%;
   height: 42px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--accent-blue) 36%, transparent);
@@ -1079,6 +1093,18 @@ body.community-compact .c-hot-card {
   border-color: rgba(34, 197, 94, 0.35);
   background: rgba(34, 197, 94, 0.12);
   color: #16a34a;
+}
+
+.user-profile-friend-btn.is-message {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent-blue);
+}
+
+.user-profile-friend-btn.is-reject {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .user-profile-friend-btn.is-pending {

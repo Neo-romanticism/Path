@@ -78,10 +78,8 @@ body[data-theme-mode="dark"] {
 body {
     font-family: var(--font-ui);
     color: var(--text-primary);
-    min-height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    height: 100dvh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -89,6 +87,14 @@ body {
     padding: 24px;
     background: linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
     transition: background 0.3s ease, color 0.2s ease;
+}
+
+@media (min-width: 769px) {
+    body {
+        min-height: 100dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
 }
 
 body::before {
@@ -6003,16 +6009,19 @@ body.path-interface:not(.light) {
 .page-tabs {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    align-items: stretch;
     border-radius: 18px;
-    padding: 5px;
+    padding: 6px;
     gap: 6px;
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(14px);
     border: 1px solid rgba(44, 52, 69, 0.08);
-    position: relative;
-    z-index: 32;
+    position: sticky;
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    z-index: 40;
     overflow: visible;
+    box-shadow: 0 14px 30px rgba(13, 25, 44, 0.08);
 }
 
 .page-tab-btn {
@@ -6020,6 +6029,7 @@ body.path-interface:not(.light) {
     font-weight: 700;
     border-radius: 14px;
     font-size: 13px;
+    white-space: nowrap;
 }
 
 .page-tab-btn.active {
@@ -6329,7 +6339,23 @@ body:not(.light) .timer-display .timer-ms {
 
 @media (max-width: 980px) {
     .page-tabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        scroll-snap-type: x proximity;
+    }
+
+    .page-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .page-tab-btn {
+        flex: 0 0 auto;
+        min-width: 108px;
+        scroll-snap-align: center;
     }
 
     .tab-panel {
@@ -6347,60 +6373,15 @@ body:not(.light) .timer-display .timer-ms {
 }
 
 @media (max-width: 620px) {
-    .page-tabs {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .page-tab-btn {
         min-height: 42px;
         font-size: 12px;
+        min-width: 96px;
     }
 
-    .page-tab-more {
-        font-size: 12px;
-    }
-
-    .page-more-menu {
-        position: fixed;
-        left: 12px;
-        right: 12px;
-        bottom: max(12px, env(safe-area-inset-bottom));
-        top: auto;
-        width: auto;
-        max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-        overflow-y: auto;
-        padding: 18px 10px 10px;
-        border-radius: 18px;
-        box-shadow: 0 24px 48px rgba(13, 25, 44, 0.28);
-        transform: translateY(var(--sheet-drag-offset, 0px));
-        transition: transform 0.16s ease;
-        z-index: 461;
-    }
-
-    .page-more-menu.is-dragging {
-        transition: none;
-    }
-
-    .page-more-menu.is-closing {
-        transition: transform 0.12s cubic-bezier(.2,.7,.3,1);
-        transform: translateY(calc(var(--sheet-drag-offset, 0px) + var(--sheet-close-boost, 72px)));
-    }
-
-    .page-more-menu::before {
-        content: '';
-        width: 44px;
-        height: 4px;
-        border-radius: 999px;
-        background: rgba(120, 133, 156, 0.48);
-        margin: 0 auto 10px;
-        display: block;
-    }
-
-    .page-more-item {
-        min-height: 46px;
-        border-radius: 12px;
-        font-size: 14px;
-        padding: 0 14px;
+    .page-tabs {
+        top: calc(env(safe-area-inset-top, 0px) + 8px);
+        margin-inline: -2px;
     }
 }
 

@@ -310,14 +310,14 @@
 
     const itemsHtml = filtered.length
       ? filtered.map(function (value) {
-          return '<button type="button" class="conv-history-item" data-term="' + encodeURIComponent(value) + '" onclick="applyConversationSearch(decodeURIComponent(this.dataset.term))">' + esc(value) + '</button>';
+          return '<button type="button" class="conv-history-item" data-term="' + esc(value) + '">' + esc(value) + '</button>';
         }).join('')
       : '<div class="conv-history-empty">일치하는 검색어 없음</div>';
 
     history.innerHTML = [
       '<div class="conv-history-head">',
       '  <span>최근 검색</span>',
-      '  <button type="button" class="conv-history-clear" onclick="clearConversationSearchHistory()">지우기</button>',
+      '  <button type="button" class="conv-history-clear" data-action="clear-history">지우기</button>',
       '</div>',
       itemsHtml
     ].join('');
@@ -1015,6 +1015,21 @@
     document.addEventListener('click', function (event) {
       const target = event.target;
       if (!(target instanceof Element)) return;
+      
+      // 검색 히스토리 버튼 클릭
+      const historyBtn = target.closest('.conv-history-item');
+      if (historyBtn && historyBtn.dataset.term) {
+        applySearch(historyBtn.dataset.term);
+        return;
+      }
+      
+      // 검색 히스토리 지우기 버튼
+      const clearBtn = target.closest('.conv-history-clear');
+      if (clearBtn) {
+        clearConversationSearchHistory();
+        return;
+      }
+      
       if (target.closest('.conv-shell')) return;
       if (target.closest('#conv-search-history')) return;
       if (target.closest('#conv-search')) return;

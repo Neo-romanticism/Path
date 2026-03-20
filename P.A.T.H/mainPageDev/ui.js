@@ -784,6 +784,7 @@ const UI = {
         this.elements.tabScoreCalc.classList.toggle('active', this.currentTab === 'scorecalc');
         this.elements.tabBalloon.classList.toggle('active', this.currentTab === 'balloon');
         document.getElementById('tab-rooms')?.classList.toggle('active', isRooms);
+        this.revealActiveTabButton();
 
         this.elements.body.classList.remove('active');
         this.elements.body.classList.toggle('tab-calendar-active', isCalendar);
@@ -820,6 +821,17 @@ const UI = {
         if (isRooms) {
             if (typeof GroupRooms !== 'undefined') GroupRooms.loadMyRooms().catch(() => {});
         }
+    },
+
+    revealActiveTabButton() {
+        const activeButton = document.querySelector(`.page-tab-btn[data-tab="${this.currentTab}"]`);
+        if (!activeButton) return;
+
+        activeButton.scrollIntoView({
+            behavior: window.matchMedia('(max-width: 980px)').matches ? 'smooth' : 'auto',
+            block: 'nearest',
+            inline: 'center'
+        });
     },
 
     setMoreMenuOpen(open) {
