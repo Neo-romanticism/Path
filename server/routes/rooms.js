@@ -5,38 +5,20 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { ROOM_SHOP, resolveRoomShopItem } = require('../services/rooms/catalog');
+const { ensureRoomChatSchema } = require('../services/rooms/chatSchema');
+const {
+    ROOM_ROLE,
+    ROOM_PERMISSION,
+    getRoomPermissions,
+    getRoomRole,
+    hasRoomPermission,
+    roomRoleRank,
+} = require('../services/rooms/permissions');
 
 function generateInviteCode() {
     return crypto.randomBytes(6).toString('hex'); // 12-char hex
 }
-
-// ── 방 꾸미기 샵 카탈로그 ──────────────────────────────────────────────────────
-const ROOM_SHOP = {
-    wallpapers: [
-        { key: 'default',  name: '기본',        price: 0,    emoji: '⬜', gradients: ['#f8f9fa', '#e9ecef'], description: '깔끔한 기본 배경' },
-        { key: 'blossom',  name: '벚꽃',         price: 500,  emoji: '🌸', gradients: ['#fce4ec', '#f8bbd9'], description: '봄날 벚꽃이 흩날려요' },
-        { key: 'night',    name: '별밤',          price: 800,  emoji: '🌙', gradients: ['#0d1b4b', '#1a2a6c'], description: '별빛 가득한 밤하늘' },
-        { key: 'dawn',     name: '새벽',          price: 1000, emoji: '🌅', gradients: ['#312060', '#5c3380'], description: '새벽의 신비로운 분위기' },
-        { key: 'coral',    name: '산호',          price: 1200, emoji: '🪸', gradients: ['#fff3e0', '#ffe0b2'], description: '따뜻한 산호빛 감성' },
-        { key: 'forest',   name: '숲속',          price: 1500, emoji: '🌿', gradients: ['#e8f5e9', '#c8e6c9'], description: '초록빛 숲 속의 고요함' },
-        { key: 'library',  name: '황금 도서관',   price: 3000, emoji: '📖', gradients: ['#3e2723', '#4e342e'], description: '지식의 전당, 황금빛 서재' },
-        { key: 'space',    name: '우주',          price: 5000, emoji: '🚀', gradients: ['#050510', '#0a0520'], description: '광활한 우주 속 나만의 공간' },
-    ],
-    props: [
-        { key: 'plant',     name: '화분',    emoji: '🌱', price: 200  },
-        { key: 'coffee',    name: '커피',    emoji: '☕', price: 150  },
-        { key: 'clock',     name: '탁상시계', emoji: '⏰', price: 300  },
-        { key: 'lamp',      name: '스탠드',   emoji: '💡', price: 250  },
-        { key: 'trophy',    name: '트로피',   emoji: '🏆', price: 1000 },
-        { key: 'pizza',     name: '피자',    emoji: '🍕', price: 100  },
-        { key: 'cat',       name: '고양이',   emoji: '🐱', price: 500  },
-        { key: 'books',     name: '책더미',   emoji: '📚', price: 200  },
-        { key: 'ac',        name: '에어컨',   emoji: '❄️', price: 800  },
-        { key: 'star',      name: '별',       emoji: '⭐', price: 300  },
-        { key: 'music',     name: '스피커',   emoji: '🎵', price: 400  },
-        { key: 'cookie',    name: '쿠키',    emoji: '🍪', price: 100  },
-    ],
-};
 
 const roomsReadLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -61,84 +43,6 @@ const chatLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: '채팅 메시지를 너무 빠르게 보내고 있습니다. 잠시 기다려주세요.' }
 });
-
-let roomChatSchemaReady = false;
-async function ensureRoomChatSchema() {
-    if (roomChatSchemaReady) return;
-    await pool.query(`
-        CREATE TABLE IF NOT EXISTS study_room_messages (
-            id          SERIAL PRIMARY KEY,
-            room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
-            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            content     VARCHAR(500) NOT NULL,
-            created_at  TIMESTAMP DEFAULT NOW()
-        );
-        CREATE INDEX IF NOT EXISTS idx_study_room_messages_room ON study_room_messages(room_id, created_at);
-    `);
-    roomChatSchemaReady = true;
-}
-
-const ROOM_ROLE = Object.freeze({
-    OWNER: 'owner',
-    MANAGER: 'manager',
-    MEMBER: 'member',
-});
-
-const ROOM_PERMISSION = Object.freeze({
-    EDIT_SETTINGS: 'edit_settings',
-    MANAGE_MEMBERS: 'manage_members',
-    MANAGE_DECOR: 'manage_decor',
-    DELETE_ROOM: 'delete_room',
-    ASSIGN_ROLES: 'assign_roles',
-});
-
-const ROOM_ROLE_PERMISSIONS = Object.freeze({
-    [ROOM_ROLE.OWNER]: {
-        [ROOM_PERMISSION.EDIT_SETTINGS]: true,
-        [ROOM_PERMISSION.MANAGE_MEMBERS]: true,
-        [ROOM_PERMISSION.MANAGE_DECOR]: true,
-        [ROOM_PERMISSION.DELETE_ROOM]: true,
-        [ROOM_PERMISSION.ASSIGN_ROLES]: true,
-    },
-    [ROOM_ROLE.MANAGER]: {
-        [ROOM_PERMISSION.EDIT_SETTINGS]: true,
-        [ROOM_PERMISSION.MANAGE_MEMBERS]: true,
-        [ROOM_PERMISSION.MANAGE_DECOR]: true,
-        [ROOM_PERMISSION.DELETE_ROOM]: false,
-        [ROOM_PERMISSION.ASSIGN_ROLES]: false,
-    },
-    [ROOM_ROLE.MEMBER]: {
-        [ROOM_PERMISSION.EDIT_SETTINGS]: false,
-        [ROOM_PERMISSION.MANAGE_MEMBERS]: false,
-        [ROOM_PERMISSION.MANAGE_DECOR]: false,
-        [ROOM_PERMISSION.DELETE_ROOM]: false,
-        [ROOM_PERMISSION.ASSIGN_ROLES]: false,
-    },
-});
-
-function hasRoomPermission(role, permission) {
-    return Boolean(ROOM_ROLE_PERMISSIONS[role] && ROOM_ROLE_PERMISSIONS[role][permission]);
-}
-
-function roomRoleRank(role) {
-    if (role === ROOM_ROLE.OWNER) return 3;
-    if (role === ROOM_ROLE.MANAGER) return 2;
-    return 1;
-}
-
-async function getRoomRole(clientOrPool, roomId, userId) {
-    const roleRes = await clientOrPool.query(
-        `SELECT COALESCE(rr.role,
-                        CASE WHEN r.creator_id = m.user_id THEN 'owner' ELSE 'member' END) AS role
-         FROM study_room_members m
-         JOIN study_rooms r ON r.id = m.room_id
-         LEFT JOIN study_room_member_roles rr ON rr.room_id = m.room_id AND rr.user_id = m.user_id
-         WHERE m.room_id = $1 AND m.user_id = $2 AND r.is_active = TRUE`,
-        [roomId, userId]
-    );
-
-    return roleRes.rows[0]?.role || null;
-}
 
 // GET /api/rooms/my — list rooms I have joined
 router.get('/my', roomsReadLimiter, requireAuth, async (req, res) => {
@@ -355,7 +259,7 @@ router.get('/:id/permissions', roomsReadLimiter, requireAuth, async (req, res) =
         const role = await getRoomRole(pool, roomId, req.session.userId);
         if (!role) return res.status(403).json({ error: '방 멤버가 아닙니다.' });
 
-        res.json({ role, permissions: ROOM_ROLE_PERMISSIONS[role] || ROOM_ROLE_PERMISSIONS[ROOM_ROLE.MEMBER] });
+        res.json({ role, permissions: getRoomPermissions(role) });
     } catch (err) {
         console.error('rooms/:id/permissions error:', err);
         res.status(500).json({ error: '서버 오류' });
@@ -824,7 +728,7 @@ router.get('/:id/messages', roomsReadLimiter, requireAuth, async (req, res) => {
     if (!roomId) return res.status(400).json({ error: '잘못된 요청' });
 
     try {
-        await ensureRoomChatSchema();
+        await ensureRoomChatSchema(pool);
 
         const memberCheck = await pool.query(
             `SELECT 1 FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
@@ -857,7 +761,7 @@ router.post('/:id/messages', chatLimiter, requireAuth, async (req, res) => {
     if (!content) return res.status(400).json({ error: '내용을 입력해주세요.' });
 
     try {
-        await ensureRoomChatSchema();
+        await ensureRoomChatSchema(pool);
 
         const memberCheck = await pool.query(
             `SELECT 1 FROM study_room_members WHERE room_id = $1 AND user_id = $2`,
@@ -931,12 +835,10 @@ router.post('/:id/shop/buy', roomsWriteLimiter, requireAuth, async (req, res) =>
     if (!roomId || !itemKey) return res.status(400).json({ error: '잘못된 요청' });
 
     // Resolve item from catalog
-    let item = null, category = null;
-    for (const [cat, list] of [['wallpaper', ROOM_SHOP.wallpapers], ['prop', ROOM_SHOP.props]]) {
-        const found = list.find(i => i.key === itemKey);
-        if (found) { item = found; category = cat; break; }
-    }
-    if (!item) return res.status(404).json({ error: '존재하지 않는 아이템입니다.' });
+    const resolvedItem = resolveRoomShopItem(itemKey);
+    if (!resolvedItem) return res.status(404).json({ error: '존재하지 않는 아이템입니다.' });
+
+    const { item, category } = resolvedItem;
     if (item.price === 0) return res.status(400).json({ error: '이 아이템은 구매 불필요합니다.' });
 
     let client;
