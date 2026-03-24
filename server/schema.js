@@ -647,12 +647,6 @@ async function initSchema() {
             DO NOTHING;
         `);
 
-        // ── 월드 좌표 저장 (마지막 위치 기억) ────────────────────────────────
-        await client.query(`
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS world_x INTEGER DEFAULT 0;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS world_y INTEGER DEFAULT 0;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS world_z INTEGER DEFAULT 0;
-        `);
 
         // ── 관리자 감사 로그 (append-only: 수정/삭제 금지) ─────────────────────────
         await client.query(`

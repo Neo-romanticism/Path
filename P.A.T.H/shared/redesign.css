@@ -234,67 +234,6 @@ body.path-interface[data-theme-mode="light"] .mode-group {
   background: #eef4ff;
 }
 
-/* ---------- World Hub (mainHub) ---------- */
-body.world-hub-page,
-body:has(#ui-overlay) {
-  color: #e8f1ff;
-}
-
-body.world-hub-page .hud-header,
-body:has(#ui-overlay) .hud-header {
-  background: linear-gradient(180deg, rgba(12, 25, 52, 0.86), rgba(10, 20, 42, 0.8));
-  border-bottom-color: rgba(111, 159, 255, 0.22);
-}
-
-body.world-hub-page .fab-rail,
-body.world-hub-page .glass-panel,
-body.world-hub-page .pill-action,
-body:has(#ui-overlay) .fab-rail,
-body:has(#ui-overlay) .glass-panel,
-body:has(#ui-overlay) .pill-action {
-  border-color: rgba(109, 162, 255, 0.3);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.42);
-}
-
-body.world-hub-page .fab-btn:hover,
-body.world-hub-page .sys-btn:hover,
-body.world-hub-page .tab.active,
-body:has(#ui-overlay) .fab-btn:hover,
-body:has(#ui-overlay) .sys-btn:hover,
-body:has(#ui-overlay) .tab.active {
-  color: #8fbcff;
-}
-
-body.world-hub-page .pill-action,
-body:has(#ui-overlay) .pill-action {
-  background: linear-gradient(135deg, #12346e, #1b4b97);
-}
-
-body.world-hub-page .search-command,
-body:has(#ui-overlay) .search-command {
-  width: 220px !important;
-}
-
-body.world-hub-page .glass-panel,
-body:has(#ui-overlay) .glass-panel {
-  background: linear-gradient(180deg, rgba(18, 39, 77, 0.92), rgba(14, 30, 61, 0.9));
-}
-
-body.world-hub-page .pill-action:hover,
-body:has(#ui-overlay) .pill-action:hover {
-  background: linear-gradient(135deg, #2f6ff2, #5c96ff);
-}
-
-body.world-hub-page #keyboard-guide,
-body.world-hub-page #coordinates-display,
-body.world-hub-page #minimap,
-body:has(#ui-overlay) #keyboard-guide,
-body:has(#ui-overlay) #coordinates-display,
-body:has(#ui-overlay) #minimap {
-  border-color: rgba(107, 159, 255, 0.24) !important;
-  background: rgba(14, 30, 58, 0.82) !important;
-}
-
 /* ---------- Community ---------- */
 body.community-page,
 body:has(.c-header) {

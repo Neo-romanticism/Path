@@ -8,10 +8,6 @@ const { promisify } = require('util');
 const router = express.Router();
 const execFileAsync = promisify(execFile);
 const ALWAYS_MAIN_ADMIN_NICKNAME = '낭만화1';
-const ADMIN_WORLD_XY_LIMIT = 100000;
-const ADMIN_WORLD_Z_MIN = -40;
-const ADMIN_WORLD_Z_MAX = 500;
-const ADMIN_RANDOM_SPAWN_RANGE_XY = 5800;
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const UNIVERSITY_DATA_DIR = path.join(ROOT_DIR, 'server', 'data');
 const UNIVERSITY_MANIFEST_PATH = path.join(UNIVERSITY_DATA_DIR, 'source-manifest.json');
@@ -71,11 +67,6 @@ function normalizeTrustPolicy(input = {}) {
     };
 }
 
-function randomInt(min, max) {
-    const lo = Math.ceil(min);
-    const hi = Math.floor(max);
-    return Math.floor(Math.random() * (hi - lo + 1)) + lo;
-}
 
 async function writeAdminAuditLog(client, { action, actorUserId, targetUserId = null, details = {} }) {
     await client.query(
@@ -231,7 +222,6 @@ router.get('/', requireAdmin, (req, res) => {
             'POST /api/admin/university-data/export (main only)',
             'POST /api/admin/university-data/report',
             'POST /api/admin/university-data/validate',
-            'POST /api/admin/teleport-random-user (main only)',
             'POST /api/admin/set-role (main only)',
             'POST /api/admin/approve-score',
             'POST /api/admin/reject-score',
@@ -622,7 +612,6 @@ router.get('/all-users', requireAdmin, async (req, res) => {
             `SELECT id, nickname, real_name, university, prev_university, is_n_su,
                     gold, diamond, exp, tier, tickets, score_status,
                     score_image_url, gpa_score, gpa_status, gpa_image_url, gpa_public,
-                    world_x, world_y, world_z,
                     is_admin, admin_role, user_code, created_at
              FROM users ORDER BY created_at DESC`
         );
@@ -647,9 +636,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     const ticketsRaw = req.body?.tickets;
     const gpaScoreRaw = req.body?.gpa_score;
     const gpaPublic = req.body?.gpa_public === true || req.body?.gpa_public === 'true' || req.body?.gpa_public === 1 || req.body?.gpa_public === '1';
-    const worldXRaw = req.body?.world_x;
-    const worldYRaw = req.body?.world_y;
-    const worldZRaw = req.body?.world_z;
 
     if (!userId) {
         return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
@@ -687,8 +673,7 @@ router.post('/update-user', requireAdmin, async (req, res) => {
 
         const target = await client.query(
             `SELECT id, is_admin, admin_role,
-                    gold, diamond, exp, tier, tickets, gpa_score, gpa_public,
-                    world_x, world_y, world_z
+                    gold, diamond, exp, tier, tickets, gpa_score, gpa_public
              FROM users WHERE id = $1`,
             [userId]
         );
@@ -713,9 +698,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
         let tickets = targetUser.tickets;
         let gpaScore = targetUser.gpa_score;
         let nextGpaPublic = targetUser.gpa_public;
-        let worldX = targetUser.world_x;
-        let worldY = targetUser.world_y;
-        let worldZ = targetUser.world_z;
 
         const goldResult = parseAdminIntegerField(goldRaw, targetUser.gold, {
             min: 0,
@@ -776,39 +758,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
             }
 
             nextGpaPublic = gpaPublic;
-
-            const worldXResult = parseAdminIntegerField(worldXRaw, targetUser.world_x, {
-                min: -ADMIN_WORLD_XY_LIMIT,
-                max: ADMIN_WORLD_XY_LIMIT,
-                error: `X 좌표는 ${-ADMIN_WORLD_XY_LIMIT}~${ADMIN_WORLD_XY_LIMIT} 범위의 정수여야 합니다.`
-            });
-            if (!worldXResult.ok) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: worldXResult.error });
-            }
-            worldX = worldXResult.value;
-
-            const worldYResult = parseAdminIntegerField(worldYRaw, targetUser.world_y, {
-                min: -ADMIN_WORLD_XY_LIMIT,
-                max: ADMIN_WORLD_XY_LIMIT,
-                error: `Y 좌표는 ${-ADMIN_WORLD_XY_LIMIT}~${ADMIN_WORLD_XY_LIMIT} 범위의 정수여야 합니다.`
-            });
-            if (!worldYResult.ok) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: worldYResult.error });
-            }
-            worldY = worldYResult.value;
-
-            const worldZResult = parseAdminIntegerField(worldZRaw, targetUser.world_z, {
-                min: ADMIN_WORLD_Z_MIN,
-                max: ADMIN_WORLD_Z_MAX,
-                error: `Z 좌표는 ${ADMIN_WORLD_Z_MIN}~${ADMIN_WORLD_Z_MAX} 범위의 정수여야 합니다.`
-            });
-            if (!worldZResult.ok) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ error: worldZResult.error });
-            }
-            worldZ = worldZResult.value;
         }
 
         const duplicate = await client.query(
@@ -833,14 +782,10 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                  tier = $9,
                  tickets = $10,
                  gpa_score = $11,
-                 gpa_public = $12,
-                 world_x = $13,
-                 world_y = $14,
-                 world_z = $15
-             WHERE id = $16
+                 gpa_public = $12
+             WHERE id = $13
              RETURNING id, nickname, real_name, university, is_n_su, prev_university,
                        gold, diamond, exp, tier, tickets, gpa_score, gpa_public,
-                       world_x, world_y, world_z,
                        is_admin, admin_role, user_code, created_at`,
             [
                 nickValidation.value,
@@ -855,9 +800,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                 tickets,
                 gpaScore,
                 nextGpaPublic,
-                worldX,
-                worldY,
-                worldZ,
                 userId,
             ]
         );
@@ -877,9 +819,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                     tickets: targetUser.tickets,
                     gpa_score: targetUser.gpa_score,
                     gpa_public: targetUser.gpa_public,
-                    world_x: targetUser.world_x,
-                    world_y: targetUser.world_y,
-                    world_z: targetUser.world_z,
                 },
                 after: {
                     gold: updatedUser.gold,
@@ -889,9 +828,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
                     tickets: updatedUser.tickets,
                     gpa_score: updatedUser.gpa_score,
                     gpa_public: updatedUser.gpa_public,
-                    world_x: updatedUser.world_x,
-                    world_y: updatedUser.world_y,
-                    world_z: updatedUser.world_z,
                 }
             }
         });
@@ -908,66 +844,6 @@ router.post('/update-user', requireAdmin, async (req, res) => {
     }
 });
 
-router.post('/teleport-random-user', requireMainAdmin, async (req, res) => {
-    const userId = parseInt(req.body?.user_id, 10);
-    if (!userId) {
-        return res.status(400).json({ error: '유저 ID를 확인해주세요.' });
-    }
-
-    const worldX = randomInt(-ADMIN_RANDOM_SPAWN_RANGE_XY, ADMIN_RANDOM_SPAWN_RANGE_XY);
-    const worldY = randomInt(-ADMIN_RANDOM_SPAWN_RANGE_XY, ADMIN_RANDOM_SPAWN_RANGE_XY);
-    const worldZ = randomInt(ADMIN_WORLD_Z_MIN, ADMIN_WORLD_Z_MAX);
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const beforeRes = await client.query(
-            'SELECT id, world_x, world_y, world_z FROM users WHERE id = $1',
-            [userId]
-        );
-        if (!beforeRes.rows.length) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: '대상 사용자를 찾을 수 없습니다.' });
-        }
-
-        const result = await client.query(
-            `UPDATE users
-             SET world_x = $1,
-                 world_y = $2,
-                 world_z = $3
-             WHERE id = $4
-             RETURNING id, nickname, world_x, world_y, world_z`,
-            [worldX, worldY, worldZ, userId]
-        );
-
-        const updatedUser = result.rows[0];
-        await writeAdminAuditLog(client, {
-            action: 'admin.teleport_random_user',
-            actorUserId: req.session.userId,
-            targetUserId: userId,
-            details: {
-                actor_role: req.adminRole,
-                before: beforeRes.rows[0],
-                after: {
-                    world_x: updatedUser.world_x,
-                    world_y: updatedUser.world_y,
-                    world_z: updatedUser.world_z,
-                }
-            }
-        });
-
-        await client.query('COMMIT');
-
-        return res.json({ ok: true, user: updatedUser });
-    } catch (err) {
-        try { await client.query('ROLLBACK'); } catch (_) {}
-        console.error('admin teleport-random-user error:', err.message);
-        return res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
-    }
-});
 
 router.get('/roles', requireAdmin, async (_req, res) => {
     try {

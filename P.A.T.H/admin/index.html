@@ -555,7 +555,6 @@
                 <select id="log-action-filter" class="field">
                     <option value="all">전체 액션</option>
                     <option value="admin.update_user">유저정보 수정</option>
-                    <option value="admin.teleport_random_user">랜덤 소환</option>
                     <option value="admin.set_role">권한 변경</option>
                     <option value="admin.approve_score">평가원 승인</option>
                     <option value="admin.reject_score">평가원 반려</option>
@@ -803,26 +802,6 @@
                 }
             }
 
-            if (!isBlankSensitiveInput(payload.world_x)) {
-                const worldX = Number.parseInt(payload.world_x, 10);
-                if (!Number.isInteger(worldX) || worldX < -100000 || worldX > 100000) {
-                    return 'X 좌표는 -100000~100000 범위의 정수여야 합니다.';
-                }
-            }
-
-            if (!isBlankSensitiveInput(payload.world_y)) {
-                const worldY = Number.parseInt(payload.world_y, 10);
-                if (!Number.isInteger(worldY) || worldY < -100000 || worldY > 100000) {
-                    return 'Y 좌표는 -100000~100000 범위의 정수여야 합니다.';
-                }
-            }
-
-            if (!isBlankSensitiveInput(payload.world_z)) {
-                const worldZ = Number.parseInt(payload.world_z, 10);
-                if (!Number.isInteger(worldZ) || worldZ < -40 || worldZ > 500) {
-                    return 'Z 좌표는 -40~500 범위의 정수여야 합니다.';
-                }
-            }
             return '';
         }
 
@@ -1155,9 +1134,6 @@
                 const safeExpValue = Number.isFinite(Number(u.exp)) ? Number(u.exp) : 0;
                 const safeTicketsValue = Number.isFinite(Number(u.tickets)) ? Number(u.tickets) : 0;
                 const safeGpaValue = u.gpa_score === null || u.gpa_score === undefined ? '' : Number(u.gpa_score);
-                const safeWorldXValue = Number.isFinite(Number(u.world_x)) ? Number(u.world_x) : 0;
-                const safeWorldYValue = Number.isFinite(Number(u.world_y)) ? Number(u.world_y) : 0;
-                const safeWorldZValue = Number.isFinite(Number(u.world_z)) ? Number(u.world_z) : 0;
                 const goldDisabled = canEditGoldField() ? '' : 'disabled title="관리자만 수정 가능"';
                 const sensitiveDisabled = canEditSensitiveFields() ? '' : 'disabled title="주관리자만 수정 가능"';
                 return `
@@ -1176,7 +1152,6 @@
                             / <strong>티켓:</strong> ${u.tickets || 0}<br>
                             <strong>내신:</strong> ${u.gpa_score ? `${u.gpa_score}등급` : '-'}
                             ${u.gpa_public ? ' (공개)' : ''}<br>
-                            <strong>월드 좌표:</strong> X ${u.world_x || 0}, Y ${u.world_y || 0}, Z ${u.world_z || 0}<br>
                             <strong>식별코드:</strong> ${esc(u.user_code || '-')}<br>
                             ${u.is_n_su ? `<strong>N수:</strong> 예 (전적대 ${esc(u.prev_university || '-')})<br>` : ''}
                             <strong>계정 권한:</strong> ${u.is_admin ? '관리자' : '일반 사용자'} / <strong>가입일:</strong> ${formatDate(u.created_at)}
@@ -1197,9 +1172,6 @@
                                 <input class="field" id="edit-tier-${u.id}" type="text" value="${safeTierValue}" placeholder="티어" ${sensitiveDisabled}>
                                 <input class="field" id="edit-tickets-${u.id}" type="number" min="0" step="1" value="${safeTicketsValue}" placeholder="티켓" ${sensitiveDisabled}>
                                 <input class="field" id="edit-gpa-score-${u.id}" type="number" min="1" max="9" step="0.01" value="${safeGpaValue}" placeholder="내신 1.0~9.0 (비우면 제거)" ${sensitiveDisabled}>
-                                <input class="field" id="edit-world-x-${u.id}" type="number" min="-100000" max="100000" step="1" value="${safeWorldXValue}" placeholder="월드 X 좌표" ${sensitiveDisabled}>
-                                <input class="field" id="edit-world-y-${u.id}" type="number" min="-100000" max="100000" step="1" value="${safeWorldYValue}" placeholder="월드 Y 좌표" ${sensitiveDisabled}>
-                                <input class="field" id="edit-world-z-${u.id}" type="number" min="-40" max="500" step="1" value="${safeWorldZValue}" placeholder="월드 Z 좌표" ${sensitiveDisabled}>
                             </div>
                             <div class="action-row">
                                 <label class="auto-refresh">
@@ -1210,7 +1182,6 @@
                                     <input id="edit-gpa-public-${u.id}" type="checkbox" ${u.gpa_public ? 'checked' : ''} ${sensitiveDisabled}>
                                     내신 공개
                                 </label>
-                                <button class="btn" type="button" onclick="teleportRandomUser(${u.id}, this)" ${sensitiveDisabled}>랜덤 소환</button>
                                 <button class="btn primary" type="button" onclick="saveUserEdit(${u.id}, this)">저장</button>
                                 <button class="btn" type="button" onclick="resetUserEdit(${u.id})">초기화</button>
                             </div>
@@ -1240,9 +1211,6 @@
             const ticketsEl = document.getElementById(`edit-tickets-${userId}`);
             const gpaScoreEl = document.getElementById(`edit-gpa-score-${userId}`);
             const gpaPublicEl = document.getElementById(`edit-gpa-public-${userId}`);
-            const worldXEl = document.getElementById(`edit-world-x-${userId}`);
-            const worldYEl = document.getElementById(`edit-world-y-${userId}`);
-            const worldZEl = document.getElementById(`edit-world-z-${userId}`);
 
             if (nicknameEl) nicknameEl.value = user.nickname || '';
             if (realNameEl) realNameEl.value = user.real_name || '';
@@ -1256,9 +1224,6 @@
             if (ticketsEl) ticketsEl.value = Number.isFinite(Number(user.tickets)) ? Number(user.tickets) : 0;
             if (gpaScoreEl) gpaScoreEl.value = user.gpa_score === null || user.gpa_score === undefined ? '' : Number(user.gpa_score);
             if (gpaPublicEl) gpaPublicEl.checked = !!user.gpa_public;
-            if (worldXEl) worldXEl.value = Number.isFinite(Number(user.world_x)) ? Number(user.world_x) : 0;
-            if (worldYEl) worldYEl.value = Number.isFinite(Number(user.world_y)) ? Number(user.world_y) : 0;
-            if (worldZEl) worldZEl.value = Number.isFinite(Number(user.world_z)) ? Number(user.world_z) : 0;
         }
 
         async function saveUserEdit(userId, button) {
@@ -1282,9 +1247,6 @@
                 payload.tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
                 payload.gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
                 payload.gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
-                payload.world_x = document.getElementById(`edit-world-x-${userId}`)?.value || '0';
-                payload.world_y = document.getElementById(`edit-world-y-${userId}`)?.value || '0';
-                payload.world_z = document.getElementById(`edit-world-z-${userId}`)?.value || '0';
             }
 
             const validationMessage = validateUserEditInput(payload);
@@ -1307,33 +1269,6 @@
             });
         }
 
-        async function teleportRandomUser(userId, button) {
-            if (!canEditSensitiveFields()) {
-                setNotice('주관리자만 랜덤 소환을 사용할 수 있습니다.', 'error');
-                return;
-            }
-
-            await withActionLock(button, async () => {
-                const data = await apiFetch('/api/admin/teleport-random-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
-                });
-
-                const moved = data?.user;
-                if (moved) {
-                    setNotice(
-                        `유저 ${userId} 랜덤 소환 완료 (X ${moved.world_x}, Y ${moved.world_y}, Z ${moved.world_z})`,
-                        'ok'
-                    );
-                } else {
-                    setNotice(`유저 ${userId} 랜덤 소환 완료`, 'ok');
-                }
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
 
         async function loadAdminMeta() {
             const data = await apiFetch('/api/admin');
@@ -1702,7 +1637,6 @@
         window.approveGpa = approveGpa;
         window.rejectGpa = rejectGpa;
         window.saveUserEdit = saveUserEdit;
-        window.teleportRandomUser = teleportRandomUser;
         window.resetUserEdit = resetUserEdit;
     </script>
 </body>

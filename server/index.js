@@ -12,7 +12,6 @@ const path = require('path');
 const sharp = require('sharp');
 const pool = require('./db');
 const { initSchema } = require('./schema');
-const worldManager = require('./world');
 const { getUploadDir } = require('./utils/uploadRoot');
 
 const app = express();
@@ -603,7 +602,6 @@ app.get('/pwa-install.js', (req, res) => {
 app.use('/assets', express.static(path.join(projectRoot, 'P.A.T.H', 'assets'), staticOptions));
 app.use('/shared', express.static(path.join(projectRoot, 'P.A.T.H', 'shared'), staticOptions));
 app.use('/login', express.static(path.join(projectRoot, 'P.A.T.H', 'login'), noCacheStaticOptions));
-app.use('/study-hub/assets', express.static(path.join(projectRoot, 'P.A.T.H', 'mainHub', 'assets'), staticOptions));
 app.get('/study-hub', (req, res, next) => {
   // With strict routing disabled (default), this also matches /study-hub/.
   // Only redirect when trailing slash is missing to avoid a self-redirect loop.
@@ -613,12 +611,6 @@ app.get('/study-hub', (req, res, next) => {
   return res.redirect(301, `/study-hub/${query}`);
 });
 app.use('/study-hub', express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'), noCacheStaticOptions));
-app.use('/mainHub', (req, res) => {
-  const queryIndex = req.url.indexOf('?');
-  const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
-  const targetPath = req.path === '/' ? '/study-hub/' : `/study-hub${req.path}`;
-  return res.redirect(301, `${targetPath}${query}`);
-});
 app.use('/timer', (req, res) => {
   const queryIndex = req.url.indexOf('?');
   const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
@@ -1349,10 +1341,6 @@ app.get('/P.A.T.H/login', (_req, res) => res.redirect(301, '/login/'));
 app.get('/P.A.T.H/login/', (_req, res) => res.redirect(301, '/login/'));
 app.get('/P.A.T.H/login/index.html', (_req, res) => res.redirect(301, '/login/'));
 
-app.get('/P.A.T.H/mainHub', (_req, res) => res.redirect(301, '/study-hub/'));
-app.get('/P.A.T.H/mainHub/', (_req, res) => res.redirect(301, '/study-hub/'));
-app.get('/P.A.T.H/mainHub/index.html', (_req, res) => res.redirect(301, '/study-hub/'));
-
 app.get('/P.A.T.H/mainPageDev', (_req, res) => res.redirect(301, '/study-hub/'));
 app.get('/P.A.T.H/mainPageDev/', (_req, res) => res.redirect(301, '/study-hub/'));
 app.get('/P.A.T.H/mainPageDev/index.html', (_req, res) => res.redirect(301, '/study-hub/'));
@@ -1396,7 +1384,6 @@ initSchema()
             transports: ['websocket', 'polling'],
         });
         app.set('io', io);
-        worldManager.setup(io);
 
         httpServer.listen(PORT, '0.0.0.0', () => {
             console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
