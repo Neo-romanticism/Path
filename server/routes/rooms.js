@@ -4,11 +4,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
-
-function requireAuth(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    next();
-}
+const { requireAuth } = require('../middleware/auth');
 
 function generateInviteCode() {
     return crypto.randomBytes(6).toString('hex'); // 12-char hex

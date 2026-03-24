@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const { createRequireAdmin, createRequireMainAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 const execFileAsync = promisify(execFile);
@@ -152,56 +153,17 @@ function percentileToGrade(percentile) {
     return 9;
 }
 
-async function getAdminRole(userId) {
-    const result = await pool.query(
-        'SELECT nickname, is_admin, admin_role FROM users WHERE id = $1',
-        [userId]
-    );
-    const row = result.rows[0];
-    if (!row) return 'none';
+const requireAdmin = createRequireAdmin(pool, {
+    alwaysMainAdminNickname: ALWAYS_MAIN_ADMIN_NICKNAME,
+    logLabel: 'admin requireAdmin error',
+    serverErrorMessage: '서버 오류',
+});
 
-    if (row.nickname === ALWAYS_MAIN_ADMIN_NICKNAME) {
-        if (row.is_admin !== true || row.admin_role !== 'main') {
-            await pool.query(
-                `UPDATE users
-                 SET is_admin = TRUE,
-                     admin_role = 'main'
-                 WHERE id = $1`,
-                [userId]
-            );
-        }
-        return 'main';
-    }
-
-    if (row.admin_role === 'main' || row.admin_role === 'sub') return row.admin_role;
-    return row.is_admin ? 'sub' : 'none';
-}
-
-async function requireAdmin(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    try {
-        const role = await getAdminRole(req.session.userId);
-        if (role === 'none') return res.status(403).json({ error: '관리자 권한이 없습니다.' });
-        req.adminRole = role;
-        next();
-    } catch (err) {
-        console.error('admin requireAdmin error:', err.message);
-        res.status(500).json({ error: '서버 오류' });
-    }
-}
-
-async function requireMainAdmin(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    try {
-        const role = await getAdminRole(req.session.userId);
-        if (role !== 'main') return res.status(403).json({ error: '주관리자 권한이 필요합니다.' });
-        req.adminRole = role;
-        next();
-    } catch (err) {
-        console.error('admin requireMainAdmin error:', err.message);
-        res.status(500).json({ error: '서버 오류' });
-    }
-}
+const requireMainAdmin = createRequireMainAdmin(pool, {
+    alwaysMainAdminNickname: ALWAYS_MAIN_ADMIN_NICKNAME,
+    logLabel: 'admin requireMainAdmin error',
+    serverErrorMessage: '서버 오류',
+});
 
 router.get('/', requireAdmin, (req, res) => {
     res.json({

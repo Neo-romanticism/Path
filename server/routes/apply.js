@@ -5,6 +5,7 @@ const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
 const pool    = require('../db');
+const { requireAuth } = require('../middleware/auth');
 const { getUploadDir }    = require('../utils/uploadRoot');
 const { findUniversity }  = require('../data/universities');
 const calc = require('../utils/admissionCalc');

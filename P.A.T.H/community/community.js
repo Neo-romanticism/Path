@@ -3,18 +3,66 @@
  *
  * API:
  *   GET  /api/community/posts?page=&limit=&category=&q=
- *   GET  /api/community/posts/hot?category=
- *   POST /api/community/uploads/image
- *   POST /api/community/posts
- *   POST /api/community/posts/:id/view
+            const result = await Api.postJson(`/api/community/posts/${postId}/like`, {});
+          if (!result.response.ok) {
  *   POST /api/community/posts/:id/like
  *   POST /api/community/posts/:id/gold-like
  *   GET  /api/community/posts/:id/comments
- *   POST /api/community/posts/:id/comments
+            const errorMsg = getApiErrorMessage(result.data, '오류가 발생했어요');
  */
 
 import { PostListItem, SkeletonItem, CATEGORY_META } from './PostListItem.js';
 import { useInfiniteScroll }                          from './useInfiniteScroll.js';
+          const { liked, likes } = result.data || {};
+const baseApi = window.PathApi || null;
+const Api = {
+  request(path, init) {
+    if (baseApi && typeof baseApi.request === 'function') {
+      return baseApi.request(path, init);
+    }
+    return fetch(path, Object.assign({ credentials: 'include' }, init || {}));
+  },
+  async requestJson(path, init) {
+    if (baseApi && typeof baseApi.requestJson === 'function') {
+      return baseApi.requestJson(path, init);
+    }
+    const response = await this.request(path, init);
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch (_) {
+      data = {};
+    }
+    return { response, data };
+  },
+  getJson(path, init) {
+    return this.requestJson(path, init);
+  },
+  postJson(path, body, init) {
+    return this.requestJson(path, Object.assign({}, init || {}, {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, init?.headers || {}),
+      body: JSON.stringify(body || {}),
+    }));
+  },
+  patchJson(path, body, init) {
+            const meResult = await Api.getJson('/api/auth/me');
+          if (meResult.response.ok) {
+            const me = meResult.data;
+      body: JSON.stringify(body || {}),
+    }));
+            const blocksResult = await Api.getJson('/api/community/blocks');
+            if (blocksResult.response.ok) {
+              const blocksData = blocksResult.data;
+  },
+  postForm(path, formData, init) {
+    return this.requestJson(path, Object.assign({}, init || {}, {
+      method: 'POST',
+      body: formData,
+    }));
+  },
+};
 
 /* ─── 상수 ─────────────────────────────────────────────────── */
 const PAGE_SIZE     = 25;
@@ -168,14 +216,14 @@ async function init() {
 
     // 로그인 상태 확인 (실패해도 게시판은 열람 가능)
     try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const me = await res.json();
+        const meResult = await Api.getJson('/api/auth/me');
+      if (meResult.response.ok) {
+        const me = meResult.data;
         currentUser = me.user || me;
 
-        const blocksRes = await fetch('/api/community/blocks', { credentials: 'include' });
-        if (blocksRes.ok) {
-          const blocksData = await blocksRes.json();
+        const blocksResult = await Api.getJson('/api/community/blocks');
+        if (blocksResult.response.ok) {
+          const blocksData = blocksResult.data;
           const ids = (blocksData.blocks || []).map((b) => Number(b.blocked_id)).filter((n) => Number.isInteger(n));
           currentUserBlocks = new Set(ids);
         }
@@ -246,9 +294,9 @@ async function renderHotPosts() {
 
     try {
         const url = `/api/community/posts/hot${currentCat !== '전체' ? `?category=${encodeURIComponent(currentCat)}` : ''}`;
-        const res  = await fetch(url, { credentials: 'include' });
-        if (!res.ok) throw new Error(res.status);
-        const { posts } = await res.json();
+      const result  = await Api.getJson(url);
+      if (!result.response.ok) throw new Error(result.response.status);
+      const { posts } = result.data;
 
         hotList.innerHTML = '';
         if (!posts.length) { hotSection.hidden = true; return; }
@@ -338,9 +386,9 @@ async function loadNextPage() {
     if (searchQuery) params.set('q', searchQuery);
 
     try {
-        const res = await fetch(`/api/community/posts?${params}`, { credentials: 'include' });
-        if (!res.ok) throw new Error(res.status);
-        const { total, posts } = await res.json();
+      const result = await Api.getJson(`/api/community/posts?${params}`);
+      if (!result.response.ok) throw new Error(result.response.status);
+      const { total, posts } = result.data;
 
         // 스켈레톤 제거
         postList.querySelectorAll('.skel-row').forEach(s => s.remove());
@@ -422,18 +470,15 @@ function bindPostClicks() {
         btn.disabled = true;
 
         try {
-          const r = await fetch(`/api/community/posts/${postId}/bookmark`, {
-            method: 'POST',
-            credentials: 'include',
-          });
-          if (!r.ok) {
+          const result = await Api.postJson(`/api/community/posts/${postId}/bookmark`, {});
+          if (!result.response.ok) {
             applyRowBookmarkState(btn, before);
-            const msg = await readApiError(r, '북마크 처리에 실패했어요');
+            const msg = getApiErrorMessage(result.data, '북마크 처리에 실패했어요');
             if (msg) showToast(msg);
             return;
           }
 
-          const data = await r.json().catch(() => ({}));
+          const data = result.data || {};
           const serverBookmarked = !!data.bookmarked;
           applyRowBookmarkState(btn, serverBookmarked);
           showToast(serverBookmarked ? '북마크에 저장했어요' : '북마크를 해제했어요');
@@ -623,18 +668,18 @@ async function openPostInline(postId, options = {}) {
   const bodyEl = detailRow.querySelector('.post-inline-detail__body');
 
   try {
-    const [postRes, commentsRes] = await Promise.all([
-      fetch(`/api/community/posts/${id}`, { credentials: 'include' }),
-      fetch(`/api/community/posts/${id}/comments`, { credentials: 'include' }),
+    const [postResult, commentsResult] = await Promise.all([
+      Api.getJson(`/api/community/posts/${id}`),
+      Api.getJson(`/api/community/posts/${id}/comments`),
     ]);
 
-    if (!postRes.ok) {
-      const msg = await readApiError(postRes, '게시글을 불러오지 못했어요');
+    if (!postResult.response.ok) {
+      const msg = getApiErrorMessage(postResult.data, '게시글을 불러오지 못했어요');
       throw new Error(msg || '게시글을 불러오지 못했어요');
     }
 
-    const postData = await postRes.json().catch(() => ({}));
-    const commentsData = commentsRes.ok ? await commentsRes.json().catch(() => ({})) : {};
+    const postData = postResult.data || {};
+    const commentsData = commentsResult.response.ok ? (commentsResult.data || {}) : {};
     const post = postData?.post;
     const comments = Array.isArray(commentsData?.comments) ? commentsData.comments : [];
 
@@ -683,9 +728,8 @@ function markPostViewed(postId) {
   const id = Number(postId);
   if (!Number.isInteger(id) || id <= 0) return;
 
-  fetch(`/api/community/posts/${id}/view`, {
+  Api.request(`/api/community/posts/${id}/view`, {
     method: 'POST',
-    credentials: 'include',
     keepalive: true,
   }).catch(() => {});
 }
@@ -811,19 +855,17 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         btn.classList.toggle('is-active', isLiked);
 
         try {
-            const r = await fetch(`/api/community/posts/${postId}/like`, {
-                method: 'POST', credentials: 'include',
-            });
-          if (!r.ok) {
+            const result = await Api.postJson(`/api/community/posts/${postId}/like`, {});
+          if (!result.response.ok) {
             isLiked = prevLiked;
             if (countSpan) countSpan.textContent = prevLikes;
             btn.classList.toggle('is-active', isLiked);
-            const errorMsg = await readApiError(r, '오류가 발생했어요');
+            const errorMsg = getApiErrorMessage(result.data, '오류가 발생했어요');
             if (errorMsg) showToast(errorMsg);
             return;
           }
 
-          const { liked, likes } = await r.json();
+          const { liked, likes } = result.data || {};
           isLiked = !!liked;
           btn.classList.toggle('is-active', isLiked);
           if (countSpan) countSpan.textContent = likes;
@@ -853,13 +895,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         goldLikeBtn.textContent = '처리 중...';
 
         try {
-          const r = await fetch(`/api/community/posts/${postId}/gold-like`, {
-            method: 'POST',
-            credentials: 'include',
-          });
-
-          const data = await r.json().catch(() => ({}));
-          if (!r.ok) {
+          const result = await Api.postJson(`/api/community/posts/${postId}/gold-like`, {});
+          const data = result.data || {};
+          if (!result.response.ok) {
             if (data?.code === 'EULA_REQUIRED') {
               showToast('최신 이용약관 동의 후 이용할 수 있어요. 메인 화면에서 동의해 주세요.');
             } else {
@@ -904,14 +942,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
 
         reportBtn.disabled = true;
         try {
-          const r = await fetch(`/api/community/posts/${postId}/report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(payload),
-          });
-          if (!r.ok) {
-            const errorMsg = await readApiError(r, '신고 처리에 실패했어요');
+          const result = await Api.postJson(`/api/community/posts/${postId}/report`, payload);
+          if (!result.response.ok) {
+            const errorMsg = getApiErrorMessage(result.data, '신고 처리에 실패했어요');
             if (errorMsg) showToast(errorMsg);
             return;
           }
@@ -935,7 +968,6 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         const before = isBookmarked;
         const after = !before;
 
-        // 낙관적 업데이트
         isBookmarked = after;
         bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
         bookmarkBtn.classList.toggle('is-active', isBookmarked);
@@ -944,21 +976,18 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
 
         bookmarkBtn.disabled = true;
         try {
-          const r = await fetch(`/api/community/posts/${postId}/bookmark`, {
-            method: 'POST',
-            credentials: 'include',
-          });
-          if (!r.ok) {
+          const result = await Api.postJson(`/api/community/posts/${postId}/bookmark`, {});
+          if (!result.response.ok) {
             isBookmarked = before;
             bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
             bookmarkBtn.classList.toggle('is-active', isBookmarked);
             if (rowBookmarkBtn) applyRowBookmarkState(rowBookmarkBtn, isBookmarked);
-            const msg = await readApiError(r, '북마크 처리에 실패했어요');
+            const msg = getApiErrorMessage(result.data, '북마크 처리에 실패했어요');
             if (msg) showToast(msg);
             return;
           }
 
-          const data = await r.json().catch(() => ({}));
+          const data = result.data || {};
           isBookmarked = !!data.bookmarked;
           bookmarkBtn.textContent = isBookmarked ? '북마크 해제' : '북마크';
           bookmarkBtn.classList.toggle('is-active', isBookmarked);
@@ -992,12 +1021,11 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
 
         blockBtn.disabled = true;
         try {
-          const r = await fetch(`/api/community/blocks/${targetUserId}`, {
-            method: currentlyBlocked ? 'DELETE' : 'POST',
-            credentials: 'include',
-          });
-          if (!r.ok) {
-            const errorMsg = await readApiError(r, '차단 설정에 실패했어요');
+          const result = currentlyBlocked
+            ? await Api.deleteJson(`/api/community/blocks/${targetUserId}`)
+            : await Api.postJson(`/api/community/blocks/${targetUserId}`, {});
+          if (!result.response.ok) {
+            const errorMsg = getApiErrorMessage(result.data, '차단 설정에 실패했어요');
             if (errorMsg) showToast(errorMsg);
             return;
           }
@@ -1025,18 +1053,16 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
       const anonymousNickname = anonNickInput ? anonNickInput.value.trim() : '';
 
         try {
-            const r = await fetch(`/api/community/posts/${postId}/comments`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-          body: JSON.stringify({ body, anonymous_nickname: anonymousNickname }),
+            const result = await Api.postJson(`/api/community/posts/${postId}/comments`, {
+              body,
+              anonymous_nickname: anonymousNickname,
             });
-            if (!r.ok) {
-              const errorMsg = await readApiError(r, '오류가 발생했어요');
+            if (!result.response.ok) {
+              const errorMsg = getApiErrorMessage(result.data, '오류가 발생했어요');
               if (errorMsg) showToast(errorMsg);
                 return;
             }
-            const { comment } = await r.json();
+            const { comment } = result.data || {};
             input.value = '';
         if (anonNickInput && !currentUser) anonNickInput.value = '';
 
@@ -1102,15 +1128,13 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         const nextSort = String(sortBtn.dataset.cmtSort || '').trim();
         if (!nextSort || nextSort === commentSort) return;
         try {
-          const r = await fetch(`/api/community/posts/${postId}/comments?sort=${encodeURIComponent(nextSort)}`, {
-            credentials: 'include',
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '댓글을 다시 불러오지 못했어요');
+          const result = await Api.getJson(`/api/community/posts/${postId}/comments?sort=${encodeURIComponent(nextSort)}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '댓글을 다시 불러오지 못했어요');
             if (msg) showToast(msg);
             return;
           }
-          const data = await r.json().catch(() => ({}));
+          const data = result.data || {};
           const nextComments = Array.isArray(data.comments) ? data.comments : [];
           renderDetailBody(container, { post, postId, comments: nextComments, commentSort: nextSort });
         } catch (_) {
@@ -1143,20 +1167,17 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         btn.disabled = true;
 
         try {
-          const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}/like`, {
-            method: 'POST',
-            credentials: 'include',
-          });
-          if (!r.ok) {
+          const result = await Api.postJson(`/api/community/posts/${postId}/comments/${commentId}/like`, {});
+          if (!result.response.ok) {
             btn.dataset.liked = beforeLiked ? '1' : '0';
             btn.classList.toggle('is-active', beforeLiked);
             if (countEl) countEl.textContent = String(beforeCount);
-            const msg = await readApiError(r, '댓글 공감 처리에 실패했어요');
+            const msg = getApiErrorMessage(result.data, '댓글 공감 처리에 실패했어요');
             if (msg) showToast(msg);
             return;
           }
 
-          const data = await r.json().catch(() => ({}));
+          const data = result.data || {};
           const nextLiked = !!data.liked;
           const nextCount = Number(data.likes_count || 0);
           btn.dataset.liked = nextLiked ? '1' : '0';
@@ -1209,14 +1230,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
           if (newBody === currentBody) { editModal.close(); return; }
           submitBtn.disabled = true;
           try {
-            const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}`, {
-              method: 'PATCH',
-              headers: {'Content-Type': 'application/json'},
-              credentials: 'include',
-              body: JSON.stringify({body: newBody})
-            });
-            if (!r.ok) {
-              const msg = await readApiError(r, '댓글 수정에 실패했어요');
+            const result = await Api.patchJson(`/api/community/posts/${postId}/comments/${commentId}`, { body: newBody });
+            if (!result.response.ok) {
+              const msg = getApiErrorMessage(result.data, '댓글 수정에 실패했어요');
               showToast(msg);
               return;
             }
@@ -1255,12 +1271,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         if (!confirm('댓글을 삭제하시겠습니까?')) return;
         btn.disabled = true;
         try {
-          const r = await fetch(`/api/community/me/comments/${commentId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '댓글 삭제에 실패했어요');
+          const result = await Api.deleteJson(`/api/community/me/comments/${commentId}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '댓글 삭제에 실패했어요');
             showToast(msg);
             return;
           }
@@ -1288,14 +1301,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
 
         btn.disabled = true;
         try {
-          const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}/report`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(payload),
-          });
-          if (!r.ok) {
-            const errorMsg = await readApiError(r, '신고 처리에 실패했어요');
+          const result = await Api.postJson(`/api/community/posts/${postId}/comments/${commentId}/report`, payload);
+          if (!result.response.ok) {
+            const errorMsg = getApiErrorMessage(result.data, '신고 처리에 실패했어요');
             if (errorMsg) showToast(errorMsg);
             return;
           }
@@ -1319,12 +1327,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
         if (!confirm('댓글을 삭제하시겠습니까?')) return;
         btn.disabled = true;
         try {
-          const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '댓글 삭제에 실패했어요');
+          const result = await Api.deleteJson(`/api/community/posts/${postId}/comments/${commentId}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '댓글 삭제에 실패했어요');
             showToast(msg);
             return;
           }
@@ -1345,13 +1350,9 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
             const ok = window.confirm('이 게시글을 삭제할까요?');
             if (!ok) return;
             try {
-              const r = await fetch(`/api/community/posts/${postId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-              });
-              if (!r.ok) {
-                const data = await r.json().catch(() => ({}));
-                showToast(data.error || '삭제에 실패했어요');
+              const result = await Api.deleteJson(`/api/community/posts/${postId}`);
+              if (!result.response.ok) {
+                showToast(getApiErrorMessage(result.data, '삭제에 실패했어요'));
                 return;
               }
 
@@ -1377,14 +1378,10 @@ function renderDetailBody(container, { post, postId, comments, commentSort = 'la
             if (!ok) return;
 
             try {
-              const r = await fetch(`/api/community/posts/${postId}/comments/${commentId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-              });
+              const result = await Api.deleteJson(`/api/community/posts/${postId}/comments/${commentId}`);
 
-              if (!r.ok) {
-                const data = await r.json().catch(() => ({}));
-                showToast(data.error || '댓글 삭제에 실패했어요');
+              if (!result.response.ok) {
+                showToast(getApiErrorMessage(result.data, '댓글 삭제에 실패했어요'));
                 return;
               }
 
@@ -2045,13 +2042,13 @@ async function renderSettingsActivityTab(containers, state, options = {}) {
 
 async function renderSettingsActivitySummary(container) {
   try {
-    const response = await fetch('/api/community/me/summary', { credentials: 'include' });
-    if (!response.ok) {
+    const result = await Api.getJson('/api/community/me/summary');
+    if (!result.response.ok) {
       container.innerHTML = '<p class="community-settings-loading">활동 요약을 불러오지 못했어요.</p>';
       return;
     }
 
-    const data = await response.json();
+    const data = result.data;
     const summary = data?.summary || {};
     const postsCount = Number(summary.posts_count || 0);
     const commentsCount = Number(summary.comments_count || 0);
@@ -2145,13 +2142,13 @@ async function renderActivityListByType(containers, state, type, options = {}) {
   }
 
   try {
-    const response = await fetch(buildActivityFetchUrl(type, listState, state.filters), { credentials: 'include' });
-    if (!response.ok) {
+    const result = await Api.getJson(buildActivityFetchUrl(type, listState, state.filters));
+    if (!result.response.ok) {
       container.innerHTML = '<p class="community-settings-loading">활동 목록을 불러오지 못했어요.</p>';
       return;
     }
 
-    const data = await response.json();
+    const data = result.data;
     const fetchedItems = Array.isArray(data.posts)
       ? data.posts
       : (Array.isArray(data.comments) ? data.comments : []);
@@ -2334,14 +2331,11 @@ function bindActivityItemEvents(container, containers, state, type) {
         const endpoint = type === 'posts'
           ? `/api/community/me/posts/${id}`
           : `/api/community/me/comments/${id}`;
-        return fetch(endpoint, {
-          method: 'DELETE',
-          credentials: 'include',
-        });
+        return Api.deleteJson(endpoint);
       });
 
       const results = await Promise.allSettled(requests);
-      const okCount = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
+      const okCount = results.filter((r) => r.status === 'fulfilled' && r.value.response?.ok).length;
 
       if (type === 'posts') state.selections.posts.clear();
       if (type === 'comments') state.selections.comments.clear();
@@ -2370,12 +2364,9 @@ function bindActivityItemEvents(container, containers, state, type) {
         if (!ok) return;
         btn.disabled = true;
         try {
-          const r = await fetch(`/api/community/me/posts/${postId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '게시글 삭제에 실패했어요');
+          const result = await Api.deleteJson(`/api/community/me/posts/${postId}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '게시글 삭제에 실패했어요');
             if (msg) showToast(msg);
             btn.disabled = false;
             return;
@@ -2393,12 +2384,9 @@ function bindActivityItemEvents(container, containers, state, type) {
         if (!ok) return;
         btn.disabled = true;
         try {
-          const r = await fetch(`/api/community/me/comments/${commentId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '댓글 삭제에 실패했어요');
+          const result = await Api.deleteJson(`/api/community/me/comments/${commentId}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '댓글 삭제에 실패했어요');
             if (msg) showToast(msg);
             btn.disabled = false;
             return;
@@ -2456,15 +2444,15 @@ async function renderSettingsBlockedUsers(container) {
   container.innerHTML = '<p class="community-settings-loading">차단 목록을 불러오는 중...</p>';
 
   try {
-    const response = await fetch('/api/community/blocks', { credentials: 'include' });
-    if (!response.ok) {
-      const msg = await readApiError(response, '차단 목록을 불러오지 못했어요');
+    const result = await Api.getJson('/api/community/blocks');
+    if (!result.response.ok) {
+      const msg = getApiErrorMessage(result.data, '차단 목록을 불러오지 못했어요');
       if (msg) showToast(msg);
       container.innerHTML = '<p class="community-settings-loading">차단 목록을 불러오지 못했어요.</p>';
       return;
     }
 
-    const data = await response.json();
+    const data = result.data;
     const blocks = Array.isArray(data.blocks) ? data.blocks : [];
 
     if (blocks.length === 0) {
@@ -2499,12 +2487,9 @@ async function renderSettingsBlockedUsers(container) {
         btn.textContent = '처리 중...';
 
         try {
-          const r = await fetch(`/api/community/blocks/${blockedId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          });
-          if (!r.ok) {
-            const msg = await readApiError(r, '차단 해제에 실패했어요');
+          const result = await Api.deleteJson(`/api/community/blocks/${blockedId}`);
+          if (!result.response.ok) {
+            const msg = getApiErrorMessage(result.data, '차단 해제에 실패했어요');
             if (msg) showToast(msg);
             btn.disabled = false;
             btn.textContent = '차단 해제';
@@ -2877,40 +2862,29 @@ function showWriteModal() {
           if (selectedImageFile) {
             const fd = new FormData();
             fd.append('image', selectedImageFile);
-            const uploadRes = await fetch('/api/community/uploads/image', {
-              method: 'POST',
-              body: fd,
-              credentials: 'include',
-            });
+            const uploadResult = await Api.postForm('/api/community/uploads/image', fd);
 
-            if (!uploadRes.ok) {
-              const data = await uploadRes.json().catch(() => ({}));
-              showToast(data.error || '이미지 업로드에 실패했어요');
+            if (!uploadResult.response.ok) {
+              showToast(getApiErrorMessage(uploadResult.data, '이미지 업로드에 실패했어요'));
               submitBtn.disabled = false;
               submitBtn.textContent = '등록하기';
               return;
             }
 
-            const uploadData = await uploadRes.json();
+            const uploadData = uploadResult.data || {};
             uploadedImageUrl = uploadData.image_url || '';
           }
 
-            const r = await fetch('/api/community/posts', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                  category: selectedCat,
-                  title,
-                  body,
+            const result = await Api.postJson('/api/community/posts', {
+              category: selectedCat,
+              title,
+              body,
               image_url: uploadedImageUrl,
               link_url: selectedLinkUrl,
-                  anonymous_nickname: anonymousNickname,
-                }),
+              anonymous_nickname: anonymousNickname,
             });
-            if (!r.ok) {
-                const { error } = await r.json();
-                showToast(error || '오류가 발생했어요');
+            if (!result.response.ok) {
+                showToast(getApiErrorMessage(result.data, '오류가 발생했어요'));
                 submitBtn.disabled = false;
                 submitBtn.textContent = '등록하기';
                 return;
@@ -3004,12 +2978,20 @@ async function readApiError(response, fallback) {
   return data?.error || fallback;
 }
 
+function getApiErrorMessage(data, fallback) {
+  if (data?.code === 'EULA_REQUIRED') {
+    showToast('최신 이용약관 동의 후 이용할 수 있어요. 메인 화면에서 동의해 주세요.');
+    return null;
+  }
+  return data?.error || fallback;
+}
+
 async function refreshBlockedUsers() {
   if (!currentUser) return;
   try {
-    const r = await fetch('/api/community/blocks', { credentials: 'include' });
-    if (!r.ok) return;
-    const data = await r.json();
+    const result = await Api.getJson('/api/community/blocks');
+    if (!result.response.ok) return;
+    const data = result.data;
     const ids = (data.blocks || []).map((b) => Number(b.blocked_id)).filter((n) => Number.isInteger(n));
     currentUserBlocks = new Set(ids);
   } catch (_) {
@@ -3261,9 +3243,9 @@ async function refreshCommunityFriendState(user) {
   if (!targetId || !currentUser) return;
 
   try {
-    const statusRes = await fetch(`/api/friends/status/${targetId}`, { credentials: 'include' });
-    if (!statusRes.ok) return;
-    const statusData = await statusRes.json().catch(() => ({}));
+    const statusResult = await Api.getJson(`/api/friends/status/${targetId}`);
+    if (!statusResult.response.ok) return;
+    const statusData = statusResult.data || {};
     user.friendship_status = statusData.status || 'none';
     user.friendship_dir = statusData.status === 'pending'
       ? (statusData.is_sender ? 'sent' : 'received')
@@ -3310,38 +3292,20 @@ async function handleCommunityFriendAction(button, user) {
     let apiAction = action;
 
     if (action === 'request') {
-      response = await fetch('/api/friends/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ target_id: targetId }),
-      });
+      response = await Api.postJson('/api/friends/request', { target_id: targetId });
     } else if (action === 'accept') {
-      response = await fetch('/api/friends/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ friendship_id: friendshipId }),
-      });
+      response = await Api.postJson('/api/friends/accept', { friendship_id: friendshipId });
     } else if (action === 'cancel' || action === 'reject') {
       apiAction = 'reject';
-      response = await fetch('/api/friends/reject', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ friendship_id: friendshipId }),
-      });
+      response = await Api.postJson('/api/friends/reject', { friendship_id: friendshipId });
     } else if (action === 'remove') {
-      response = await fetch(`/api/friends/${targetId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      response = await Api.deleteJson(`/api/friends/${targetId}`);
     } else {
       return;
     }
 
-    if (!response.ok) {
-      const errorMsg = await readApiError(response, '동맹 처리에 실패했어요');
+    if (!response.response.ok) {
+      const errorMsg = getApiErrorMessage(response.data, '동맹 처리에 실패했어요');
       user.friendship_status = previousState.friendship_status;
       user.friendship_dir = previousState.friendship_dir;
       user.friendship_id = previousState.friendship_id;
@@ -3438,15 +3402,15 @@ async function openUserProfile(userId) {
   });
 
   try {
-    const r = await fetch(`/api/community/users/${userId}`, { credentials: 'include' });
-    if (!r.ok) {
-      const msg = await readApiError(r, '프로필을 불러올 수 없어요');
+    const result = await Api.getJson(`/api/community/users/${userId}`);
+    if (!result.response.ok) {
+      const msg = getApiErrorMessage(result.data, '프로필을 불러올 수 없어요');
       if (msg) showToast(msg);
       close();
       return;
     }
 
-    const { user } = await r.json();
+    const { user } = result.data || {};
     const profileBody = backdrop.querySelector('#profile-body');
     const profileImage = safeHttpUrl(user.profile_image_url);
     const friendActionHtml = renderCommunityFriendActionButton(user);

@@ -7,6 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const pool = require('../db');
+const { requireAuth } = require('../middleware/auth');
 const { getPercentile } = require('../data/universities');
 const { getActiveStreakFromUser, formatDisplayName } = require('../utils/progression');
 const { normalizeDomain, isValidDomain, parseUniversityDomainText } = require('../utils/schoolEmailDomain');
@@ -78,11 +79,6 @@ function addPercentile(user) {
     user.active_streak = getActiveStreakFromUser(user);
     user.display_nickname = formatDisplayName(user.nickname, user.active_title);
     return user;
-}
-
-function requireAuth(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    next();
 }
 
 function setPrivateNoStore(res) {

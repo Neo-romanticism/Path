@@ -1,5 +1,35 @@
 'use strict';
 
+const Api = window.PathApi || {
+    async getJson(path, init) {
+        const response = await fetch(path, Object.assign({ credentials: 'include' }, init || {}));
+        const raw = await response.text();
+        let data = {};
+        try {
+            data = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            data = {};
+        }
+        return { response, data };
+    },
+    async postJson(path, body, init) {
+        return this.getJson(path, Object.assign({}, init || {}, {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, init?.headers || {}),
+            body: JSON.stringify(body || {}),
+        }));
+    },
+    async deleteJson(path, init) {
+        return this.getJson(path, Object.assign({}, init || {}, { method: 'DELETE' }));
+    },
+    async postForm(path, formData, init) {
+        return this.getJson(path, Object.assign({}, init || {}, {
+            method: 'POST',
+            body: formData,
+        }));
+    }
+};
+
 // ── 전역 상태 ────────────────────────────────────────────────────────────
 let currentUser   = null;
 let myScores      = null;
@@ -15,28 +45,25 @@ async function init() {
     try {
         bindModalEvents();
 
-        const [meRes, scoreRes, roundRes] = await Promise.all([
-            fetch('/api/auth/me', { credentials: 'include' }),
-            fetch('/api/apply/scores/me', { credentials: 'include' }),
-            fetch('/api/apply/current-round', { credentials: 'include' }),
+        const [meResult, scoreResult, roundResult] = await Promise.all([
+            Api.getJson('/api/auth/me'),
+            Api.getJson('/api/apply/scores/me'),
+            Api.getJson('/api/apply/current-round'),
         ]);
 
-        if (!meRes.ok) { location.href = '/login/'; return; }
+        if (!meResult.response.ok) { location.href = '/login/'; return; }
 
-        const meData = await meRes.json();
-        currentUser = meData.user;
+        currentUser = meResult.data.user;
         document.getElementById('header-tickets').textContent = `🎫 ${currentUser.tickets || 0}`;
 
-        if (scoreRes.ok) {
-            const sd = await scoreRes.json();
-            myScores = sd.scores;
+        if (scoreResult.response.ok) {
+            myScores = scoreResult.data.scores;
             renderScoreForm();
             renderScoreStatus();
         }
 
-        if (roundRes.ok) {
-            const rd = await roundRes.json();
-            currentRound = rd.round;
+        if (roundResult.response.ok) {
+            currentRound = roundResult.data.round;
         }
 
         renderRoundInfo();
@@ -254,19 +281,15 @@ async function saveScores() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>';
     try {
-        const r = await fetch('/api/apply/scores', {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const data = await r.json();
-        if (r.ok) {
+        const result = await Api.postJson('/api/apply/scores', body);
+        if (result.response.ok) {
+            const data = result.data;
             myScores = data.scores;
             renderScoreStatus();
             renderScoreDashboard();
             showToast('점수가 저장되었습니다 ✓');
         } else {
-            showToast(data.error || '저장 실패');
+            showToast(result.data.error || '저장 실패');
         }
     } catch (err) {
         showToast('네트워크 오류');
@@ -295,22 +318,13 @@ async function handleImageUpload(event) {
     fd.append('scoreImage', file);
 
     try {
-        const r = await fetch('/api/apply/scores/image', {
-            method: 'POST', credentials: 'include', body: fd,
-        });
-        const raw = await r.text();
-        let data = {};
-        try {
-            data = raw ? JSON.parse(raw) : {};
-        } catch (_) {
-            data = {};
-        }
-        if (r.ok) {
+        const result = await Api.postForm('/api/apply/scores/image', fd);
+        if (result.response.ok) {
             showToast('성적표 업로드 완료. 인증 심사 중...');
             if (myScores) myScores.verified_status = 'pending';
             renderScoreStatus();
         } else {
-            showToast(data.error || `업로드 실패 (${r.status})`);
+            showToast(result.data.error || `업로드 실패 (${result.response.status})`);
         }
     } catch {
         showToast('업로드 중 오류가 발생했습니다.');
@@ -370,9 +384,9 @@ function renderApplyTab() {
 async function loadMyApplications() {
     if (!currentRound) return;
     try {
-        const r = await fetch(`/api/apply/applications/me?round_id=${currentRound.id}`, { credentials: 'include' });
-        if (!r.ok) return;
-        const data = await r.json();
+        const result = await Api.getJson(`/api/apply/applications/me?round_id=${currentRound.id}`);
+        if (!result.response.ok) return;
+        const data = result.data;
         myApplications = {};
         (data.applications || []).forEach(app => {
             myApplications[app.group_type] = app;
@@ -484,17 +498,15 @@ function searchUniversity(q) {
         try {
             const preferredTrack = getPreferredTrack();
             const groupParam = requestedGroup ? `&group=${encodeURIComponent(requestedGroup)}` : '';
-            const r = await fetch(
-                `/api/apply/search?q=${encodeURIComponent(keyword)}&track=${encodeURIComponent(preferredTrack)}${groupParam}`,
-                { credentials: 'include' }
+            const result = await Api.getJson(
+                `/api/apply/search?q=${encodeURIComponent(keyword)}&track=${encodeURIComponent(preferredTrack)}${groupParam}`
             );
             if (requestId !== searchRequestId) return;
-            if (!r.ok) {
+            if (!result.response.ok) {
                 renderSearchErrorState('검색 결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
                 return;
             }
-            const data = await r.json();
-            renderSearchResults(data.results || []);
+            renderSearchResults(result.data.results || []);
         } catch {
             if (requestId !== searchRequestId) return;
             renderSearchErrorState('네트워크 상태를 확인한 뒤 다시 시도해 주세요.');
@@ -639,19 +651,15 @@ async function applyUniversityToGroup(group, universityName, departmentName = nu
     }
 
     try {
-        const r = await fetch('/api/apply/applications', {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                round_id: currentRound.id,
-                university: universityName,
-                department: departmentName,
-                track: track || getPreferredTrack(),
-                group_type: group,
-            }),
+        const result = await Api.postJson('/api/apply/applications', {
+            round_id: currentRound.id,
+            university: universityName,
+            department: departmentName,
+            track: track || getPreferredTrack(),
+            group_type: group,
         });
-        const data = await r.json();
-        if (r.ok) {
+        if (result.response.ok) {
+            const data = result.data;
             currentUser.tickets = data.remaining_tickets;
             document.getElementById('header-tickets').textContent = `🎫 ${data.remaining_tickets}`;
             await loadMyApplications();
@@ -662,7 +670,7 @@ async function applyUniversityToGroup(group, universityName, departmentName = nu
             showToast(`${group}군: ${universityName} ${departmentName} 지원 완료 ✓`);
             return true;
         } else {
-            showToast(data.error || '지원 실패');
+            showToast(result.data.error || '지원 실패');
             return false;
         }
     } catch {
@@ -675,11 +683,8 @@ async function applyUniversityToGroup(group, universityName, departmentName = nu
 async function cancelApplication(appId) {
     if (!confirm('원서를 취소하면 티켓이 환불됩니다. 취소하시겠어요?')) return;
     try {
-        const r = await fetch(`/api/apply/applications/${appId}`, {
-            method: 'DELETE', credentials: 'include',
-        });
-        const data = await r.json();
-        if (r.ok) {
+        const result = await Api.deleteJson(`/api/apply/applications/${appId}`);
+        if (result.response.ok) {
             await loadMyApplications();
             renderGroupCards();
             renderApplyAnalytics();
@@ -689,7 +694,7 @@ async function cancelApplication(appId) {
             renderScoreDashboard();
             showToast('원서가 취소되었습니다. 티켓이 환불되었습니다.');
         } else {
-            showToast(data.error || '취소 실패');
+            showToast(result.data.error || '취소 실패');
         }
     } catch {
         showToast('네트워크 오류');
@@ -706,12 +711,13 @@ async function loadResults() {
     wrap.innerHTML = '<div class="empty-state"><span class="spinner" style="border-color:var(--gray-200);border-top-color:var(--blue)"></span></div>';
 
     try {
-        const [mainRes, suppRes] = await Promise.all([
-            fetch('/api/apply/results/me', { credentials: 'include' }),
-            fetch('/api/apply/results/supplementary/me', { credentials: 'include' }),
+        const [mainResult, suppResult] = await Promise.all([
+            Api.getJson('/api/apply/results/me'),
+            Api.getJson('/api/apply/results/supplementary/me'),
         ]);
 
-        const mainData = mainRes.ok ? await mainRes.json() : { results: [] };
+        const mainData = mainResult.response.ok ? mainResult.data : { results: [] };
+        void suppResult;
         const allResults = mainData.results || [];
 
         if (allResults.length === 0) {
@@ -788,18 +794,14 @@ async function confirmEnroll() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>';
     try {
-        const r = await fetch('/api/apply/enroll', {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ application_id: pendingEnrollId }),
-        });
-        const data = await r.json();
-        if (r.ok) {
+        const result = await Api.postJson('/api/apply/enroll', { application_id: pendingEnrollId });
+        if (result.response.ok) {
+            const data = result.data;
             document.getElementById('enroll-modal').style.display = 'none';
             showToast(`🎓 ${data.university} 최종 등록 완료!`);
             loadResults();
         } else {
-            showToast(data.error || '등록 실패');
+            showToast(result.data.error || '등록 실패');
         }
     } catch {
         showToast('네트워크 오류');
@@ -992,13 +994,11 @@ async function loadReplacementSuggestions(rowsMeta = []) {
             const query = buildReplacementSearchQuery(target.app.university);
             const requestedGroup = normalizeApplicationGroup(target.group);
             const groupParam = requestedGroup ? `&group=${encodeURIComponent(requestedGroup)}` : '';
-            const response = await fetch(
-                `/api/apply/search?q=${encodeURIComponent(query)}&track=${encodeURIComponent(getPreferredTrack())}${groupParam}`,
-                { credentials: 'include' }
+            const result = await Api.getJson(
+                `/api/apply/search?q=${encodeURIComponent(query)}&track=${encodeURIComponent(getPreferredTrack())}${groupParam}`
             );
-            if (!response.ok) return renderReplacementCard(target, []);
-            const data = await response.json();
-            const candidates = pickReplacementCandidates(target.app, data.results || []);
+            if (!result.response.ok) return renderReplacementCard(target, []);
+            const candidates = pickReplacementCandidates(target.app, result.data.results || []);
             return renderReplacementCard(target, candidates);
         }));
 

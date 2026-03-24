@@ -1,4 +1,31 @@
 (function () {
+  const Api = window.PathApi || {
+    async getJson(path, init) {
+      const response = await fetch(path, Object.assign({ credentials: 'include' }, init || {}));
+      const raw = await response.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        data = {};
+      }
+      return { response: response, data: data };
+    },
+    async postJson(path, body, init) {
+      return this.getJson(path, Object.assign({}, init || {}, {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, (init && init.headers) || {}),
+        body: JSON.stringify(body || {})
+      }));
+    },
+    async postForm(path, formData, init) {
+      return this.getJson(path, Object.assign({}, init || {}, {
+        method: 'POST',
+        body: formData
+      }));
+    }
+  };
+
   const SEARCH_HISTORY_KEY = 'path_messages_search_history';
   const SEARCH_HISTORY_LIMIT = 8;
   const CHAT_POLL_MS = 5000;
@@ -236,10 +263,9 @@
       return;
     }
     try {
-      const response = await fetch('/api/auth/users/search?q=' + encodeURIComponent(keyword), { credentials: 'include' });
-      if (!response.ok) throw new Error('search-failed');
-      const data = await response.json();
-      userSearchResults = Array.isArray(data.users) ? data.users : [];
+      const result = await Api.getJson('/api/auth/users/search?q=' + encodeURIComponent(keyword));
+      if (!result.response.ok) throw new Error('search-failed');
+      userSearchResults = Array.isArray(result.data.users) ? result.data.users : [];
       renderUserSearchResults(userSearchResults);
     } catch (error) {
       userSearchResults = [];
@@ -263,16 +289,10 @@
     if (!targetId) return;
     if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
     try {
-      const response = await fetch('/api/friends/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ target_id: targetId })
-      });
-      const data = await response.json().catch(function () { return {}; });
-      if (!response.ok) {
+      const result = await Api.postJson('/api/friends/request', { target_id: targetId });
+      if (!result.response.ok) {
         if (btn) { btn.disabled = false; btn.textContent = '동맹 신청'; }
-        alert(data.error || '동맹 신청에 실패했습니다.');
+        alert(result.data.error || '동맹 신청에 실패했습니다.');
         return;
       }
       // 성공 - UI 업데이트
@@ -669,9 +689,9 @@
       : '/api/messages/conversation/' + Number(currentChatUserId);
 
     try {
-      const response = await fetch(endpoint, { credentials: 'include' });
-      if (!response.ok) throw new Error('chat-load-failed');
-      const messages = await response.json();
+      const result = await Api.getJson(endpoint);
+      if (!result.response.ok) throw new Error('chat-load-failed');
+      const messages = result.data;
       renderMessages(Array.isArray(messages) ? messages : []);
       if (currentChatMode === 'dm') syncReadStateForCurrentDm();
     } catch (error) {
@@ -765,15 +785,15 @@
     setListLoading('대화 목록을 불러오는 중...', false);
 
     try {
-      const responses = await Promise.all([
-        fetch('/api/messages/conversations', { credentials: 'include' }),
-        fetch('/api/friends/list', { credentials: 'include' }),
-        fetch('/api/messages/group-conversations', { credentials: 'include' })
+      const results = await Promise.all([
+        Api.getJson('/api/messages/conversations'),
+        Api.getJson('/api/friends/list'),
+        Api.getJson('/api/messages/group-conversations')
       ]);
 
-      const convs = responses[0].ok ? await responses[0].json() : [];
-      const friends = responses[1].ok ? await responses[1].json() : [];
-      const groups = responses[2].ok ? await responses[2].json() : [];
+      const convs = results[0].response.ok ? results[0].data : [];
+      const friends = results[1].response.ok ? results[1].data : [];
+      const groups = results[2].response.ok ? results[2].data : [];
       const convIds = new Set((Array.isArray(convs) ? convs : []).map(function (item) {
         return Number(item.other_user);
       }));
@@ -817,11 +837,8 @@
   async function markRead(kind, id) {
     if (kind !== 'dm') return;
     try {
-      const response = await fetch('/api/messages/conversation/' + Number(id) + '/mark-read', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('mark-read-failed');
+      const result = await Api.postJson('/api/messages/conversation/' + Number(id) + '/mark-read', {});
+      if (!result.response.ok) throw new Error('mark-read-failed');
       conversationCache.convs = (conversationCache.convs || []).map(function (item) {
         if (Number(item.other_user) !== Number(id)) return item;
         return Object.assign({}, item, { unread_count: 0 });
@@ -837,11 +854,8 @@
       const endpoint = kind === 'group'
         ? '/api/messages/group-conversation/' + numericId + '/hide'
         : '/api/messages/conversation/' + numericId + '/hide';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (!response.ok) throw new Error('hide-failed');
+      const result = await Api.postJson(endpoint, {});
+      if (!result.response.ok) throw new Error('hide-failed');
 
       if (kind === 'group') {
         conversationCache.groupConvs = (conversationCache.groupConvs || []).filter(function (item) {
@@ -892,15 +906,9 @@
       if (!content || !currentChatRoomId) return;
       if (input) input.value = '';
       try {
-        const response = await fetch('/api/rooms/' + Number(currentChatRoomId) + '/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ content: content })
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(function () { return {}; });
-          throw new Error(data.error || '전송 실패');
+        const result = await Api.postJson('/api/rooms/' + Number(currentChatRoomId) + '/messages', { content: content });
+        if (!result.response.ok) {
+          throw new Error(result.data.error || '전송 실패');
         }
         await Promise.all([loadChatMessages(), loadConversations()]);
       } catch (error) {
@@ -922,14 +930,9 @@
       cancelFileUploadInternal();
 
       try {
-        const response = await fetch('/api/messages/send-file', {
-          method: 'POST',
-          credentials: 'include',
-          body: formData
-        });
-        if (!response.ok) {
-          const data = await response.json().catch(function () { return {}; });
-          throw new Error(data.error || '파일 전송 실패');
+        const result = await Api.postForm('/api/messages/send-file', formData);
+        if (!result.response.ok) {
+          throw new Error(result.data.error || '파일 전송 실패');
         }
         await Promise.all([loadChatMessages(), loadConversations()]);
       } catch (error) {
@@ -942,15 +945,12 @@
 
     if (input) input.value = '';
     try {
-      const response = await fetch('/api/messages/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ receiver_id: currentChatUserId, content: content })
+      const result = await Api.postJson('/api/messages/send', {
+        receiver_id: currentChatUserId,
+        content: content
       });
-      if (!response.ok) {
-        const data = await response.json().catch(function () { return {}; });
-        throw new Error(data.error || '전송 실패');
+      if (!result.response.ok) {
+        throw new Error(result.data.error || '전송 실패');
       }
       await Promise.all([loadChatMessages(), loadConversations()]);
     } catch (error) {

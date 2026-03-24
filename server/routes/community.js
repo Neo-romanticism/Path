@@ -19,6 +19,7 @@ const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getAdminRole, requireAuth, createRequireAdmin } = require('../middleware/auth');
 const { formatDisplayName } = require('../utils/progression');
 const { getUploadDir } = require('../utils/uploadRoot');
 
@@ -60,37 +61,10 @@ const imageUpload = multer({
     }
 });
 
-/* ── auth guard ─────────────────────────────────────────────── */
-function requireAuth(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    next();
-}
-
-async function getAdminRole(userId) {
-    const result = await pool.query(
-        'SELECT is_admin, admin_role FROM users WHERE id = $1',
-        [userId]
-    );
-
-    const row = result.rows[0];
-    if (!row) return null;
-    if (row.admin_role === 'main' || row.admin_role === 'sub') return row.admin_role;
-    return row.is_admin ? 'sub' : null;
-}
-
-async function requireAdmin(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-
-    try {
-        const role = await getAdminRole(req.session.userId);
-        if (!role) return res.status(403).json({ error: '관리자 권한이 없습니다.' });
-        req.adminRole = role;
-        next();
-    } catch (err) {
-        console.error('[community] requireAdmin', err.message);
-        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
-    }
-}
+const requireAdmin = createRequireAdmin(pool, {
+    logLabel: '[community] requireAdmin',
+    serverErrorMessage: '서버 오류가 발생했습니다.',
+});
 
 function normalizeCommunityNickname(raw) {
     const fallback = '익명';
@@ -1766,8 +1740,8 @@ router.delete('/posts/:id', requireAuth, async (req, res) => {
 
         let canDelete = isOwner;
         if (!canDelete) {
-            const adminRole = await getAdminRole(userId);
-            canDelete = !!adminRole;
+            const adminRole = await getAdminRole(pool, userId);
+            canDelete = adminRole !== 'none';
         }
 
         if (!canDelete) {

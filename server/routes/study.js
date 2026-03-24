@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const pool = require('../db');
+const { requireAuth } = require('../middleware/auth');
 const { STUDY_GOLD_PER_HR } = require('../data/universities');
 const { recalculateStreak, evaluateMilestoneTitles, formatDisplayName } = require('../utils/progression');
 const { getUploadDir } = require('../utils/uploadRoot');
@@ -33,11 +34,6 @@ const uploadProof = multer({
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: proofImageFilter
 });
-
-function requireAuth(req, res, next) {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    next();
-}
 
 function parseTimeToMinute(timeText) {
     const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(timeText || '').trim());

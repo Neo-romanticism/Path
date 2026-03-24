@@ -4,6 +4,7 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { requireAuth } = require('../middleware/auth');
 const { getUploadDir } = require('../utils/uploadRoot');
 
 // 파일 저장 디렉토리 설정

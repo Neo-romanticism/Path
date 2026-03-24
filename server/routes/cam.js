@@ -1,11 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { createRequireAuth } = require('../middleware/auth');
 
-function requireAuth(req, res, next) {
-    if (!req.session?.userId) return res.status(401).json({ error: '로그인 필요' });
-    next();
-}
+const requireAuth = createRequireAuth({ errorMessage: '로그인 필요' });
 
 router.get('/settings', requireAuth, async (req, res) => {
     try {
