@@ -22,7 +22,7 @@ module.exports = [
     },
   },
   {
-    files: ['P.A.T.H/**/*.js', 'script.js'],
+    files: ['P.A.T.H/**/*.js'],
     languageOptions: {
       sourceType: 'module',
       globals: {

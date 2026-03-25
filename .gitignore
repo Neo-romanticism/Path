@@ -1,2 +1,21 @@
 node_modules/
 .env
+
+# Secrets & keys
+*.p8
+*.jwt
+ANDROID_KEYSTORE_BASE64.txt
+
+# Build output
+android/app/build/
+
+# Uploads (user-generated)
+uploads/
+
+# OS / IDE
+.DS_Store
+.vscode/
+*.swp
+
+# Misc
+*.log
