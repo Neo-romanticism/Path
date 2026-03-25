@@ -12,18 +12,27 @@
       return { response: response, data: data };
     },
     async postJson(path, body, init) {
-      return this.getJson(path, Object.assign({}, init || {}, {
-        method: 'POST',
-        headers: Object.assign({ 'Content-Type': 'application/json' }, (init && init.headers) || {}),
-        body: JSON.stringify(body || {})
-      }));
+      return this.getJson(
+        path,
+        Object.assign({}, init || {}, {
+          method: 'POST',
+          headers: Object.assign(
+            { 'Content-Type': 'application/json' },
+            (init && init.headers) || {},
+          ),
+          body: JSON.stringify(body || {}),
+        }),
+      );
     },
     async postForm(path, formData, init) {
-      return this.getJson(path, Object.assign({}, init || {}, {
-        method: 'POST',
-        body: formData
-      }));
-    }
+      return this.getJson(
+        path,
+        Object.assign({}, init || {}, {
+          method: 'POST',
+          body: formData,
+        }),
+      );
+    },
   };
 
   const SEARCH_HISTORY_KEY = 'path_messages_search_history';
@@ -47,7 +56,7 @@
   const conversationCache = {
     convs: [],
     newFriends: [],
-    groupConvs: []
+    groupConvs: [],
   };
 
   function esc(value) {
@@ -80,7 +89,10 @@
   }
 
   function isLightThemeActive() {
-    return document.body.classList.contains('light') || document.body.getAttribute('data-theme-mode') === 'light';
+    return (
+      document.body.classList.contains('light') ||
+      document.body.getAttribute('data-theme-mode') === 'light'
+    );
   }
 
   function getSystemFallbackTheme() {
@@ -112,7 +124,8 @@
   function setListSummary() {
     const countLabel = document.getElementById('list-count-label');
     const unreadLabel = document.getElementById('list-unread-total');
-    const total = (conversationCache.convs || []).length + (conversationCache.groupConvs || []).length;
+    const total =
+      (conversationCache.convs || []).length + (conversationCache.groupConvs || []).length;
     const unread = (conversationCache.convs || []).reduce(function (sum, item) {
       return sum + Number(item && item.unread_count ? item.unread_count : 0);
     }, 0);
@@ -135,15 +148,17 @@
     const width = window.innerWidth || document.documentElement.clientWidth || 999;
 
     if (countLabel) {
-      countLabel.textContent = width <= 760
-        ? String(countLabel.dataset.compactLabel || countLabel.dataset.fullLabel || '')
-        : String(countLabel.dataset.fullLabel || '0 대화');
+      countLabel.textContent =
+        width <= 760
+          ? String(countLabel.dataset.compactLabel || countLabel.dataset.fullLabel || '')
+          : String(countLabel.dataset.fullLabel || '0 대화');
     }
 
     if (unreadLabel) {
-      unreadLabel.textContent = width <= 380
-        ? String(unreadLabel.dataset.compactLabel || unreadLabel.dataset.fullLabel || '')
-        : String(unreadLabel.dataset.fullLabel || '미확인 0');
+      unreadLabel.textContent =
+        width <= 380
+          ? String(unreadLabel.dataset.compactLabel || unreadLabel.dataset.fullLabel || '')
+          : String(unreadLabel.dataset.fullLabel || '미확인 0');
     }
   }
 
@@ -153,7 +168,9 @@
       const parsed = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(parsed)) return [];
       return parsed
-        .map(function (value) { return String(value || '').trim(); })
+        .map(function (value) {
+          return String(value || '').trim();
+        })
         .filter(Boolean)
         .slice(0, SEARCH_HISTORY_LIMIT);
     } catch (error) {
@@ -163,16 +180,23 @@
 
   function saveSearchHistory(values) {
     try {
-      localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(values.slice(0, SEARCH_HISTORY_LIMIT)));
+      localStorage.setItem(
+        SEARCH_HISTORY_KEY,
+        JSON.stringify(values.slice(0, SEARCH_HISTORY_LIMIT)),
+      );
     } catch (error) {}
   }
 
   function pushSearchHistory(term) {
     const keyword = String(term || '').trim();
     if (!keyword) return;
-    searchHistory = [keyword].concat(searchHistory.filter(function (item) {
-      return item.toLowerCase() !== keyword.toLowerCase();
-    })).slice(0, SEARCH_HISTORY_LIMIT);
+    searchHistory = [keyword]
+      .concat(
+        searchHistory.filter(function (item) {
+          return item.toLowerCase() !== keyword.toLowerCase();
+        }),
+      )
+      .slice(0, SEARCH_HISTORY_LIMIT);
     saveSearchHistory(searchHistory);
   }
 
@@ -195,62 +219,69 @@
     if (!Array.isArray(users) || !users.length) {
       el.innerHTML = [
         '<div class="user-search-head">사용자 검색</div>',
-        '<div class="user-search-empty">검색 결과가 없습니다.</div>'
+        '<div class="user-search-empty">검색 결과가 없습니다.</div>',
       ].join('');
       el.classList.remove('hidden');
       return;
     }
 
-    const itemsHtml = users.map(function (user) {
-      const nickname = String(user.nickname || '');
-      const university = String(user.university || '');
-      const avatarHtml = user.profile_image_url
-        ? '<img src="' + esc(user.profile_image_url) + '" alt="' + esc(nickname) + '">'
-        : esc(nickname.charAt(0) || '?');
+    const itemsHtml = users
+      .map(function (user) {
+        const nickname = String(user.nickname || '');
+        const university = String(user.university || '');
+        const avatarHtml = user.profile_image_url
+          ? '<img src="' + esc(user.profile_image_url) + '" alt="' + esc(nickname) + '">'
+          : esc(nickname.charAt(0) || '?');
 
-      let btnLabel = '동맹 신청';
-      let btnClass = 'user-search-btn';
-      let btnDisabled = '';
-      let btnOnclick = 'sendFriendRequest(' + Number(user.id) + ', this)';
+        let btnLabel = '동맹 신청';
+        let btnClass = 'user-search-btn';
+        let btnDisabled = '';
+        let btnOnclick = 'sendFriendRequest(' + Number(user.id) + ', this)';
 
-      if (user.friendship_status === 'accepted') {
-        btnLabel = '동맹 중';
-        btnClass += ' is-friend';
-        btnDisabled = 'disabled';
-        btnOnclick = '';
-      } else if (user.friendship_status === 'pending') {
-        if (user.friendship_dir === 'sent') {
-          btnLabel = '신청 중';
-          btnClass += ' is-pending';
+        if (user.friendship_status === 'accepted') {
+          btnLabel = '동맹 중';
+          btnClass += ' is-friend';
           btnDisabled = 'disabled';
           btnOnclick = '';
-        } else {
-          btnLabel = '신청 확인';
-          btnClass += ' is-pending';
+        } else if (user.friendship_status === 'pending') {
+          if (user.friendship_dir === 'sent') {
+            btnLabel = '신청 중';
+            btnClass += ' is-pending';
+            btnDisabled = 'disabled';
+            btnOnclick = '';
+          } else {
+            btnLabel = '신청 확인';
+            btnClass += ' is-pending';
+            btnOnclick = '';
+          }
+        } else if (user.allow_friend_requests === false) {
+          btnLabel = '신청 불가';
+          btnClass += ' is-no-allow';
+          btnDisabled = 'disabled';
           btnOnclick = '';
         }
-      } else if (user.allow_friend_requests === false) {
-        btnLabel = '신청 불가';
-        btnClass += ' is-no-allow';
-        btnDisabled = 'disabled';
-        btnOnclick = '';
-      }
 
-      return [
-        '<div class="user-search-item">',
-        '  <div class="user-search-avatar">' + avatarHtml + '</div>',
-        '  <div class="user-search-info">',
-        '    <div class="user-search-nick">' + highlightMatch(nickname) + '</div>',
-        university ? '    <div class="user-search-univ">' + esc(university) + '</div>' : '',
-        '  </div>',
-        '  <div class="user-search-action">',
-        '    <button type="button" class="' + btnClass + '" ' + btnDisabled + (btnOnclick ? ' onclick="' + btnOnclick + '"' : '') + '>',
-        '      ' + esc(btnLabel),
-        '    </button>',
-        '  </div>',
-        '</div>'
-      ].join('');
-    }).join('');
+        return [
+          '<div class="user-search-item">',
+          '  <div class="user-search-avatar">' + avatarHtml + '</div>',
+          '  <div class="user-search-info">',
+          '    <div class="user-search-nick">' + highlightMatch(nickname) + '</div>',
+          university ? '    <div class="user-search-univ">' + esc(university) + '</div>' : '',
+          '  </div>',
+          '  <div class="user-search-action">',
+          '    <button type="button" class="' +
+            btnClass +
+            '" ' +
+            btnDisabled +
+            (btnOnclick ? ' onclick="' + btnOnclick + '"' : '') +
+            '>',
+          '      ' + esc(btnLabel),
+          '    </button>',
+          '  </div>',
+          '</div>',
+        ].join('');
+      })
+      .join('');
 
     el.innerHTML = '<div class="user-search-head">사용자 검색</div>' + itemsHtml;
     el.classList.remove('hidden');
@@ -287,11 +318,17 @@
 
   async function sendFriendRequest(targetId, btn) {
     if (!targetId) return;
-    if (btn) { btn.disabled = true; btn.textContent = '신청 중...'; }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '신청 중...';
+    }
     try {
       const result = await Api.postJson('/api/friends/request', { target_id: targetId });
       if (!result.response.ok) {
-        if (btn) { btn.disabled = false; btn.textContent = '동맹 신청'; }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '동맹 신청';
+        }
         alert(result.data.error || '동맹 신청에 실패했습니다.');
         return;
       }
@@ -303,7 +340,10 @@
         btn.onclick = null;
       }
     } catch (error) {
-      if (btn) { btn.disabled = false; btn.textContent = '동맹 신청'; }
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '동맹 신청';
+      }
       alert('네트워크 오류가 발생했습니다.');
     }
   }
@@ -323,15 +363,25 @@
       return;
     }
 
-    const keyword = String(searchKeyword || '').trim().toLowerCase();
+    const keyword = String(searchKeyword || '')
+      .trim()
+      .toLowerCase();
     const filtered = searchHistory.filter(function (value) {
       return !keyword || value.toLowerCase().indexOf(keyword) >= 0;
     });
 
     const itemsHtml = filtered.length
-      ? filtered.map(function (value) {
-          return '<button type="button" class="conv-history-item" data-term="' + esc(value) + '">' + esc(value) + '</button>';
-        }).join('')
+      ? filtered
+          .map(function (value) {
+            return (
+              '<button type="button" class="conv-history-item" data-term="' +
+              esc(value) +
+              '">' +
+              esc(value) +
+              '</button>'
+            );
+          })
+          .join('')
       : '<div class="conv-history-empty">일치하는 검색어 없음</div>';
 
     history.innerHTML = [
@@ -339,7 +389,7 @@
       '  <span>최근 검색</span>',
       '  <button type="button" class="conv-history-clear" data-action="clear-history">지우기</button>',
       '</div>',
-      itemsHtml
+      itemsHtml,
     ].join('');
   }
 
@@ -347,7 +397,9 @@
     const input = document.getElementById('conv-search');
     if (!input) return;
     input.value = term;
-    searchKeyword = String(term || '').trim().toLowerCase();
+    searchKeyword = String(term || '')
+      .trim()
+      .toLowerCase();
     pushSearchHistory(term);
     renderSearchHistory();
     renderConversationList();
@@ -361,7 +413,9 @@
 
   function highlightMatch(value) {
     const raw = String(value || '');
-    const keyword = String(searchKeyword || '').trim().toLowerCase();
+    const keyword = String(searchKeyword || '')
+      .trim()
+      .toLowerCase();
     if (!keyword) return esc(raw);
 
     const source = raw.toLowerCase();
@@ -377,7 +431,11 @@
   function filterByKeyword(values) {
     if (!searchKeyword) return true;
     return values.some(function (value) {
-      return String(value || '').toLowerCase().indexOf(searchKeyword) >= 0;
+      return (
+        String(value || '')
+          .toLowerCase()
+          .indexOf(searchKeyword) >= 0
+      );
     });
   }
 
@@ -402,80 +460,132 @@
       return filterByKeyword([item.nickname, item.university]);
     });
 
-    const dmHtml = convs.map(function (item) {
-      const nickname = String(item.nickname || '사용자');
-      const nicknameJson = JSON.stringify(nickname);
-      const unread = Number(item.unread_count || 0);
-      const imageHtml = item.profile_image_url
-        ? '<img src="' + esc(item.profile_image_url) + '" alt="' + esc(nickname) + '">'
-        : esc(nickname.charAt(0) || 'M');
-      const timeHtml = item.last_time ? '<span class="conv-last-time">' + esc(formatConversationTime(item.last_time)) + '</span>' : '';
-      const unreadHtml = unread > 0 ? '<span class="conv-unread">' + Math.min(99, unread) + '</span>' : '';
-
-      return [
-        '<div class="conv-shell" data-kind="dm" data-id="' + Number(item.other_user) + '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
-        '  <button type="button" class="conv-item" onclick=\'openChatFromList(' + Number(item.other_user) + ', ' + nicknameJson + ')\'>',
-        '    <div class="conv-avatar ' + (unread > 0 ? 'has-unread' : '') + '">' + imageHtml + '</div>',
-        '    <div class="conv-info">',
-        '      <div class="conv-row-top">',
-        '        <div class="conv-nick">' + highlightMatch(nickname) + ' ' + unreadHtml + '</div>',
-        '        <div class="conv-meta-right">' + timeHtml + '</div>',
-        '      </div>',
-        '      <div class="conv-last">' + highlightMatch(item.last_msg || '') + '</div>',
-        '    </div>',
-        '    <div class="conv-studying ' + (item.is_studying ? 'active' : '') + '"></div>',
-        '  </button>',
-        '  <div class="conv-swipe-actions">',
-        '    <button type="button" class="conv-swipe-btn" onclick="event.stopPropagation();markConversationRead(\'dm\',' + Number(item.other_user) + ')">읽음</button>',
-        '    <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation(\'dm\',' + Number(item.other_user) + ')">삭제</button>',
-        '  </div>',
-        '</div>'
-      ].join('');
-    }).join('');
-
-    const groupHtml = groups.map(function (item) {
-      const roomName = String(item.room_name || '그룹 채팅').trim() || '그룹 채팅';
-      const roomNameJson = JSON.stringify(roomName);
-      const timeHtml = item.last_time ? '<span class="conv-last-time">' + esc(formatConversationTime(item.last_time)) + '</span>' : '';
-      return [
-        '<div class="conv-shell" data-kind="group" data-id="' + Number(item.room_id) + '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
-        '  <button type="button" class="conv-item" onclick=\'openGroupChatFromList(' + Number(item.room_id) + ', ' + roomNameJson + ')\'>',
-        '    <div class="conv-avatar">&#128101;</div>',
-        '    <div class="conv-info">',
-        '      <div class="conv-row-top">',
-        '        <div class="conv-nick">' + highlightMatch(roomName) + '</div>',
-        '        <div class="conv-meta-right">' + timeHtml + '</div>',
-        '      </div>',
-        '      <div class="conv-last">' + highlightMatch(item.last_msg || '아직 채팅이 없습니다') + '</div>',
-        '    </div>',
-        '    <div class="conv-studying"></div>',
-        '  </button>',
-        '  <div class="conv-swipe-actions">',
-        '    <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation(\'group\',' + Number(item.room_id) + ')">숨김</button>',
-        '  </div>',
-        '</div>'
-      ].join('');
-    }).join('');
-
-    const newHtml = newFriends.length ? [
-      '<div class="conv-section-title">동맹 - 새 대화 시작</div>',
-      newFriends.map(function (item) {
+    const dmHtml = convs
+      .map(function (item) {
         const nickname = String(item.nickname || '사용자');
+        const nicknameJson = JSON.stringify(nickname);
+        const unread = Number(item.unread_count || 0);
+        const imageHtml = item.profile_image_url
+          ? '<img src="' + esc(item.profile_image_url) + '" alt="' + esc(nickname) + '">'
+          : esc(nickname.charAt(0) || 'M');
+        const timeHtml = item.last_time
+          ? '<span class="conv-last-time">' +
+            esc(formatConversationTime(item.last_time)) +
+            '</span>'
+          : '';
+        const unreadHtml =
+          unread > 0 ? '<span class="conv-unread">' + Math.min(99, unread) + '</span>' : '';
+
         return [
-          '<button type="button" class="conv-item" onclick=\'openChatFromList(' + Number(item.id) + ', ' + JSON.stringify(nickname) + ')\'>',
-          '  <div class="conv-avatar is-new">' + esc(nickname.charAt(0) || 'M') + '</div>',
-          '  <div class="conv-info">',
-          '    <div class="conv-nick is-muted">' + highlightMatch(nickname) + '</div>',
-          '    <div class="conv-last is-muted">첫 메시지를 보내보세요</div>',
+          '<div class="conv-shell" data-kind="dm" data-id="' +
+            Number(item.other_user) +
+            '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
+          '  <button type="button" class="conv-item" onclick=\'openChatFromList(' +
+            Number(item.other_user) +
+            ', ' +
+            nicknameJson +
+            ")'>",
+          '    <div class="conv-avatar ' +
+            (unread > 0 ? 'has-unread' : '') +
+            '">' +
+            imageHtml +
+            '</div>',
+          '    <div class="conv-info">',
+          '      <div class="conv-row-top">',
+          '        <div class="conv-nick">' +
+            highlightMatch(nickname) +
+            ' ' +
+            unreadHtml +
+            '</div>',
+          '        <div class="conv-meta-right">' + timeHtml + '</div>',
+          '      </div>',
+          '      <div class="conv-last">' + highlightMatch(item.last_msg || '') + '</div>',
+          '    </div>',
+          '    <div class="conv-studying ' + (item.is_studying ? 'active' : '') + '"></div>',
+          '  </button>',
+          '  <div class="conv-swipe-actions">',
+          '    <button type="button" class="conv-swipe-btn" onclick="event.stopPropagation();markConversationRead(\'dm\',' +
+            Number(item.other_user) +
+            ')">읽음</button>',
+          '    <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation(\'dm\',' +
+            Number(item.other_user) +
+            ')">삭제</button>',
           '  </div>',
-          '  <div class="conv-studying ' + (item.is_studying ? 'active' : '') + '"></div>',
-          '</button>'
+          '</div>',
         ].join('');
-      }).join('')
-    ].join('') : '';
+      })
+      .join('');
+
+    const groupHtml = groups
+      .map(function (item) {
+        const roomName = String(item.room_name || '그룹 채팅').trim() || '그룹 채팅';
+        const roomNameJson = JSON.stringify(roomName);
+        const timeHtml = item.last_time
+          ? '<span class="conv-last-time">' +
+            esc(formatConversationTime(item.last_time)) +
+            '</span>'
+          : '';
+        return [
+          '<div class="conv-shell" data-kind="group" data-id="' +
+            Number(item.room_id) +
+            '" ontouchstart="onConvTouchStart(event,this)" ontouchmove="onConvTouchMove(event,this)" ontouchend="onConvTouchEnd(event,this)">',
+          '  <button type="button" class="conv-item" onclick=\'openGroupChatFromList(' +
+            Number(item.room_id) +
+            ', ' +
+            roomNameJson +
+            ")'>",
+          '    <div class="conv-avatar">&#128101;</div>',
+          '    <div class="conv-info">',
+          '      <div class="conv-row-top">',
+          '        <div class="conv-nick">' + highlightMatch(roomName) + '</div>',
+          '        <div class="conv-meta-right">' + timeHtml + '</div>',
+          '      </div>',
+          '      <div class="conv-last">' +
+            highlightMatch(item.last_msg || '아직 채팅이 없습니다') +
+            '</div>',
+          '    </div>',
+          '    <div class="conv-studying"></div>',
+          '  </button>',
+          '  <div class="conv-swipe-actions">',
+          '    <button type="button" class="conv-swipe-btn danger" onclick="event.stopPropagation();hideConversation(\'group\',' +
+            Number(item.room_id) +
+            ')">숨김</button>',
+          '  </div>',
+          '</div>',
+        ].join('');
+      })
+      .join('');
+
+    const newHtml = newFriends.length
+      ? [
+          '<div class="conv-section-title">동맹 - 새 대화 시작</div>',
+          newFriends
+            .map(function (item) {
+              const nickname = String(item.nickname || '사용자');
+              return [
+                '<button type="button" class="conv-item" onclick=\'openChatFromList(' +
+                  Number(item.id) +
+                  ', ' +
+                  JSON.stringify(nickname) +
+                  ")'>",
+                '  <div class="conv-avatar is-new">' + esc(nickname.charAt(0) || 'M') + '</div>',
+                '  <div class="conv-info">',
+                '    <div class="conv-nick is-muted">' + highlightMatch(nickname) + '</div>',
+                '    <div class="conv-last is-muted">첫 메시지를 보내보세요</div>',
+                '  </div>',
+                '  <div class="conv-studying ' + (item.is_studying ? 'active' : '') + '"></div>',
+                '</button>',
+              ].join('');
+            })
+            .join(''),
+        ].join('')
+      : '';
 
     if (!dmHtml && !groupHtml && !newHtml) {
-      convItems.innerHTML = '<div class="conv-empty">' + (searchKeyword ? '검색 결과가 없습니다.' : '동맹을 추가하면<br>여기서 대화할 수 있어요.') + '</div>';
+      convItems.innerHTML =
+        '<div class="conv-empty">' +
+        (searchKeyword ? '검색 결과가 없습니다.' : '동맹을 추가하면<br>여기서 대화할 수 있어요.') +
+        '</div>';
       return;
     }
 
@@ -489,7 +599,8 @@
   function setListLoading(message, isError) {
     const convItems = document.getElementById('conv-items');
     if (!convItems) return;
-    convItems.innerHTML = '<div class="' + (isError ? 'conv-error' : 'conv-empty') + '">' + message + '</div>';
+    convItems.innerHTML =
+      '<div class="' + (isError ? 'conv-error' : 'conv-empty') + '">' + message + '</div>';
   }
 
   function setChatPlaceholder(title, subtitle) {
@@ -500,7 +611,7 @@
       '  <div class="chat-placeholder__badge">PATH CHAT</div>',
       '  <h2>' + esc(title || '대화를 선택해 주세요') + '</h2>',
       '  <p>' + esc(subtitle || '왼쪽 목록에서 상대를 선택하면 새 채팅 화면이 열립니다.') + '</p>',
-      '</div>'
+      '</div>',
     ].join('');
   }
 
@@ -521,7 +632,8 @@
 
     const nickname = String(options && options.nickname ? options.nickname : '').trim();
     const isGroup = !!(options && options.isGroup);
-    const profileImageUrl = options && options.profileImageUrl ? String(options.profileImageUrl) : '';
+    const profileImageUrl =
+      options && options.profileImageUrl ? String(options.profileImageUrl) : '';
     const isOnline = !!(options && options.isOnline);
     const first = nickname.charAt(0) || (isGroup ? 'G' : 'M');
 
@@ -600,7 +712,13 @@
     }
 
     const latestMine = mine[mine.length - 1];
-    const latestReadMine = mine.slice().reverse().find(function (item) { return !!item.is_read; }) || null;
+    const latestReadMine =
+      mine
+        .slice()
+        .reverse()
+        .find(function (item) {
+          return !!item.is_read;
+        }) || null;
     const readerName = String(currentChatUserName || '').trim();
     let label = '전송됨';
     let baseMessage = latestMine;
@@ -612,7 +730,8 @@
       label = '전송됨 · 이전 메시지 읽음';
     }
 
-    const timeText = baseMessage && baseMessage.created_at ? formatClock(baseMessage.created_at) : '';
+    const timeText =
+      baseMessage && baseMessage.created_at ? formatClock(baseMessage.created_at) : '';
     statusEl.textContent = timeText ? label + ' · ' + timeText : label;
     statusEl.style.display = 'block';
   }
@@ -627,54 +746,73 @@
       return;
     }
 
-    container.innerHTML = messages.map(function (item, index) {
-      const isMine = item.is_mine === true || item.is_mine === 1;
-      const prev = messages[index - 1];
-      const next = messages[index + 1];
-      const prevMine = prev ? (prev.is_mine === true || prev.is_mine === 1) : null;
-      const nextMine = next ? (next.is_mine === true || next.is_mine === 1) : null;
-      const groupClass = [
-        prev && prevMine === isMine ? 'is-grouped-top' : 'is-group-start',
-        next && nextMine === isMine ? 'is-grouped-bottom' : 'is-group-end'
-      ].join(' ');
+    container.innerHTML = messages
+      .map(function (item, index) {
+        const isMine = item.is_mine === true || item.is_mine === 1;
+        const prev = messages[index - 1];
+        const next = messages[index + 1];
+        const prevMine = prev ? prev.is_mine === true || prev.is_mine === 1 : null;
+        const nextMine = next ? next.is_mine === true || next.is_mine === 1 : null;
+        const groupClass = [
+          prev && prevMine === isMine ? 'is-grouped-top' : 'is-group-start',
+          next && nextMine === isMine ? 'is-grouped-bottom' : 'is-group-end',
+        ].join(' ');
 
-      let contentHtml = '';
-      if (item.file_path) {
-        const isImage = String(item.file_type || '').indexOf('image/') === 0;
-        if (isImage) {
-          contentHtml = [
-            '<div class="file-attachment">',
-            '  <img src="' + esc(item.file_path) + '" alt="' + esc(item.file_name || 'image') + '" onclick="window.open(this.src,\'_blank\')">',
-            item.content && item.content !== item.file_name ? '  <div style="margin-top:4px;font-size:10px;">' + esc(item.content) + '</div>' : '',
-            '</div>'
-          ].join('');
+        let contentHtml = '';
+        if (item.file_path) {
+          const isImage = String(item.file_type || '').indexOf('image/') === 0;
+          if (isImage) {
+            contentHtml = [
+              '<div class="file-attachment">',
+              '  <img src="' +
+                esc(item.file_path) +
+                '" alt="' +
+                esc(item.file_name || 'image') +
+                '" onclick="window.open(this.src,\'_blank\')">',
+              item.content && item.content !== item.file_name
+                ? '  <div style="margin-top:4px;font-size:10px;">' + esc(item.content) + '</div>'
+                : '',
+              '</div>',
+            ].join('');
+          } else {
+            const fileSize = item.file_size
+              ? '(' + (Number(item.file_size) / 1024).toFixed(1) + 'KB)'
+              : '';
+            contentHtml = [
+              '<div class="file-attachment">',
+              '  <div class="file-info">',
+              '    <div>' + esc(item.file_name || 'file') + '</div>',
+              '    <div style="font-size:9px;color:var(--msg-sub);">' + esc(fileSize) + '</div>',
+              '  </div>',
+              '  <a href="' +
+                esc(item.file_path) +
+                '" download="' +
+                esc(item.file_name || '') +
+                '" class="file-download">다운로드</a>',
+              item.content && item.content !== item.file_name
+                ? '  <div style="margin-top:6px;font-size:10px;">' + esc(item.content) + '</div>'
+                : '',
+              '</div>',
+            ].join('');
+          }
         } else {
-          const fileSize = item.file_size ? '(' + (Number(item.file_size) / 1024).toFixed(1) + 'KB)' : '';
-          contentHtml = [
-            '<div class="file-attachment">',
-            '  <div class="file-info">',
-            '    <div>' + esc(item.file_name || 'file') + '</div>',
-            '    <div style="font-size:9px;color:var(--msg-sub);">' + esc(fileSize) + '</div>',
-            '  </div>',
-            '  <a href="' + esc(item.file_path) + '" download="' + esc(item.file_name || '') + '" class="file-download">다운로드</a>',
-            item.content && item.content !== item.file_name ? '  <div style="margin-top:6px;font-size:10px;">' + esc(item.content) + '</div>' : '',
-            '</div>'
-          ].join('');
+          const prefix =
+            currentChatMode === 'group' && !isMine
+              ? '<div class="group-sender-name">' +
+                esc(item.sender_nickname || '알 수 없음') +
+                '</div>'
+              : '';
+          contentHtml = prefix + esc(item.content || '');
         }
-      } else {
-        const prefix = currentChatMode === 'group' && !isMine
-          ? '<div class="group-sender-name">' + esc(item.sender_nickname || '알 수 없음') + '</div>'
-          : '';
-        contentHtml = prefix + esc(item.content || '');
-      }
 
-      return [
-        '<div class="msg-row ' + (isMine ? 'mine' : 'theirs') + ' ' + groupClass + '">',
-        '  <div class="msg-bubble">' + contentHtml + '</div>',
-        '  <div class="msg-time">' + esc(formatClock(item.created_at)) + '</div>',
-        '</div>'
-      ].join('');
-    }).join('');
+        return [
+          '<div class="msg-row ' + (isMine ? 'mine' : 'theirs') + ' ' + groupClass + '">',
+          '  <div class="msg-bubble">' + contentHtml + '</div>',
+          '  <div class="msg-time">' + esc(formatClock(item.created_at)) + '</div>',
+          '</div>',
+        ].join('');
+      })
+      .join('');
 
     container.scrollTop = container.scrollHeight;
     updateDeliveryStatus(messages);
@@ -684,9 +822,10 @@
     if (currentChatMode === 'dm' && !currentChatUserId) return;
     if (currentChatMode === 'group' && !currentChatRoomId) return;
 
-    const endpoint = currentChatMode === 'group'
-      ? '/api/messages/group-conversation/' + Number(currentChatRoomId)
-      : '/api/messages/conversation/' + Number(currentChatUserId);
+    const endpoint =
+      currentChatMode === 'group'
+        ? '/api/messages/group-conversation/' + Number(currentChatRoomId)
+        : '/api/messages/conversation/' + Number(currentChatUserId);
 
     try {
       const result = await Api.getJson(endpoint);
@@ -731,14 +870,14 @@
     if (fileButton) fileButton.style.display = '';
     setHeaderInfo(
       currentChatUserName || (meta && meta.nickname) || '메시지',
-      meta ? (meta.is_studying ? '온라인' : (meta.university || '오프라인')) : '대화 중',
-      ''
+      meta ? (meta.is_studying ? '온라인' : meta.university || '오프라인') : '대화 중',
+      '',
     );
     setHeaderAvatar({
       nickname: currentChatUserName || (meta && meta.nickname) || '메시지',
       profileImageUrl: meta && meta.profile_image_url ? meta.profile_image_url : '',
       isOnline: !!(meta && meta.is_studying),
-      isGroup: false
+      isGroup: false,
     });
     setChatView(true);
     setChatPlaceholder('메시지 불러오는 중...', '잠시만 기다려 주세요.');
@@ -754,21 +893,22 @@
     currentChatUserId = null;
     currentChatUserName = '';
 
-    const meta = (conversationCache.groupConvs || []).find(function (item) {
-      return Number(item.room_id) === Number(roomId);
-    }) || null;
+    const meta =
+      (conversationCache.groupConvs || []).find(function (item) {
+        return Number(item.room_id) === Number(roomId);
+      }) || null;
     const memberCount = Number(meta && meta.member_count ? meta.member_count : 0);
 
     setHeaderInfo(
       String(roomName || '그룹 채팅'),
       memberCount > 0 ? memberCount + '명 참여' : '그룹 채팅',
-      meta && meta.invite_code ? String(meta.invite_code) : ''
+      meta && meta.invite_code ? String(meta.invite_code) : '',
     );
     setHeaderAvatar({
       nickname: String(roomName || '그룹'),
       profileImageUrl: '',
       isOnline: false,
-      isGroup: true
+      isGroup: true,
     });
     cancelFileUpload();
     const fileButton = document.getElementById('btn-file-attach');
@@ -788,21 +928,25 @@
       const results = await Promise.all([
         Api.getJson('/api/messages/conversations'),
         Api.getJson('/api/friends/list'),
-        Api.getJson('/api/messages/group-conversations')
+        Api.getJson('/api/messages/group-conversations'),
       ]);
 
       const convs = results[0].response.ok ? results[0].data : [];
       const friends = results[1].response.ok ? results[1].data : [];
       const groups = results[2].response.ok ? results[2].data : [];
-      const convIds = new Set((Array.isArray(convs) ? convs : []).map(function (item) {
-        return Number(item.other_user);
-      }));
+      const convIds = new Set(
+        (Array.isArray(convs) ? convs : []).map(function (item) {
+          return Number(item.other_user);
+        }),
+      );
 
       conversationCache.convs = Array.isArray(convs) ? convs : [];
       conversationCache.groupConvs = Array.isArray(groups) ? groups : [];
-      conversationCache.newFriends = (Array.isArray(friends) ? friends : []).filter(function (item) {
-        return !convIds.has(Number(item.id));
-      });
+      conversationCache.newFriends = (Array.isArray(friends) ? friends : []).filter(
+        function (item) {
+          return !convIds.has(Number(item.id));
+        },
+      );
 
       setListSummary();
       renderConversationList();
@@ -837,7 +981,10 @@
   async function markRead(kind, id) {
     if (kind !== 'dm') return;
     try {
-      const result = await Api.postJson('/api/messages/conversation/' + Number(id) + '/mark-read', {});
+      const result = await Api.postJson(
+        '/api/messages/conversation/' + Number(id) + '/mark-read',
+        {},
+      );
       if (!result.response.ok) throw new Error('mark-read-failed');
       conversationCache.convs = (conversationCache.convs || []).map(function (item) {
         if (Number(item.other_user) !== Number(id)) return item;
@@ -851,9 +998,10 @@
   async function hideConversationInternal(kind, id) {
     try {
       const numericId = Number(id);
-      const endpoint = kind === 'group'
-        ? '/api/messages/group-conversation/' + numericId + '/hide'
-        : '/api/messages/conversation/' + numericId + '/hide';
+      const endpoint =
+        kind === 'group'
+          ? '/api/messages/group-conversation/' + numericId + '/hide'
+          : '/api/messages/conversation/' + numericId + '/hide';
       const result = await Api.postJson(endpoint, {});
       if (!result.response.ok) throw new Error('hide-failed');
 
@@ -906,7 +1054,9 @@
       if (!content || !currentChatRoomId) return;
       if (input) input.value = '';
       try {
-        const result = await Api.postJson('/api/rooms/' + Number(currentChatRoomId) + '/messages', { content: content });
+        const result = await Api.postJson('/api/rooms/' + Number(currentChatRoomId) + '/messages', {
+          content: content,
+        });
         if (!result.response.ok) {
           throw new Error(result.data.error || '전송 실패');
         }
@@ -947,7 +1097,7 @@
     try {
       const result = await Api.postJson('/api/messages/send', {
         receiver_id: currentChatUserId,
-        content: content
+        content: content,
       });
       if (!result.response.ok) {
         throw new Error(result.data.error || '전송 실패');
@@ -970,7 +1120,9 @@
     });
 
     input.addEventListener('input', function (event) {
-      searchKeyword = String(event.target.value || '').trim().toLowerCase();
+      searchKeyword = String(event.target.value || '')
+        .trim()
+        .toLowerCase();
       renderSearchHistory();
       setSearchHistoryOpen(true);
       renderConversationList();
@@ -1015,21 +1167,21 @@
     document.addEventListener('click', function (event) {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      
+
       // 검색 히스토리 버튼 클릭
       const historyBtn = target.closest('.conv-history-item');
       if (historyBtn && historyBtn.dataset.term) {
         applySearch(historyBtn.dataset.term);
         return;
       }
-      
+
       // 검색 히스토리 지우기 버튼
       const clearBtn = target.closest('.conv-history-clear');
       if (clearBtn) {
         clearConversationSearchHistory();
         return;
       }
-      
+
       if (target.closest('.conv-shell')) return;
       if (target.closest('#conv-search-history')) return;
       if (target.closest('#conv-search')) return;
@@ -1059,7 +1211,10 @@
     window.addEventListener('resize', syncListSummaryLabels, { passive: true });
     setHeaderInfo('메시지', '대화를 선택해 주세요', '');
     setHeaderAvatar({ nickname: '메시지', profileImageUrl: '', isOnline: false, isGroup: false });
-    setChatPlaceholder('대화를 선택해 주세요', '왼쪽 목록에서 상대를 선택하면 새 채팅 화면이 열립니다.');
+    setChatPlaceholder(
+      '대화를 선택해 주세요',
+      '왼쪽 목록에서 상대를 선택하면 새 채팅 화면이 열립니다.',
+    );
     loadConversations();
   }
 

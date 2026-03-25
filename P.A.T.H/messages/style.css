@@ -26,13 +26,15 @@
   --msg-radius-xl: 24px;
   --msg-radius-lg: 18px;
   --msg-radius: 14px;
-  --msg-font-ui: "SUIT Variable", "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --msg-font-display: "MaruBuri", "Iropke Batang", "Noto Serif KR", serif;
+  --msg-font-ui:
+    'SUIT Variable', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --msg-font-display: 'MaruBuri', 'Iropke Batang', 'Noto Serif KR', serif;
   --topbar-h: 62px;
 }
 
 body.messages-page:not(.light),
-body.messages-page[data-theme-mode="dark"] {
+body.messages-page[data-theme-mode='dark'] {
   --msg-bg: #0b1018;
   --msg-bg-soft: #131b27;
   --msg-paper: rgba(13, 20, 31, 0.92);
@@ -112,12 +114,15 @@ body.messages-page {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
 }
 
 .c-header__back:hover,
 .c-header__icon-btn:hover,
-.c-header__icon-btn[aria-expanded="true"] {
+.c-header__icon-btn[aria-expanded='true'] {
   transform: translateY(-1px);
   background: color-mix(in srgb, var(--msg-paper-elev) 95%, transparent);
 }
@@ -159,12 +164,12 @@ body.messages-page {
 }
 
 body.messages-page.light .theme-icon--sun,
-body.messages-page[data-theme-mode="light"] .theme-icon--sun {
+body.messages-page[data-theme-mode='light'] .theme-icon--sun {
   display: none;
 }
 
 body.messages-page.light .theme-icon--moon,
-body.messages-page[data-theme-mode="light"] .theme-icon--moon {
+body.messages-page[data-theme-mode='light'] .theme-icon--moon {
   display: block;
 }
 
@@ -217,7 +222,11 @@ body.messages-page[data-theme-mode="light"] .theme-icon--moon {
   min-height: 0;
   border: 1px solid var(--msg-line);
   border-radius: var(--msg-radius-xl);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 98%, transparent), color-mix(in srgb, var(--msg-paper-2) 98%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--msg-paper) 98%, transparent),
+    color-mix(in srgb, var(--msg-paper-2) 98%, transparent)
+  );
   box-shadow: var(--msg-shadow);
 }
 
@@ -229,19 +238,19 @@ body.messages-page[data-theme-mode="light"] .theme-icon--moon {
 }
 
 /* Mobile view switch */
-body.messages-page[data-view="list"] .msg-pane-list {
+body.messages-page[data-view='list'] .msg-pane-list {
   display: flex;
 }
 
-body.messages-page[data-view="list"] .msg-pane-chat {
+body.messages-page[data-view='list'] .msg-pane-chat {
   display: none;
 }
 
-body.messages-page[data-view="chat"] .msg-pane-list {
+body.messages-page[data-view='chat'] .msg-pane-list {
   display: none;
 }
 
-body.messages-page[data-view="chat"] .msg-pane-chat {
+body.messages-page[data-view='chat'] .msg-pane-chat {
   display: flex;
 }
 
@@ -377,7 +386,11 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
 .conv-item {
   width: 100%;
   border: 0;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--msg-paper) 98%, transparent), color-mix(in srgb, var(--msg-paper-2) 96%, transparent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--msg-paper) 98%, transparent),
+    color-mix(in srgb, var(--msg-paper-2) 96%, transparent)
+  );
   border: 1px solid color-mix(in srgb, var(--msg-line) 80%, transparent);
   border-radius: 16px;
   padding: 12px 12px;
@@ -386,7 +399,10 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   gap: 10px;
   color: inherit;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .conv-item:hover {
@@ -433,7 +449,11 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--msg-accent) 16%, var(--msg-paper)), color-mix(in srgb, var(--msg-paper-2) 94%, transparent));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--msg-accent) 16%, var(--msg-paper)),
+    color-mix(in srgb, var(--msg-paper-2) 94%, transparent)
+  );
   border: 1px solid color-mix(in srgb, var(--msg-accent) 35%, var(--msg-line));
   color: var(--msg-accent-2);
   font-size: 16px;
@@ -606,7 +626,11 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   width: 38px;
   height: 38px;
   border-radius: 11px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--msg-accent) 16%, var(--msg-paper)), color-mix(in srgb, var(--msg-paper-2) 94%, transparent));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--msg-accent) 16%, var(--msg-paper)),
+    color-mix(in srgb, var(--msg-paper-2) 94%, transparent)
+  );
   border: 1px solid color-mix(in srgb, var(--msg-accent) 35%, var(--msg-line));
   color: var(--msg-accent-2);
   font-size: 14px;
@@ -663,7 +687,9 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   font-family: var(--msg-font-ui);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.14s, border-color 0.14s;
+  transition:
+    background 0.14s,
+    border-color 0.14s;
 }
 
 .user-search-btn:hover:not(:disabled) {
@@ -724,7 +750,9 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   padding: 8px 10px;
   border-radius: 16px;
   cursor: default;
-  transition: background 0.18s ease, transform 0.18s ease;
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease;
 }
 
 .msg-header__center.clickable {
@@ -836,8 +864,16 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   flex-direction: column;
   gap: 7px;
   background:
-    radial-gradient(640px 320px at 82% 0%, color-mix(in srgb, var(--msg-accent) 16%, transparent), transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--msg-paper-2) 98%, transparent), color-mix(in srgb, var(--msg-paper) 98%, transparent));
+    radial-gradient(
+      640px 320px at 82% 0%,
+      color-mix(in srgb, var(--msg-accent) 16%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--msg-paper-2) 98%, transparent),
+      color-mix(in srgb, var(--msg-paper) 98%, transparent)
+    );
 }
 
 .chat-placeholder {
@@ -1053,7 +1089,10 @@ body.messages-page[data-view="chat"] .msg-pane-chat {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.14s ease, color 0.14s ease, background 0.14s ease;
+  transition:
+    transform 0.14s ease,
+    color 0.14s ease,
+    background 0.14s ease;
   flex-shrink: 0;
 }
 

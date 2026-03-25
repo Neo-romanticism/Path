@@ -1,210 +1,367 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="수험생 입시 정보, 질문, 합격 전략을 나누는 P.A.T.H 커뮤니티. 로그인 없이도 익명으로 글 작성이 가능합니다.">
-  <meta name="keywords" content="입시 커뮤니티, 수험생 커뮤니티, 대학 입시 정보, 수시 정시, 입시 질문, 합격 전략, P.A.T.H">
-  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="입시 커뮤니티 - P.A.T.H">
-  <meta property="og:description" content="수험생 입시 정보, 질문, 합격 전략을 나누는 커뮤니티. 로그인 없이 익명 글쓰기 지원.">
-  <meta property="og:url" content="/community/">
-  <meta property="og:site_name" content="P.A.T.H">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="입시 커뮤니티 - P.A.T.H">
-  <meta name="twitter:description" content="입시 정보와 질문을 나누는 수험생 커뮤니티">
-  <meta name="theme-color" content="#0D0D11" media="(prefers-color-scheme: dark)">
-  <meta name="theme-color" content="#F6F8FC" media="(prefers-color-scheme: light)">
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.json">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="P.A.T.H">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="canonical" href="/community/">
-  <title>입시 커뮤니티 - P.A.T.H</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=MaruBuri:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" rel="stylesheet"></noscript>
-  <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet"></noscript>
-  <link rel="stylesheet" href="style.css?v=2">
-  <link rel="stylesheet" href="/shared/redesign.css?v=2">
-  <script src="/shared/api.js?v=1"></script>
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
-     crossorigin="anonymous"></script>
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "DiscussionForumPosting",
-    "headline": "입시 커뮤니티 - P.A.T.H",
-    "about": "대학 입시, 수시, 정시, 학습 전략, 수험생 정보 공유",
-    "inLanguage": "ko",
-    "publisher": {
-      "@type": "Organization",
-      "name": "P.A.T.H"
-    },
-    "mainEntityOfPage": "/community/"
-  }
-  </script>
-</head>
-<body class="community-page">
-<script src="/shared/theme.js?v=1"></script>
-<script>
-  (function () {
-    var prefersLight = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
-    var fallback = prefersLight ? 'light' : 'dark';
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="수험생 입시 정보, 질문, 합격 전략을 나누는 P.A.T.H 커뮤니티. 로그인 없이도 익명으로 글 작성이 가능합니다."
+    />
+    <meta
+      name="keywords"
+      content="입시 커뮤니티, 수험생 커뮤니티, 대학 입시 정보, 수시 정시, 입시 질문, 합격 전략, P.A.T.H"
+    />
+    <meta
+      name="robots"
+      content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="입시 커뮤니티 - P.A.T.H" />
+    <meta
+      property="og:description"
+      content="수험생 입시 정보, 질문, 합격 전략을 나누는 커뮤니티. 로그인 없이 익명 글쓰기 지원."
+    />
+    <meta property="og:url" content="/community/" />
+    <meta property="og:site_name" content="P.A.T.H" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="입시 커뮤니티 - P.A.T.H" />
+    <meta name="twitter:description" content="입시 정보와 질문을 나누는 수험생 커뮤니티" />
+    <meta name="theme-color" content="#0D0D11" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F6F8FC" media="(prefers-color-scheme: light)" />
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="P.A.T.H" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="canonical" href="/community/" />
+    <title>입시 커뮤니티 - P.A.T.H</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=MaruBuri:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <noscript
+      ><link href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" rel="stylesheet"
+    /></noscript>
+    <link
+      rel="preload"
+      as="style"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <noscript
+      ><link
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        rel="stylesheet"
+    /></noscript>
+    <link rel="stylesheet" href="style.css?v=2" />
+    <link rel="stylesheet" href="/shared/redesign.css?v=2" />
+    <script src="/shared/api.js?v=1"></script>
+    <!-- Google AdSense -->
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
+      crossorigin="anonymous"
+    ></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "DiscussionForumPosting",
+        "headline": "입시 커뮤니티 - P.A.T.H",
+        "about": "대학 입시, 수시, 정시, 학습 전략, 수험생 정보 공유",
+        "inLanguage": "ko",
+        "publisher": {
+          "@type": "Organization",
+          "name": "P.A.T.H"
+        },
+        "mainEntityOfPage": "/community/"
+      }
+    </script>
+  </head>
+  <body class="community-page">
+    <script src="/shared/theme.js?v=1"></script>
+    <script>
+      (function () {
+        var prefersLight = !!(
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+        );
+        var fallback = prefersLight ? 'light' : 'dark';
 
-    if (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function') {
-      window.PathTheme.applyStoredTheme({ fallback: fallback });
-      return;
-    }
+        if (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function') {
+          window.PathTheme.applyStoredTheme({ fallback: fallback });
+          return;
+        }
 
-    var mode = localStorage.getItem('path_theme');
-    var isLight = mode ? mode === 'light' : prefersLight;
-    document.body.classList.toggle('light', isLight);
-  })();
-</script>
+        var mode = localStorage.getItem('path_theme');
+        var isLight = mode ? mode === 'light' : prefersLight;
+        document.body.classList.toggle('light', isLight);
+      })();
+    </script>
 
-<!-- ── 헤더 ──────────────────────────────────────────────────── -->
-<header class="c-header" id="app-header">
-  <div class="c-header__inner">
-    <div class="c-header__left">
-      <a href="/study-hub/" class="c-header__back" aria-label="메인으로">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M12 5L7 10L12 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-      <div class="c-header__brand">
-        <span class="c-header__logo">
-          <img src="/brand/app-icon-alt-square-1024.png" alt="P.A.T.H 로고" class="c-header__logo-img">
-        </span>
-        <span class="c-header__title">커뮤니티</span>
-        <span class="c-header__badge" id="post-count-badge">--</span>
+    <!-- ── 헤더 ──────────────────────────────────────────────────── -->
+    <header class="c-header" id="app-header">
+      <div class="c-header__inner">
+        <div class="c-header__left">
+          <a href="/study-hub/" class="c-header__back" aria-label="메인으로">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M12 5L7 10L12 15"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+          <div class="c-header__brand">
+            <span class="c-header__logo">
+              <img
+                src="/brand/app-icon-alt-square-1024.png"
+                alt="P.A.T.H 로고"
+                class="c-header__logo-img"
+              />
+            </span>
+            <span class="c-header__title">커뮤니티</span>
+            <span class="c-header__badge" id="post-count-badge">--</span>
+          </div>
+        </div>
+        <div class="c-header__right">
+          <button
+            class="c-header__icon-btn"
+            id="theme-toggle"
+            aria-label="라이트 모드 전환"
+            aria-pressed="false"
+            title="라이트 모드 전환"
+          >
+            <svg
+              class="theme-icon theme-icon--sun"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2"></path>
+              <path d="M12 20v2"></path>
+              <path d="M4.93 4.93l1.41 1.41"></path>
+              <path d="M17.66 17.66l1.41 1.41"></path>
+              <path d="M2 12h2"></path>
+              <path d="M20 12h2"></path>
+              <path d="M6.34 17.66l-1.41 1.41"></path>
+              <path d="M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <svg
+              class="theme-icon theme-icon--moon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+            </svg>
+          </button>
+          <button
+            class="c-header__icon-btn"
+            id="search-toggle"
+            aria-label="검색"
+            aria-expanded="false"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <button
+            class="c-header__icon-btn"
+            id="settings-toggle"
+            aria-label="커뮤니티 설정"
+            title="커뮤니티 설정"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3"></circle>
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 검색 바 (슬라이드 다운) -->
+      <div class="c-search-wrap" id="search-wrap" aria-hidden="true">
+        <div class="c-search-inner">
+          <svg
+            class="c-search-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            id="search-input"
+            class="c-search-input"
+            placeholder="제목, 내용 검색..."
+            autocomplete="off"
+            enterkeyhint="search"
+          />
+          <button class="c-search-clear hidden" id="search-clear" aria-label="검색어 지우기">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <section class="c-seo-intro" aria-label="입시 커뮤니티 소개">
+      <h1>입시 커뮤니티</h1>
+      <p>
+        수험생이 수시/정시 정보, 대학별 전략, 학습 루틴을 나누는 공간입니다. 로그인 없이 익명
+        글쓰기를 지원합니다.
+      </p>
+    </section>
+
+    <!-- ── 카테고리 탭 ──────────────────────────────────────────── -->
+    <div class="c-category-bar" id="category-bar-wrap">
+      <div
+        class="c-category-bar__inner"
+        id="category-bar"
+        role="tablist"
+        aria-label="카테고리"
+      ></div>
+    </div>
+
+    <!-- ── 베스트 게시글 ────────────────────────────────────────── -->
+    <section class="c-hot-section" id="hot-section">
+      <div class="c-hot-section__title">
+        <span class="c-hot-fire">🔥</span>
+        <span>베스트</span>
+      </div>
+      <ul class="c-hot-list" id="hot-list" aria-label="베스트 게시글"></ul>
+    </section>
+
+    <div class="c-sortbar" aria-label="게시글 정렬">
+      <div class="c-sortbar__inner" role="tablist" aria-label="정렬 옵션">
+        <button class="c-sort-chip is-active" data-sort="latest" role="tab" aria-selected="true">
+          최신순
+        </button>
+        <button class="c-sort-chip" data-sort="likes" role="tab" aria-selected="false">
+          추천순
+        </button>
+        <button class="c-sort-chip" data-sort="views" role="tab" aria-selected="false">
+          조회순
+        </button>
       </div>
     </div>
-    <div class="c-header__right">
-      <button class="c-header__icon-btn" id="theme-toggle" aria-label="라이트 모드 전환" aria-pressed="false" title="라이트 모드 전환">
-        <svg class="theme-icon theme-icon--sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="4"></circle>
-          <path d="M12 2v2"></path><path d="M12 20v2"></path>
-          <path d="M4.93 4.93l1.41 1.41"></path><path d="M17.66 17.66l1.41 1.41"></path>
-          <path d="M2 12h2"></path><path d="M20 12h2"></path>
-          <path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 4.93l-1.41 1.41"></path>
-        </svg>
-        <svg class="theme-icon theme-icon--moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
-        </svg>
-      </button>
-      <button class="c-header__icon-btn" id="search-toggle" aria-label="검색" aria-expanded="false">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-      </button>
-      <button class="c-header__icon-btn" id="settings-toggle" aria-label="커뮤니티 설정" title="커뮤니티 설정">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <circle cx="12" cy="12" r="3"></circle>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-        </svg>
-      </button>
-    </div>
-  </div>
 
-  <!-- 검색 바 (슬라이드 다운) -->
-  <div class="c-search-wrap" id="search-wrap" aria-hidden="true">
-    <div class="c-search-inner">
-      <svg class="c-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    <!-- ── 게시글 목록 헤더 ──────────────────────────────────────── -->
+    <div class="c-list-header">
+      <span class="c-list-header__num">번호</span>
+      <span class="c-list-header__title">제목</span>
+      <span class="c-list-header__author">작성자</span>
+      <span class="c-list-header__date">날짜</span>
+      <span class="c-list-header__views">조회</span>
+      <span class="c-list-header__likes">추천</span>
+    </div>
+
+    <!-- ── 광고 섹션 (Apple 정책 준수) ─────────────────────────── -->
+    <div class="c-ad-container" aria-label="광고">
+      <div class="c-ad-label">광고</div>
+      <div class="c-ad-wrapper">
+        <!-- Google AdSense 디스플레이 광고 -->
+        <ins
+          class="adsbygoogle"
+          style="display: block"
+          data-ad-client="ca-pub-XXXXXXXXXX"
+          data-ad-slot="YYYYYYYYYY"
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        ></ins>
+      </div>
+    </div>
+
+    <!-- ── 게시글 리스트 ─────────────────────────────────────────── -->
+    <main class="c-main">
+      <ul id="post-list" class="c-post-list" aria-live="polite" aria-label="게시글 목록"></ul>
+      <div id="scroll-sentinel" aria-hidden="true"></div>
+    </main>
+
+    <!-- ── 글쓰기 FAB ──────────────────────────────────────────── -->
+    <button id="write-fab" aria-label="글쓰기">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="M10 4v12M4 10h12"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+        />
       </svg>
-      <input type="search" id="search-input" class="c-search-input"
-        placeholder="제목, 내용 검색..." autocomplete="off" enterkeyhint="search">
-      <button class="c-search-clear hidden" id="search-clear" aria-label="검색어 지우기">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
-    </div>
-  </div>
-</header>
+    </button>
 
-<section class="c-seo-intro" aria-label="입시 커뮤니티 소개">
-  <h1>입시 커뮤니티</h1>
-  <p>수험생이 수시/정시 정보, 대학별 전략, 학습 루틴을 나누는 공간입니다. 로그인 없이 익명 글쓰기를 지원합니다.</p>
-</section>
-
-<!-- ── 카테고리 탭 ──────────────────────────────────────────── -->
-<div class="c-category-bar" id="category-bar-wrap">
-  <div class="c-category-bar__inner" id="category-bar" role="tablist" aria-label="카테고리"></div>
-</div>
-
-<!-- ── 베스트 게시글 ────────────────────────────────────────── -->
-<section class="c-hot-section" id="hot-section">
-  <div class="c-hot-section__title">
-    <span class="c-hot-fire">🔥</span>
-    <span>베스트</span>
-  </div>
-  <ul class="c-hot-list" id="hot-list" aria-label="베스트 게시글"></ul>
-</section>
-
-<div class="c-sortbar" aria-label="게시글 정렬">
-  <div class="c-sortbar__inner" role="tablist" aria-label="정렬 옵션">
-    <button class="c-sort-chip is-active" data-sort="latest" role="tab" aria-selected="true">최신순</button>
-    <button class="c-sort-chip" data-sort="likes" role="tab" aria-selected="false">추천순</button>
-    <button class="c-sort-chip" data-sort="views" role="tab" aria-selected="false">조회순</button>
-  </div>
-</div>
-
-<!-- ── 게시글 목록 헤더 ──────────────────────────────────────── -->
-<div class="c-list-header">
-  <span class="c-list-header__num">번호</span>
-  <span class="c-list-header__title">제목</span>
-  <span class="c-list-header__author">작성자</span>
-  <span class="c-list-header__date">날짜</span>
-  <span class="c-list-header__views">조회</span>
-  <span class="c-list-header__likes">추천</span>
-</div>
-
-<!-- ── 광고 섹션 (Apple 정책 준수) ─────────────────────────── -->
-<div class="c-ad-container" aria-label="광고">
-  <div class="c-ad-label">광고</div>
-  <div class="c-ad-wrapper">
-    <!-- Google AdSense 디스플레이 광고 -->
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-XXXXXXXXXX"
-         data-ad-slot="YYYYYYYYYY"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-  </div>
-</div>
-
-<!-- ── 게시글 리스트 ─────────────────────────────────────────── -->
-<main class="c-main">
-  <ul id="post-list" class="c-post-list" aria-live="polite" aria-label="게시글 목록"></ul>
-  <div id="scroll-sentinel" aria-hidden="true"></div>
-</main>
-
-<!-- ── 글쓰기 FAB ──────────────────────────────────────────── -->
-<button id="write-fab" aria-label="글쓰기">
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-  </svg>
-</button>
-
-<script src="/shared/nav.js?v=5"></script>
-<script src="/shared/profile-editor.js?v=1"></script>
-<script type="module" src="community.js"></script>
-<script>
-  // Google AdSense 광고 로드
-  (adsbygoogle = window.adsbygoogle || []).push({});
-</script>
-<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
-</body>
+    <script src="/shared/nav.js?v=5"></script>
+    <script src="/shared/profile-editor.js?v=1"></script>
+    <script type="module" src="community.js"></script>
+    <script>
+      // Google AdSense 광고 로드
+      (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+    <script>
+      if ('serviceWorker' in navigator)
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    </script>
+  </body>
 </html>

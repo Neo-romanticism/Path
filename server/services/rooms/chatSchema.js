@@ -3,9 +3,9 @@
 let roomChatSchemaReady = false;
 
 async function ensureRoomChatSchema(db) {
-    if (roomChatSchemaReady) return;
+  if (roomChatSchemaReady) return;
 
-    await db.query(`
+  await db.query(`
         CREATE TABLE IF NOT EXISTS study_room_messages (
             id          SERIAL PRIMARY KEY,
             room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
@@ -16,9 +16,9 @@ async function ensureRoomChatSchema(db) {
         CREATE INDEX IF NOT EXISTS idx_study_room_messages_room ON study_room_messages(room_id, created_at);
     `);
 
-    roomChatSchemaReady = true;
+  roomChatSchemaReady = true;
 }
 
 module.exports = {
-    ensureRoomChatSchema,
+  ensureRoomChatSchema,
 };

@@ -1,1087 +1,1836 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>P.A.T.H - Focus Protocol</title>
     <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#000000">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="P.A.T.H">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="P.A.T.H" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <script src="/shared/nav.js?v=5"></script>
     <script src="/shared/theme.js?v=1"></script>
     <script>
-    (function () {
+      (function () {
         function resolveApiOrigin() {
-            return '';
+          return '';
         }
 
         var apiOrigin = resolveApiOrigin();
         window.PATH_API_ORIGIN = apiOrigin;
 
         function toApiUrl(input) {
-            if (!apiOrigin) return input;
-            if (typeof input === 'string' && input.indexOf('/api/') === 0) {
-                return apiOrigin + input;
-            }
-            return input;
+          if (!apiOrigin) return input;
+          if (typeof input === 'string' && input.indexOf('/api/') === 0) {
+            return apiOrigin + input;
+          }
+          return input;
         }
 
         // Split web/api origin 배포에서 /api 요청을 API 도메인으로 전달한다.
         if (typeof window.fetch === 'function' && !window.__pathApiFetchPatched) {
-            var nativeFetch = window.fetch.bind(window);
-            window.fetch = function (input, init) {
-                return nativeFetch(toApiUrl(input), init);
-            };
-            window.__pathApiFetchPatched = true;
+          var nativeFetch = window.fetch.bind(window);
+          window.fetch = function (input, init) {
+            return nativeFetch(toApiUrl(input), init);
+          };
+          window.__pathApiFetchPatched = true;
         }
-    })();
+      })();
     </script>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=MaruBuri:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" rel="stylesheet"></noscript>
-    <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet"></noscript>
-    <link rel="stylesheet" href="/study-hub/style.css?v=8">
-    <link rel="stylesheet" href="/shared/redesign.css?v=3">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=MaruBuri:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="preload"
+      as="style"
+      href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <noscript
+      ><link href="https://cdn.jsdelivr.net/npm/suitcss@1.0.0/SUIT-Variable.css" rel="stylesheet"
+    /></noscript>
+    <link
+      rel="preload"
+      as="style"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <noscript
+      ><link
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        rel="stylesheet"
+    /></noscript>
+    <link rel="stylesheet" href="/study-hub/style.css?v=8" />
+    <link rel="stylesheet" href="/shared/redesign.css?v=3" />
     <style>
-        .profile-edit-avatar-runtime-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
+      .profile-edit-avatar-runtime-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
 
-        .profile-edit-univ-item {
-            width: 100%;
-            border: 0;
-            border-top: 1px solid var(--line-color);
-            background: transparent;
-            color: var(--text-primary);
-            padding: 8px 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            font-size: 13px;
-            text-align: left;
-            cursor: pointer;
-        }
+      .profile-edit-univ-item {
+        width: 100%;
+        border: 0;
+        border-top: 1px solid var(--line-color);
+        background: transparent;
+        color: var(--text-primary);
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 13px;
+        text-align: left;
+        cursor: pointer;
+      }
 
-        .profile-edit-univ-item:first-child {
-            border-top: 0;
-        }
+      .profile-edit-univ-item:first-child {
+        border-top: 0;
+      }
 
-        .profile-edit-univ-item:hover {
-            background: var(--surface-soft);
-        }
+      .profile-edit-univ-item:hover {
+        background: var(--surface-soft);
+      }
 
-        .profile-edit-univ-region {
-            font-size: 11px;
-            color: var(--text-muted);
-            flex-shrink: 0;
-        }
+      .profile-edit-univ-region {
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
     </style>
-</head>
-<body class="path-interface">
-<script>
-(function(){
-    const prefersLight = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
-    const fallback = prefersLight ? 'light' : 'dark';
+  </head>
+  <body class="path-interface">
+    <script>
+      (function () {
+        const prefersLight = !!(
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+        );
+        const fallback = prefersLight ? 'light' : 'dark';
 
-    function setLightMode(isLight) {
-        if (window.PathTheme && typeof window.PathTheme.setLightMode === 'function') {
+        function setLightMode(isLight) {
+          if (window.PathTheme && typeof window.PathTheme.setLightMode === 'function') {
             return window.PathTheme.setLightMode(isLight, { fallback: fallback });
+          }
+          document.body.classList.toggle('light', isLight);
+          localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
+          return isLight ? 'light' : 'dark';
         }
-        document.body.classList.toggle('light', isLight);
-        localStorage.setItem('path_theme', isLight ? 'light' : 'dark');
-        return isLight ? 'light' : 'dark';
-    }
 
-    if (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function') {
-        window.PathTheme.applyStoredTheme({ fallback: fallback });
-    } else {
-        setLightMode((localStorage.getItem('path_theme') || fallback) === 'light');
-    }
+        if (window.PathTheme && typeof window.PathTheme.applyStoredTheme === 'function') {
+          window.PathTheme.applyStoredTheme({ fallback: fallback });
+        } else {
+          setLightMode((localStorage.getItem('path_theme') || fallback) === 'light');
+        }
 
-    window.toggleTheme = function(forceLight) {
-        const isLight = typeof forceLight === 'boolean'
-            ? forceLight
-            : !document.body.classList.contains('light');
-        return setLightMode(isLight);
-    };
-})();
-</script>
-    
+        window.toggleTheme = function (forceLight) {
+          const isLight =
+            typeof forceLight === 'boolean'
+              ? forceLight
+              : !document.body.classList.contains('light');
+          return setLightMode(isLight);
+        };
+      })();
+    </script>
+
     <!-- Top Status Line -->
     <header class="status-bar">
-        <div class="status-left">
-            <button id="btn-back-mainhub" class="exit-timer-btn" onclick="navigateTo('/study-hub/')">←</button>
-            <img class="status-logo" src="/icons/icon-192.png" alt="P.A.T.H 로고">
-            <span class="status-label">학습자</span>
-            <span class="status-val tier-text">-</span>
-            <span class="status-val sub" id="rank-pct">0.08%</span>
-        </div>
-        <div class="status-right">
-            <span class="resource">🪙 <span id="gold-val">14,500</span></span>
-            <span class="resource">💎 <span id="diamond-val">0</span></span>
-            <span class="resource">📄 <span id="ticket-val">01</span>장</span>
-            <button id="btn-open-timer-settings" class="exit-timer-btn" onclick="openTimerSettings()" title="설정">⚙</button>
-        </div>
+      <div class="status-left">
+        <button id="btn-back-mainhub" class="exit-timer-btn" onclick="navigateTo('/study-hub/')">
+          ←
+        </button>
+        <img class="status-logo" src="/icons/icon-192.png" alt="P.A.T.H 로고" />
+        <span class="status-label">학습자</span>
+        <span class="status-val tier-text">-</span>
+        <span class="status-val sub" id="rank-pct">0.08%</span>
+      </div>
+      <div class="status-right">
+        <span class="resource">🪙 <span id="gold-val">14,500</span></span>
+        <span class="resource">💎 <span id="diamond-val">0</span></span>
+        <span class="resource">📄 <span id="ticket-val">01</span>장</span>
+        <button
+          id="btn-open-timer-settings"
+          class="exit-timer-btn"
+          onclick="openTimerSettings()"
+          title="설정"
+        >
+          ⚙
+        </button>
+      </div>
     </header>
 
     <!-- Settings Panel -->
     <div id="timer-settings-panel" class="timer-settings-panel hidden">
-        <div class="timer-settings-head">
-            <span class="timer-settings-title">SETTINGS</span>
-            <button class="timer-settings-close" onclick="closeTimerSettings()">×</button>
+      <div class="timer-settings-head">
+        <span class="timer-settings-title">SETTINGS</span>
+        <button class="timer-settings-close" onclick="closeTimerSettings()">×</button>
+      </div>
+      <div class="timer-settings-body">
+        <div class="ts-section-title">UI 표시 (UI DISPLAY)</div>
+        <div class="ts-row">
+          <span class="ts-label">라이트 모드</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="ts-theme-toggle" onchange="saveTimerUiSettings()" />
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <div class="timer-settings-body">
-            <div class="ts-section-title">UI 표시 (UI DISPLAY)</div>
-            <div class="ts-row">
-                <span class="ts-label">라이트 모드</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="ts-theme-toggle" onchange="saveTimerUiSettings()">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="ts-row">
-                <span class="ts-label">학습 시 절전 모드</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="ts-study-power-save" onchange="saveTimerUiSettings()">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="ts-note" id="ts-ui-note">학습 화면 전반에서 동일한 테마 설정을 공유합니다.</div>
-
-            <div class="ts-section-title">계정 (ACCOUNT)</div>
-            <button type="button" id="ts-btn-edit-profile" class="ts-action-btn">프로필 수정</button>
-            <button type="button" id="ts-btn-logout" class="ts-action-btn">로그아웃</button>
-
-            <div class="ts-section-title">캠인증 (CAM CERTIFICATION)</div>
-            <div class="ts-row">
-                <span class="ts-label">캠인증 활성화</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="ts-cam-enabled" onchange="saveTimerCamSettings()">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="ts-row">
-                <span class="ts-label">공개 범위</span>
-                <select id="ts-cam-visibility" class="ts-select" onchange="saveTimerCamSettings()">
-                    <option value="all">전체공개</option>
-                    <option value="admin">관리자만</option>
-                </select>
-            </div>
-            <div class="ts-note" id="ts-cam-note">공개 범위는 모든 유저에게 표시됩니다.</div>
-
-            <div class="ts-section-title">문의 (SUPPORT)</div>
-            <div class="ts-stack">
-                <label for="ts-admin-message" class="ts-label">관리자에게 문의하기</label>
-                <textarea
-                    id="ts-admin-message"
-                    class="ts-textarea"
-                    maxlength="500"
-                    placeholder="불편사항, 오류 제보, 건의사항을 남겨주세요."
-                ></textarea>
-                <button type="button" class="ts-send-btn" onclick="submitAdminInquiry()">메시지 보내기</button>
-                <div class="ts-note" id="ts-admin-note">문의 내용은 관리자에게 메시지로 전달됩니다.</div>
-            </div>
+        <div class="ts-row">
+          <span class="ts-label">학습 시 절전 모드</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="ts-study-power-save" onchange="saveTimerUiSettings()" />
+            <span class="toggle-slider"></span>
+          </label>
         </div>
+        <div class="ts-note" id="ts-ui-note">학습 화면 전반에서 동일한 테마 설정을 공유합니다.</div>
+
+        <div class="ts-section-title">계정 (ACCOUNT)</div>
+        <button type="button" id="ts-btn-edit-profile" class="ts-action-btn">프로필 수정</button>
+        <button type="button" id="ts-btn-logout" class="ts-action-btn">로그아웃</button>
+
+        <div class="ts-section-title">캠인증 (CAM CERTIFICATION)</div>
+        <div class="ts-row">
+          <span class="ts-label">캠인증 활성화</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="ts-cam-enabled" onchange="saveTimerCamSettings()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="ts-row">
+          <span class="ts-label">공개 범위</span>
+          <select id="ts-cam-visibility" class="ts-select" onchange="saveTimerCamSettings()">
+            <option value="all">전체공개</option>
+            <option value="admin">관리자만</option>
+          </select>
+        </div>
+        <div class="ts-note" id="ts-cam-note">공개 범위는 모든 유저에게 표시됩니다.</div>
+
+        <div class="ts-section-title">문의 (SUPPORT)</div>
+        <div class="ts-stack">
+          <label for="ts-admin-message" class="ts-label">관리자에게 문의하기</label>
+          <textarea
+            id="ts-admin-message"
+            class="ts-textarea"
+            maxlength="500"
+            placeholder="불편사항, 오류 제보, 건의사항을 남겨주세요."
+          ></textarea>
+          <button type="button" class="ts-send-btn" onclick="submitAdminInquiry()">
+            메시지 보내기
+          </button>
+          <div class="ts-note" id="ts-admin-note">문의 내용은 관리자에게 메시지로 전달됩니다.</div>
+        </div>
+      </div>
     </div>
 
     <!-- Cam Preview (공부 중일 때만 보임) -->
     <div id="cam-preview-container" class="cam-preview-container hidden">
-        <video id="cam-video" autoplay playsinline muted class="cam-video"></video>
-        <canvas id="cam-canvas" style="display:none;"></canvas>
-        <div class="cam-controls">
-            <button class="cam-btn" onclick="CamManager.switchCamera()" title="카메라 전환">🔄</button>
-            <span class="cam-status" id="cam-status-text">● 캠인증 대기중</span>
-        </div>
+      <video id="cam-video" autoplay playsinline muted class="cam-video"></video>
+      <canvas id="cam-canvas" style="display: none"></canvas>
+      <div class="cam-controls">
+        <button class="cam-btn" onclick="CamManager.switchCamera()" title="카메라 전환">🔄</button>
+        <span class="cam-status" id="cam-status-text">● 캠인증 대기중</span>
+      </div>
     </div>
 
     <!-- Main Content -->
     <main class="focus-container">
-        <div class="page-tabs" id="page-tabs" aria-label="주요 탭 이동">
-            <button id="tab-home-btn" class="page-tab-btn active" data-tab="home" type="button">홈</button>
-            <button id="tab-study-btn" class="page-tab-btn" data-tab="study" type="button">학습하기</button>
-            <button id="tab-planner-btn" class="page-tab-btn" data-tab="planner" type="button">플래너</button>
-            <button id="tab-calendar-btn" class="page-tab-btn" data-tab="calendar" type="button">캘린더</button>
-            <button id="tab-scorecalc-btn" class="page-tab-btn" data-tab="scorecalc" type="button">환산점수</button>
-            <button id="tab-balloon-btn" class="page-tab-btn" data-tab="balloon" type="button">성장 리포트</button>
-            <button id="tab-rooms-btn" class="page-tab-btn" data-tab="rooms" type="button">그룹</button>
-            <button id="tab-community-btn" class="page-tab-btn" type="button">커뮤니티</button>
+      <div class="page-tabs" id="page-tabs" aria-label="주요 탭 이동">
+        <button id="tab-home-btn" class="page-tab-btn active" data-tab="home" type="button">
+          홈
+        </button>
+        <button id="tab-study-btn" class="page-tab-btn" data-tab="study" type="button">
+          학습하기
+        </button>
+        <button id="tab-planner-btn" class="page-tab-btn" data-tab="planner" type="button">
+          플래너
+        </button>
+        <button id="tab-calendar-btn" class="page-tab-btn" data-tab="calendar" type="button">
+          캘린더
+        </button>
+        <button id="tab-scorecalc-btn" class="page-tab-btn" data-tab="scorecalc" type="button">
+          환산점수
+        </button>
+        <button id="tab-balloon-btn" class="page-tab-btn" data-tab="balloon" type="button">
+          성장 리포트
+        </button>
+        <button id="tab-rooms-btn" class="page-tab-btn" data-tab="rooms" type="button">그룹</button>
+        <button id="tab-community-btn" class="page-tab-btn" type="button">커뮤니티</button>
+      </div>
+
+      <section id="tab-home" class="tab-panel active">
+        <div class="home-hero-shell">
+          <div class="home-hero-card">
+            <div class="home-hero-topline">
+              <p class="home-hero-kicker">TODAY'S FOCUS</p>
+              <div class="home-hero-chip-row">
+                <span class="home-hero-chip" id="home-hero-tier">학습자</span>
+                <span class="home-hero-chip" id="home-hero-rank">상위 집계 중</span>
+              </div>
+            </div>
+            <h2 class="home-hero-title" id="home-hero-title">오늘 흐름을 바로 이어가세요</h2>
+            <p class="home-hero-copy" id="home-hero-copy">
+              실시간 랭킹과 공개 그룹 현황을 보고 바로 학습을 시작할 수 있습니다.
+            </p>
+            <div class="home-hero-highlight-row">
+              <article class="home-hero-highlight">
+                <span class="home-hero-highlight-label">다음 행동</span>
+                <strong id="home-next-focus">학습 탭 열기</strong>
+                <span id="home-next-focus-meta">과목을 선택하고 첫 세션을 시작하세요.</span>
+              </article>
+              <article class="home-hero-highlight">
+                <span class="home-hero-highlight-label">현재 분위기</span>
+                <strong id="home-active-summary">지금 공부 중인 사람 확인</strong>
+                <span id="home-active-summary-meta"
+                  >랭킹과 공개 그룹에서 바로 합류할 수 있습니다.</span
+                >
+              </article>
+            </div>
+            <div class="home-hero-actions">
+              <button type="button" class="btn-primary home-start-btn" id="home-start-btn">
+                바로 학습 시작
+              </button>
+              <button type="button" class="home-refresh-btn" id="home-plan-btn">
+                오늘 계획 보기
+              </button>
+              <button type="button" class="home-refresh-btn" id="home-refresh-btn">새로고침</button>
+            </div>
+          </div>
+
+          <aside class="home-brief-card">
+            <p class="home-brief-kicker">QUICK BRIEF</p>
+            <strong class="home-brief-title" id="home-brief-title"
+              >바로 시작할 준비를 끝내세요</strong
+            >
+            <p class="home-brief-copy" id="home-brief-copy">
+              오늘 계획과 공개 그룹 흐름을 확인한 뒤 공부를 시작하면 진입이 더 빨라집니다.
+            </p>
+            <div class="home-brief-meta">
+              <span class="home-brief-badge" id="home-brief-updated">아직 갱신 전</span>
+              <span class="home-brief-badge" id="home-brief-univ">소속 미설정</span>
+            </div>
+            <div class="home-brief-actions">
+              <button type="button" class="home-brief-btn" id="home-brief-rooms-btn">
+                그룹 둘러보기
+              </button>
+              <button type="button" class="home-brief-btn" id="home-brief-social-btn">
+                메시지 열기
+              </button>
+            </div>
+          </aside>
         </div>
 
-        <section id="tab-home" class="tab-panel active">
-            <div class="home-hero-shell">
-                <div class="home-hero-card">
-                    <div class="home-hero-topline">
-                        <p class="home-hero-kicker">TODAY'S FOCUS</p>
-                        <div class="home-hero-chip-row">
-                            <span class="home-hero-chip" id="home-hero-tier">학습자</span>
-                            <span class="home-hero-chip" id="home-hero-rank">상위 집계 중</span>
-                        </div>
-                    </div>
-                    <h2 class="home-hero-title" id="home-hero-title">오늘 흐름을 바로 이어가세요</h2>
-                    <p class="home-hero-copy" id="home-hero-copy">실시간 랭킹과 공개 그룹 현황을 보고 바로 학습을 시작할 수 있습니다.</p>
-                    <div class="home-hero-highlight-row">
-                        <article class="home-hero-highlight">
-                            <span class="home-hero-highlight-label">다음 행동</span>
-                            <strong id="home-next-focus">학습 탭 열기</strong>
-                            <span id="home-next-focus-meta">과목을 선택하고 첫 세션을 시작하세요.</span>
-                        </article>
-                        <article class="home-hero-highlight">
-                            <span class="home-hero-highlight-label">현재 분위기</span>
-                            <strong id="home-active-summary">지금 공부 중인 사람 확인</strong>
-                            <span id="home-active-summary-meta">랭킹과 공개 그룹에서 바로 합류할 수 있습니다.</span>
-                        </article>
-                    </div>
-                    <div class="home-hero-actions">
-                        <button type="button" class="btn-primary home-start-btn" id="home-start-btn">바로 학습 시작</button>
-                        <button type="button" class="home-refresh-btn" id="home-plan-btn">오늘 계획 보기</button>
-                        <button type="button" class="home-refresh-btn" id="home-refresh-btn">새로고침</button>
-                    </div>
-                </div>
+        <div class="home-stat-row">
+          <article class="home-stat-card">
+            <span class="home-stat-label">오늘 공부</span>
+            <strong class="home-stat-value" id="home-stat-today">-</strong>
+            <span class="home-stat-meta" id="home-stat-today-meta">첫 세션을 시작해 보세요</span>
+          </article>
+          <article class="home-stat-card">
+            <span class="home-stat-label">누적 공부</span>
+            <strong class="home-stat-value" id="home-stat-total">-</strong>
+            <span class="home-stat-meta" id="home-stat-total-meta">지금까지 쌓인 집중 시간</span>
+          </article>
+          <article class="home-stat-card">
+            <span class="home-stat-label">지금 공부 중</span>
+            <strong class="home-stat-value" id="home-stat-active">-</strong>
+            <span class="home-stat-meta" id="home-stat-active-meta">실시간 자극 인원</span>
+          </article>
+        </div>
 
-                <aside class="home-brief-card">
-                    <p class="home-brief-kicker">QUICK BRIEF</p>
-                    <strong class="home-brief-title" id="home-brief-title">바로 시작할 준비를 끝내세요</strong>
-                    <p class="home-brief-copy" id="home-brief-copy">오늘 계획과 공개 그룹 흐름을 확인한 뒤 공부를 시작하면 진입이 더 빨라집니다.</p>
-                    <div class="home-brief-meta">
-                        <span class="home-brief-badge" id="home-brief-updated">아직 갱신 전</span>
-                        <span class="home-brief-badge" id="home-brief-univ">소속 미설정</span>
-                    </div>
-                    <div class="home-brief-actions">
-                        <button type="button" class="home-brief-btn" id="home-brief-rooms-btn">그룹 둘러보기</button>
-                        <button type="button" class="home-brief-btn" id="home-brief-social-btn">메시지 열기</button>
-                    </div>
-                </aside>
-            </div>
-
-            <div class="home-stat-row">
-                <article class="home-stat-card">
-                    <span class="home-stat-label">오늘 공부</span>
-                    <strong class="home-stat-value" id="home-stat-today">-</strong>
-                    <span class="home-stat-meta" id="home-stat-today-meta">첫 세션을 시작해 보세요</span>
-                </article>
-                <article class="home-stat-card">
-                    <span class="home-stat-label">누적 공부</span>
-                    <strong class="home-stat-value" id="home-stat-total">-</strong>
-                    <span class="home-stat-meta" id="home-stat-total-meta">지금까지 쌓인 집중 시간</span>
-                </article>
-                <article class="home-stat-card">
-                    <span class="home-stat-label">지금 공부 중</span>
-                    <strong class="home-stat-value" id="home-stat-active">-</strong>
-                    <span class="home-stat-meta" id="home-stat-active-meta">실시간 자극 인원</span>
-                </article>
-            </div>
-
-            <section class="home-action-layout" aria-label="빠른 기능 실행">
-                <div class="home-action-primary">
-                    <button type="button" id="home-quick-apply" class="home-hub-btn home-hub-btn-primary">
-                        <span class="home-hub-kicker">입시</span>
-                        <strong>모의지원</strong>
-                        <span class="home-hub-sub">원서비, 슬롯, 지원 이력까지 한 번에 확인</span>
-                        <span class="home-hub-meta">입시 준비 흐름 열기</span>
-                    </button>
-                    <button type="button" id="home-quick-shop" class="home-hub-btn home-hub-btn-primary">
-                        <span class="home-hub-kicker">경제</span>
-                        <strong>상점 · 성장</strong>
-                        <span class="home-hub-sub">수입 수령과 티켓 관리, 성장 점검</span>
-                        <span class="home-hub-meta">보유 자산 정리하기</span>
-                    </button>
-                </div>
-                <div class="home-action-secondary">
-                    <button type="button" id="home-quick-social" class="home-hub-btn home-hub-btn-secondary">
-                        <span class="home-hub-kicker">소셜</span>
-                        <strong>친구 · 메시지</strong>
-                        <span class="home-hub-sub">동맹 요청, DM, 그룹 대화 확인</span>
-                        <span class="home-hub-meta">바로 대화 열기</span>
-                    </button>
-                    <button type="button" id="home-quick-notif" class="home-hub-btn home-hub-btn-secondary">
-                        <span class="home-hub-kicker">피드</span>
-                        <strong>알림 · 랭킹</strong>
-                        <span class="home-hub-sub">최근 알림과 전체 랭킹 흐름 확인</span>
-                        <span class="home-hub-meta">실시간 피드 보기</span>
-                    </button>
-                </div>
-            </section>
-
-            <div class="home-grid">
-                <section class="home-panel">
-                    <div class="home-panel-head">
-                        <div>
-                            <h3>오늘 집중 TOP 5</h3>
-                            <span class="home-panel-sub">실시간 자극 랭킹</span>
-                        </div>
-                        <button type="button" class="home-panel-link" id="home-top-open-btn">전체 랭킹</button>
-                    </div>
-                    <div id="home-top-list" class="home-list">불러오는 중...</div>
-                </section>
-
-                <section class="home-panel">
-                    <div class="home-panel-head">
-                        <div>
-                            <h3>공개 그룹 HOT</h3>
-                            <span class="home-panel-sub">바로 합류 가능</span>
-                        </div>
-                        <button type="button" class="home-panel-link" id="home-room-open-btn">그룹 전체 보기</button>
-                    </div>
-                    <div id="home-room-list" class="home-list">불러오는 중...</div>
-                </section>
-            </div>
+        <section class="home-action-layout" aria-label="빠른 기능 실행">
+          <div class="home-action-primary">
+            <button type="button" id="home-quick-apply" class="home-hub-btn home-hub-btn-primary">
+              <span class="home-hub-kicker">입시</span>
+              <strong>모의지원</strong>
+              <span class="home-hub-sub">원서비, 슬롯, 지원 이력까지 한 번에 확인</span>
+              <span class="home-hub-meta">입시 준비 흐름 열기</span>
+            </button>
+            <button type="button" id="home-quick-shop" class="home-hub-btn home-hub-btn-primary">
+              <span class="home-hub-kicker">경제</span>
+              <strong>상점 · 성장</strong>
+              <span class="home-hub-sub">수입 수령과 티켓 관리, 성장 점검</span>
+              <span class="home-hub-meta">보유 자산 정리하기</span>
+            </button>
+          </div>
+          <div class="home-action-secondary">
+            <button
+              type="button"
+              id="home-quick-social"
+              class="home-hub-btn home-hub-btn-secondary"
+            >
+              <span class="home-hub-kicker">소셜</span>
+              <strong>친구 · 메시지</strong>
+              <span class="home-hub-sub">동맹 요청, DM, 그룹 대화 확인</span>
+              <span class="home-hub-meta">바로 대화 열기</span>
+            </button>
+            <button type="button" id="home-quick-notif" class="home-hub-btn home-hub-btn-secondary">
+              <span class="home-hub-kicker">피드</span>
+              <strong>알림 · 랭킹</strong>
+              <span class="home-hub-sub">최근 알림과 전체 랭킹 흐름 확인</span>
+              <span class="home-hub-meta">실시간 피드 보기</span>
+            </button>
+          </div>
         </section>
 
-        <section id="tab-study" class="tab-panel">
-            <div class="subject-control" id="subject-control">
-                <div class="subject-row">
-                    <select id="subject-select" class="subject-select"></select>
-                    <button id="subject-add-btn" class="subject-add-btn" type="button">+ 과목</button>
-                </div>
-                <div id="subject-add-row" class="subject-row hidden">
-                    <input id="subject-input" class="subject-input" type="text" maxlength="60" placeholder="과목명 입력 (예: 영어, 수학)">
-                </div>
-                <div id="quick-subjects" class="quick-subjects" aria-label="빠른 과목 선택"></div>
-
-                <button id="plan-toggle-btn" class="plan-toggle-btn" type="button">
-                    학습 플랜 <span id="plan-toggle-arrow">▾</span>
-                </button>
-                <div id="plan-section" class="plan-section hidden">
-                    <form id="study-plan-form" class="study-plan-form">
-                        <input id="study-plan-subject" class="plan-input" type="text" maxlength="60" placeholder="과목 (선택)">
-                        <input id="study-plan-topic" class="plan-input" type="text" maxlength="120" placeholder="세부 계획 (예: 영단어 50개 외우기)" required>
-                        <input id="study-plan-duration" class="plan-input" type="number" min="5" max="300" step="5" placeholder="시간 (분)">
-                        <input id="study-plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모 (선택)">
-                        <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">플랜 추가하기</button>
-                    </form>
-                    <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
-                    <div class="study-plan-actions">
-                        <button id="study-plan-sync-btn" class="plan-submit-btn" type="button">플래너 날짜에 일정 반영</button>
-                        <span id="study-plan-sync-meta" class="subject-hint">반영 기준 날짜를 불러오는 중...</span>
-                    </div>
-                </div>
+        <div class="home-grid">
+          <section class="home-panel">
+            <div class="home-panel-head">
+              <div>
+                <h3>오늘 집중 TOP 5</h3>
+                <span class="home-panel-sub">실시간 자극 랭킹</span>
+              </div>
+              <button type="button" class="home-panel-link" id="home-top-open-btn">
+                전체 랭킹
+              </button>
             </div>
+            <div id="home-top-list" class="home-list">불러오는 중...</div>
+          </section>
 
-            <div class="mode-group" id="mode-group">
-                <button id="mode-timer" class="mode-btn active" type="button">타이머</button>
-                <button id="mode-stopwatch" class="mode-btn" type="button">스톱워치</button>
+          <section class="home-panel">
+            <div class="home-panel-head">
+              <div>
+                <h3>공개 그룹 HOT</h3>
+                <span class="home-panel-sub">바로 합류 가능</span>
+              </div>
+              <button type="button" class="home-panel-link" id="home-room-open-btn">
+                그룹 전체 보기
+              </button>
             </div>
+            <div id="home-room-list" class="home-list">불러오는 중...</div>
+          </section>
+        </div>
+      </section>
 
-            <!-- Timer Setup (Visible initially) -->
-            <div id="setup-area" class="setup-group">
-                <div class="time-presets" id="time-presets">
-                    <button class="time-preset-btn" type="button" data-hr="0" data-min="30">30분</button>
-                    <button class="time-preset-btn active" type="button" data-hr="1" data-min="20">80분</button>
-                    <button class="time-preset-btn" type="button" data-hr="1" data-min="40">100분</button>
-                </div>
-                <div class="time-inputs-row">
-                    <div class="input-unit">
-                        <input type="number" id="input-hr" class="time-input" value="01" placeholder="00" min="0" step="1">
-                        <span class="unit-label">시간</span>
-                    </div>
-                    <div class="input-sep">:</div>
-                    <div class="input-unit">
-                        <input type="number" id="input-min" class="time-input" value="20" placeholder="20" min="0" step="1">
-                        <span class="unit-label">분</span>
-                    </div>
-                </div>
-            </div>
+      <section id="tab-study" class="tab-panel">
+        <div class="subject-control" id="subject-control">
+          <div class="subject-row">
+            <select id="subject-select" class="subject-select"></select>
+            <button id="subject-add-btn" class="subject-add-btn" type="button">+ 과목</button>
+          </div>
+          <div id="subject-add-row" class="subject-row hidden">
+            <input
+              id="subject-input"
+              class="subject-input"
+              type="text"
+              maxlength="60"
+              placeholder="과목명 입력 (예: 영어, 수학)"
+            />
+          </div>
+          <div id="quick-subjects" class="quick-subjects" aria-label="빠른 과목 선택"></div>
 
-            <!-- Active Timer Display -->
-            <div id="main-timer" class="timer-display">
-                <span id="display-time">00:00</span><span id="ms" class="timer-ms">.00</span>
-            </div>
-
-            <!-- Controls -->
-            <div class="control-group">
-                <button id="enter-btn" class="btn-primary cmd-btn">학습 시작하기</button>
-                <button id="break-btn" class="btn-danger cmd-btn hidden">중단하기</button>
-            </div>
-
-            <div class="lecture-wrap">
-                <div id="lecture-panel" class="lecture-panel hidden">
-                    <div class="lecture-head">
-                        <strong>인강 모드</strong>
-                        <button id="lecture-close-btn" class="lecture-close-btn" type="button">닫기</button>
-                    </div>
-                    <p class="lecture-copy">타이머를 유지한 채 앱 내부에서 인강을 볼 수 있어요. 외부 앱/브라우저로 나가면 기존처럼 실패 처리됩니다.</p>
-                    <div class="lecture-url-row">
-                        <input id="lecture-url-input" class="lecture-url-input" type="url" placeholder="https://www.youtube.com/watch?v=...">
-                        <button id="lecture-open-btn" class="lecture-open-btn" type="button">열기</button>
-                    </div>
-                    <div id="lecture-preset-wrap" class="lecture-preset-wrap">
-                        <button class="lecture-preset-btn" type="button" data-url="https://www.youtube.com/">YouTube</button>
-                        <button class="lecture-preset-btn" type="button" data-url="https://www.ebsi.co.kr/">EBSi</button>
-                        <button class="lecture-preset-btn" type="button" data-url="https://www.megastudy.net/">메가스터디</button>
-                    </div>
-                    <p id="lecture-hint" class="lecture-hint">허용된 인강 도메인만 열 수 있습니다.</p>
-                    <div class="lecture-frame-wrap">
-                        <iframe
-                            id="lecture-frame"
-                            class="lecture-frame"
-                            title="인강 패널"
-                            loading="lazy"
-                            referrerpolicy="strict-origin-when-cross-origin"
-                            allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
-                            allowfullscreen
-                        ></iframe>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 10 Minutes Planner -->
-        <section id="tab-planner" class="tab-panel">
-            <div class="planner-paper">
-                <!-- Header -->
-                <div class="planner-header">
-                    <div class="planner-date-row">
-                        <button id="planner-prev-day" class="planner-nav-btn" type="button">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
-                        <div class="planner-date-center">
-                            <span class="planner-date-kicker">10 MINUTES PLANNER</span>
-                            <h2 id="planner-date-title" class="planner-date-title">2026년 3월 11일 수요일</h2>
-                        </div>
-                        <button id="planner-next-day" class="planner-nav-btn" type="button">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </button>
-                    </div>
-                    <div class="planner-dday-row">
-                        <div class="planner-dday-chip" id="planner-dday-chip">
-                            <span class="planner-dday-label">D-DAY</span>
-                            <span class="planner-dday-value" id="planner-dday-value">설정하기</span>
-                        </div>
-                        <div class="planner-dday-setup hidden" id="planner-dday-setup">
-                            <input id="planner-dday-target" class="planner-dday-input" type="date" placeholder="목표일">
-                            <input id="planner-dday-name" class="planner-dday-input" type="text" maxlength="30" placeholder="수능, 모의고사 등">
-                            <button id="planner-dday-save" class="planner-dday-save-btn" type="button">저장</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Subject Summary -->
-                <div class="planner-subject-summary" id="planner-subject-summary">
-                    <div class="planner-section-label">과목별 학습</div>
-                    <div class="planner-subject-chips" id="planner-subject-chips"></div>
-                </div>
-
-                <!-- Main Content Grid -->
-                <div class="planner-content-grid">
-                    <!-- Left: Timeline -->
-                    <div class="planner-timeline-section">
-                        <div class="planner-section-label">타임라인</div>
-                        <div class="planner-timeline-legend">
-                            <span class="planner-legend-item"><i class="planner-legend-dot planner-legend-plan"></i>계획</span>
-                            <span class="planner-legend-item"><i class="planner-legend-dot planner-legend-actual"></i>실제</span>
-                        </div>
-                        <div class="planner-timeline" id="planner-timeline"></div>
-                    </div>
-
-                    <!-- Right: Quick Plan Add & Memo -->
-                    <div class="planner-sidebar">
-                        <!-- Quick Plan Add -->
-                        <div class="planner-add-section">
-                            <div class="planner-section-label">빠른 계획 추가</div>
-                            <form id="planner-add-form" class="planner-add-form">
-                                <label class="planner-add-field">
-                                    <span class="planner-label-text">과목</span>
-                                    <select id="planner-add-subject" class="planner-add-input planner-add-select"></select>
-                                </label>
-                                <label class="planner-add-field">
-                                    <span class="planner-label-text">시간</span>
-                                    <div class="planner-add-time-row">
-                                        <input id="planner-add-start" class="planner-add-input" type="time" required>
-                                        <span class="planner-add-sep">~</span>
-                                        <input id="planner-add-end" class="planner-add-input" type="time" required>
-                                    </div>
-                                </label>
-                                <label class="planner-add-field">
-                                    <span class="planner-label-text">메모</span>
-                                    <input id="planner-add-note" class="planner-add-input" type="text" maxlength="80" placeholder="할 일 메모">
-                                </label>
-                                <button class="planner-add-btn" type="submit">추가</button>
-                            </form>
-                        </div>
-
-                        <!-- Memo -->
-                        <div class="planner-memo-section">
-                            <div class="planner-section-label">메모</div>
-                            <textarea id="planner-memo" class="planner-memo" maxlength="500" placeholder="오늘의 다짐, 반성, 메모를 자유롭게 적어보세요..."></textarea>
-                            <button id="planner-memo-save" class="planner-memo-save-btn" type="button">메모 저장</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Daily Stats -->
-                <div class="planner-stats">
-                    <div class="planner-stat-card">
-                        <span class="planner-stat-label">계획 시간</span>
-                        <strong id="planner-stat-planned" class="planner-stat-value">0h 0m</strong>
-                    </div>
-                    <div class="planner-stat-card">
-                        <span class="planner-stat-label">실제 공부</span>
-                        <strong id="planner-stat-actual" class="planner-stat-value">0h 0m</strong>
-                    </div>
-                    <div class="planner-stat-card">
-                        <span class="planner-stat-label">달성률</span>
-                        <strong id="planner-stat-rate" class="planner-stat-value">0%</strong>
-                    </div>
-                </div>
-
-                <!-- Paper texture footer -->
-                <div class="planner-footer">
-                    <span class="planner-footer-text">P.A.T.H — 10 Minutes Planner</span>
-                </div>
-            </div>
-        </section>
-
-        <section id="tab-calendar" class="tab-panel">
-            <div class="calendar-head">
-                <button id="week-prev-btn" class="week-nav-btn" type="button">◀ 이전 주</button>
-                <div id="week-label" class="week-label">이번 주</div>
-                <button id="week-next-btn" class="week-nav-btn" type="button">다음 주 ▶</button>
-            </div>
-            <div class="calendar-overview">
-                <div class="calendar-overview-copy">
-                    <span class="calendar-overview-kicker">선택 날짜</span>
-                    <h3 id="calendar-selected-date-label" class="calendar-selected-date-label">오늘 일정</h3>
-                    <p id="calendar-selected-date-summary" class="calendar-selected-date-summary">주간 타임라인에서 날짜를 누르면 해당 날짜 요약이 보입니다.</p>
-                </div>
-                <div class="calendar-overview-actions">
-                    <button id="calendar-today-btn" class="week-nav-btn" type="button">오늘로 이동</button>
-                    <button id="calendar-open-planner-btn" class="week-nav-btn" type="button">플래너에서 보기</button>
-                </div>
-            </div>
-            <div id="calendar-timeline" class="calendar-timeline"></div>
-            <div id="calendar-day-panel" class="calendar-day-panel" aria-live="polite"></div>
-
-            <form id="calendar-plan-form" class="plan-form">
-                <select id="plan-subject-select" class="plan-input" required></select>
-                <input id="plan-date" class="plan-input" type="date" required>
-                <input id="plan-start-time" class="plan-input" type="time" required>
-                <input id="plan-end-time" class="plan-input" type="time" required>
-                <input id="plan-note" class="plan-input" type="text" maxlength="120" placeholder="메모(선택)">
-                <button id="plan-add-btn" class="plan-submit-btn" type="submit">타임라인 추가</button>
-                <button id="plan-cancel-btn" class="plan-secondary-btn hidden" type="button">편집 취소</button>
+          <button id="plan-toggle-btn" class="plan-toggle-btn" type="button">
+            학습 플랜 <span id="plan-toggle-arrow">▾</span>
+          </button>
+          <div id="plan-section" class="plan-section hidden">
+            <form id="study-plan-form" class="study-plan-form">
+              <input
+                id="study-plan-subject"
+                class="plan-input"
+                type="text"
+                maxlength="60"
+                placeholder="과목 (선택)"
+              />
+              <input
+                id="study-plan-topic"
+                class="plan-input"
+                type="text"
+                maxlength="120"
+                placeholder="세부 계획 (예: 영단어 50개 외우기)"
+                required
+              />
+              <input
+                id="study-plan-duration"
+                class="plan-input"
+                type="number"
+                min="5"
+                max="300"
+                step="5"
+                placeholder="시간 (분)"
+              />
+              <input
+                id="study-plan-note"
+                class="plan-input"
+                type="text"
+                maxlength="120"
+                placeholder="메모 (선택)"
+              />
+              <button id="study-plan-add-btn" class="plan-submit-btn" type="submit">
+                플랜 추가하기
+              </button>
             </form>
-            <div id="plan-form-status" class="plan-form-status">주간 계획이나 수업 일정을 추가하고 드래그로 옮길 수 있습니다.</div>
-        </section>
+            <div id="study-plan-list" class="study-plan-list" aria-live="polite"></div>
+            <div class="study-plan-actions">
+              <button id="study-plan-sync-btn" class="plan-submit-btn" type="button">
+                플래너 날짜에 일정 반영
+              </button>
+              <span id="study-plan-sync-meta" class="subject-hint"
+                >반영 기준 날짜를 불러오는 중...</span
+              >
+            </div>
+          </div>
+        </div>
 
-        <section id="tab-scorecalc" class="tab-panel">
-            <div class="scorecalc-head">
-                <p class="scorecalc-kicker">UNIVERSITY SCORE CALCULATOR</p>
-                <h2 class="scorecalc-title">대학별 환산점수 계산기</h2>
-                <p class="scorecalc-copy">현재 서버에 저장된 대학별 반영비율/등급표를 기준으로 환산점수를 계산합니다.</p>
+        <div class="mode-group" id="mode-group">
+          <button id="mode-timer" class="mode-btn active" type="button">타이머</button>
+          <button id="mode-stopwatch" class="mode-btn" type="button">스톱워치</button>
+        </div>
+
+        <!-- Timer Setup (Visible initially) -->
+        <div id="setup-area" class="setup-group">
+          <div class="time-presets" id="time-presets">
+            <button class="time-preset-btn" type="button" data-hr="0" data-min="30">30분</button>
+            <button class="time-preset-btn active" type="button" data-hr="1" data-min="20">
+              80분
+            </button>
+            <button class="time-preset-btn" type="button" data-hr="1" data-min="40">100분</button>
+          </div>
+          <div class="time-inputs-row">
+            <div class="input-unit">
+              <input
+                type="number"
+                id="input-hr"
+                class="time-input"
+                value="01"
+                placeholder="00"
+                min="0"
+                step="1"
+              />
+              <span class="unit-label">시간</span>
+            </div>
+            <div class="input-sep">:</div>
+            <div class="input-unit">
+              <input
+                type="number"
+                id="input-min"
+                class="time-input"
+                value="20"
+                placeholder="20"
+                min="0"
+                step="1"
+              />
+              <span class="unit-label">분</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Timer Display -->
+        <div id="main-timer" class="timer-display">
+          <span id="display-time">00:00</span><span id="ms" class="timer-ms">.00</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="control-group">
+          <button id="enter-btn" class="btn-primary cmd-btn">학습 시작하기</button>
+          <button id="break-btn" class="btn-danger cmd-btn hidden">중단하기</button>
+        </div>
+
+        <div class="lecture-wrap">
+          <div id="lecture-panel" class="lecture-panel hidden">
+            <div class="lecture-head">
+              <strong>인강 모드</strong>
+              <button id="lecture-close-btn" class="lecture-close-btn" type="button">닫기</button>
+            </div>
+            <p class="lecture-copy">
+              타이머를 유지한 채 앱 내부에서 인강을 볼 수 있어요. 외부 앱/브라우저로 나가면 기존처럼
+              실패 처리됩니다.
+            </p>
+            <div class="lecture-url-row">
+              <input
+                id="lecture-url-input"
+                class="lecture-url-input"
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=..."
+              />
+              <button id="lecture-open-btn" class="lecture-open-btn" type="button">열기</button>
+            </div>
+            <div id="lecture-preset-wrap" class="lecture-preset-wrap">
+              <button class="lecture-preset-btn" type="button" data-url="https://www.youtube.com/">
+                YouTube
+              </button>
+              <button class="lecture-preset-btn" type="button" data-url="https://www.ebsi.co.kr/">
+                EBSi
+              </button>
+              <button
+                class="lecture-preset-btn"
+                type="button"
+                data-url="https://www.megastudy.net/"
+              >
+                메가스터디
+              </button>
+            </div>
+            <p id="lecture-hint" class="lecture-hint">허용된 인강 도메인만 열 수 있습니다.</p>
+            <div class="lecture-frame-wrap">
+              <iframe
+                id="lecture-frame"
+                class="lecture-frame"
+                title="인강 패널"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="fullscreen; autoplay; encrypted-media; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10 Minutes Planner -->
+      <section id="tab-planner" class="tab-panel">
+        <div class="planner-paper">
+          <!-- Header -->
+          <div class="planner-header">
+            <div class="planner-date-row">
+              <button id="planner-prev-day" class="planner-nav-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 3L5 8l5 5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="planner-date-center">
+                <span class="planner-date-kicker">10 MINUTES PLANNER</span>
+                <h2 id="planner-date-title" class="planner-date-title">2026년 3월 11일 수요일</h2>
+              </div>
+              <button id="planner-next-day" class="planner-nav-btn" type="button">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M6 3l5 5-5 5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div class="planner-dday-row">
+              <div class="planner-dday-chip" id="planner-dday-chip">
+                <span class="planner-dday-label">D-DAY</span>
+                <span class="planner-dday-value" id="planner-dday-value">설정하기</span>
+              </div>
+              <div class="planner-dday-setup hidden" id="planner-dday-setup">
+                <input
+                  id="planner-dday-target"
+                  class="planner-dday-input"
+                  type="date"
+                  placeholder="목표일"
+                />
+                <input
+                  id="planner-dday-name"
+                  class="planner-dday-input"
+                  type="text"
+                  maxlength="30"
+                  placeholder="수능, 모의고사 등"
+                />
+                <button id="planner-dday-save" class="planner-dday-save-btn" type="button">
+                  저장
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject Summary -->
+          <div class="planner-subject-summary" id="planner-subject-summary">
+            <div class="planner-section-label">과목별 학습</div>
+            <div class="planner-subject-chips" id="planner-subject-chips"></div>
+          </div>
+
+          <!-- Main Content Grid -->
+          <div class="planner-content-grid">
+            <!-- Left: Timeline -->
+            <div class="planner-timeline-section">
+              <div class="planner-section-label">타임라인</div>
+              <div class="planner-timeline-legend">
+                <span class="planner-legend-item"
+                  ><i class="planner-legend-dot planner-legend-plan"></i>계획</span
+                >
+                <span class="planner-legend-item"
+                  ><i class="planner-legend-dot planner-legend-actual"></i>실제</span
+                >
+              </div>
+              <div class="planner-timeline" id="planner-timeline"></div>
             </div>
 
-            <div class="scorecalc-grid">
-                <label class="scorecalc-field">
-                    <span>대학 선택</span>
-                    <select id="scorecalc-university" class="plan-input"></select>
-                </label>
-                <label class="scorecalc-field">
-                    <span>계열(전형)</span>
-                    <select id="scorecalc-track" class="plan-input"></select>
-                </label>
-                <label class="scorecalc-field">
-                    <span>학과 카테고리</span>
-                    <select id="scorecalc-category" class="plan-input">
-                        <option value="">전체</option>
-                    </select>
-                </label>
-                <label class="scorecalc-field">
-                    <span>국어 표준점수</span>
-                    <input id="scorecalc-korean" class="plan-input" type="number" min="0" max="200" step="1" placeholder="예: 132">
-                </label>
-                <label class="scorecalc-field">
-                    <span>수학 표준점수</span>
-                    <input id="scorecalc-math" class="plan-input" type="number" min="0" max="200" step="1" placeholder="예: 137">
-                </label>
-                <label class="scorecalc-field">
-                    <span>탐구1 표준점수</span>
-                    <input id="scorecalc-inquiry1" class="plan-input" type="number" min="0" max="100" step="1" placeholder="예: 67">
-                </label>
-                <label class="scorecalc-field">
-                    <span>탐구2 표준점수</span>
-                    <input id="scorecalc-inquiry2" class="plan-input" type="number" min="0" max="100" step="1" placeholder="예: 66">
-                </label>
-                <label class="scorecalc-field">
-                    <span>영어 등급</span>
-                    <input id="scorecalc-english-grade" class="plan-input" type="number" min="1" max="9" step="1" placeholder="1~9">
-                </label>
-                <label class="scorecalc-field">
-                    <span>한국사 등급</span>
-                    <input id="scorecalc-history-grade" class="plan-input" type="number" min="1" max="9" step="1" placeholder="1~9">
-                </label>
-                <label class="scorecalc-field">
-                    <span>수학 선택</span>
-                    <select id="scorecalc-math-choice" class="plan-input">
-                        <option value="">선택 안 함</option>
-                        <option value="미적분/기하">미적분/기하</option>
-                        <option value="확률과통계">확률과통계</option>
-                    </select>
-                </label>
-                <label class="scorecalc-field">
-                    <span>탐구 유형</span>
-                    <select id="scorecalc-inquiry-type" class="plan-input">
-                        <option value="">선택 안 함</option>
-                        <option value="과탐">과탐</option>
-                        <option value="사탐">사탐</option>
-                    </select>
-                </label>
+            <!-- Right: Quick Plan Add & Memo -->
+            <div class="planner-sidebar">
+              <!-- Quick Plan Add -->
+              <div class="planner-add-section">
+                <div class="planner-section-label">빠른 계획 추가</div>
+                <form id="planner-add-form" class="planner-add-form">
+                  <label class="planner-add-field">
+                    <span class="planner-label-text">과목</span>
+                    <select
+                      id="planner-add-subject"
+                      class="planner-add-input planner-add-select"
+                    ></select>
+                  </label>
+                  <label class="planner-add-field">
+                    <span class="planner-label-text">시간</span>
+                    <div class="planner-add-time-row">
+                      <input
+                        id="planner-add-start"
+                        class="planner-add-input"
+                        type="time"
+                        required
+                      />
+                      <span class="planner-add-sep">~</span>
+                      <input id="planner-add-end" class="planner-add-input" type="time" required />
+                    </div>
+                  </label>
+                  <label class="planner-add-field">
+                    <span class="planner-label-text">메모</span>
+                    <input
+                      id="planner-add-note"
+                      class="planner-add-input"
+                      type="text"
+                      maxlength="80"
+                      placeholder="할 일 메모"
+                    />
+                  </label>
+                  <button class="planner-add-btn" type="submit">추가</button>
+                </form>
+              </div>
+
+              <!-- Memo -->
+              <div class="planner-memo-section">
+                <div class="planner-section-label">메모</div>
+                <textarea
+                  id="planner-memo"
+                  class="planner-memo"
+                  maxlength="500"
+                  placeholder="오늘의 다짐, 반성, 메모를 자유롭게 적어보세요..."
+                ></textarea>
+                <button id="planner-memo-save" class="planner-memo-save-btn" type="button">
+                  메모 저장
+                </button>
+              </div>
             </div>
+          </div>
 
-            <div class="scorecalc-actions">
-                <button id="scorecalc-calc-btn" type="button" class="btn-primary">환산점수 계산하기</button>
+          <!-- Daily Stats -->
+          <div class="planner-stats">
+            <div class="planner-stat-card">
+              <span class="planner-stat-label">계획 시간</span>
+              <strong id="planner-stat-planned" class="planner-stat-value">0h 0m</strong>
             </div>
-
-            <div id="scorecalc-result" class="scorecalc-result" aria-live="polite">
-                대학과 계열을 선택하고 점수를 입력한 뒤 계산을 눌러주세요.
+            <div class="planner-stat-card">
+              <span class="planner-stat-label">실제 공부</span>
+              <strong id="planner-stat-actual" class="planner-stat-value">0h 0m</strong>
             </div>
-        </section>
-
-        <section id="tab-balloon" class="tab-panel">
-            <div class="balloon-journey">
-                <div class="balloon-hero">
-                    <p class="balloon-kicker">GROWTH REPORT</p>
-                    <h2 class="balloon-title">오늘 학습 흐름과 합격 가능성 변화를 확인하세요</h2>
-                    <p class="balloon-copy">학습량과 백분위 변화를 기반으로 성장 방향을 요약해 드립니다.</p>
-                </div>
-
-                <div class="balloon-sky-card" aria-label="학습 리포트 요약 카드">
-                    <div class="report-pulse report-pulse-a"></div>
-                    <div class="report-pulse report-pulse-b"></div>
-                    <div class="report-pulse report-pulse-c"></div>
-                    <div class="balloon-badge">FOCUS REPORT</div>
-                </div>
-
-                <div class="balloon-metrics">
-                    <article class="balloon-metric">
-                        <span class="balloon-metric-label">오늘 집중 시간</span>
-                        <strong id="balloon-metric-today" class="balloon-metric-val">-</strong>
-                    </article>
-                    <article class="balloon-metric">
-                        <span class="balloon-metric-label">누적 집중 시간</span>
-                        <strong id="balloon-metric-total" class="balloon-metric-val">-</strong>
-                    </article>
-                    <article class="balloon-metric">
-                        <span class="balloon-metric-label">목표 달성 시간</span>
-                        <strong id="balloon-metric-success" class="balloon-metric-val">-</strong>
-                    </article>
-                </div>
-
-                <article class="balloon-ai-report" aria-live="polite">
-                    <p class="balloon-ai-kicker">AI 입시 리포트</p>
-                    <h3 id="balloon-ai-headline" class="balloon-ai-headline">리포트를 계산하는 중입니다...</h3>
-                    <p id="balloon-ai-detail" class="balloon-ai-detail">현재 백분위와 공부 시간을 분석하고 있습니다.</p>
-                    <p id="balloon-ai-meta" class="balloon-ai-meta">학습 지표 기반 추정치</p>
-                </article>
+            <div class="planner-stat-card">
+              <span class="planner-stat-label">달성률</span>
+              <strong id="planner-stat-rate" class="planner-stat-value">0%</strong>
             </div>
-        </section>
+          </div>
 
-        <!-- Group timer rooms section -->
-        <section id="tab-rooms" class="tab-panel">
+          <!-- Paper texture footer -->
+          <div class="planner-footer">
+            <span class="planner-footer-text">P.A.T.H — 10 Minutes Planner</span>
+          </div>
+        </div>
+      </section>
 
+      <section id="tab-calendar" class="tab-panel">
+        <div class="calendar-head">
+          <button id="week-prev-btn" class="week-nav-btn" type="button">◀ 이전 주</button>
+          <div id="week-label" class="week-label">이번 주</div>
+          <button id="week-next-btn" class="week-nav-btn" type="button">다음 주 ▶</button>
+        </div>
+        <div class="calendar-overview">
+          <div class="calendar-overview-copy">
+            <span class="calendar-overview-kicker">선택 날짜</span>
+            <h3 id="calendar-selected-date-label" class="calendar-selected-date-label">
+              오늘 일정
+            </h3>
+            <p id="calendar-selected-date-summary" class="calendar-selected-date-summary">
+              주간 타임라인에서 날짜를 누르면 해당 날짜 요약이 보입니다.
+            </p>
+          </div>
+          <div class="calendar-overview-actions">
+            <button id="calendar-today-btn" class="week-nav-btn" type="button">오늘로 이동</button>
+            <button id="calendar-open-planner-btn" class="week-nav-btn" type="button">
+              플래너에서 보기
+            </button>
+          </div>
+        </div>
+        <div id="calendar-timeline" class="calendar-timeline"></div>
+        <div id="calendar-day-panel" class="calendar-day-panel" aria-live="polite"></div>
+
+        <form id="calendar-plan-form" class="plan-form">
+          <select id="plan-subject-select" class="plan-input" required></select>
+          <input id="plan-date" class="plan-input" type="date" required />
+          <input id="plan-start-time" class="plan-input" type="time" required />
+          <input id="plan-end-time" class="plan-input" type="time" required />
+          <input
+            id="plan-note"
+            class="plan-input"
+            type="text"
+            maxlength="120"
+            placeholder="메모(선택)"
+          />
+          <button id="plan-add-btn" class="plan-submit-btn" type="submit">타임라인 추가</button>
+          <button id="plan-cancel-btn" class="plan-secondary-btn hidden" type="button">
+            편집 취소
+          </button>
+        </form>
+        <div id="plan-form-status" class="plan-form-status">
+          주간 계획이나 수업 일정을 추가하고 드래그로 옮길 수 있습니다.
+        </div>
+      </section>
+
+      <section id="tab-scorecalc" class="tab-panel">
+        <div class="scorecalc-head">
+          <p class="scorecalc-kicker">UNIVERSITY SCORE CALCULATOR</p>
+          <h2 class="scorecalc-title">대학별 환산점수 계산기</h2>
+          <p class="scorecalc-copy">
+            현재 서버에 저장된 대학별 반영비율/등급표를 기준으로 환산점수를 계산합니다.
+          </p>
+        </div>
+
+        <div class="scorecalc-grid">
+          <label class="scorecalc-field">
+            <span>대학 선택</span>
+            <select id="scorecalc-university" class="plan-input"></select>
+          </label>
+          <label class="scorecalc-field">
+            <span>계열(전형)</span>
+            <select id="scorecalc-track" class="plan-input"></select>
+          </label>
+          <label class="scorecalc-field">
+            <span>학과 카테고리</span>
+            <select id="scorecalc-category" class="plan-input">
+              <option value="">전체</option>
+            </select>
+          </label>
+          <label class="scorecalc-field">
+            <span>국어 표준점수</span>
+            <input
+              id="scorecalc-korean"
+              class="plan-input"
+              type="number"
+              min="0"
+              max="200"
+              step="1"
+              placeholder="예: 132"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>수학 표준점수</span>
+            <input
+              id="scorecalc-math"
+              class="plan-input"
+              type="number"
+              min="0"
+              max="200"
+              step="1"
+              placeholder="예: 137"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>탐구1 표준점수</span>
+            <input
+              id="scorecalc-inquiry1"
+              class="plan-input"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              placeholder="예: 67"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>탐구2 표준점수</span>
+            <input
+              id="scorecalc-inquiry2"
+              class="plan-input"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              placeholder="예: 66"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>영어 등급</span>
+            <input
+              id="scorecalc-english-grade"
+              class="plan-input"
+              type="number"
+              min="1"
+              max="9"
+              step="1"
+              placeholder="1~9"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>한국사 등급</span>
+            <input
+              id="scorecalc-history-grade"
+              class="plan-input"
+              type="number"
+              min="1"
+              max="9"
+              step="1"
+              placeholder="1~9"
+            />
+          </label>
+          <label class="scorecalc-field">
+            <span>수학 선택</span>
+            <select id="scorecalc-math-choice" class="plan-input">
+              <option value="">선택 안 함</option>
+              <option value="미적분/기하">미적분/기하</option>
+              <option value="확률과통계">확률과통계</option>
+            </select>
+          </label>
+          <label class="scorecalc-field">
+            <span>탐구 유형</span>
+            <select id="scorecalc-inquiry-type" class="plan-input">
+              <option value="">선택 안 함</option>
+              <option value="과탐">과탐</option>
+              <option value="사탐">사탐</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="scorecalc-actions">
+          <button id="scorecalc-calc-btn" type="button" class="btn-primary">
+            환산점수 계산하기
+          </button>
+        </div>
+
+        <div id="scorecalc-result" class="scorecalc-result" aria-live="polite">
+          대학과 계열을 선택하고 점수를 입력한 뒤 계산을 눌러주세요.
+        </div>
+      </section>
+
+      <section id="tab-balloon" class="tab-panel">
+        <div class="balloon-journey">
+          <div class="balloon-hero">
+            <p class="balloon-kicker">GROWTH REPORT</p>
+            <h2 class="balloon-title">오늘 학습 흐름과 합격 가능성 변화를 확인하세요</h2>
+            <p class="balloon-copy">학습량과 백분위 변화를 기반으로 성장 방향을 요약해 드립니다.</p>
+          </div>
+
+          <div class="balloon-sky-card" aria-label="학습 리포트 요약 카드">
+            <div class="report-pulse report-pulse-a"></div>
+            <div class="report-pulse report-pulse-b"></div>
+            <div class="report-pulse report-pulse-c"></div>
+            <div class="balloon-badge">FOCUS REPORT</div>
+          </div>
+
+          <div class="balloon-metrics">
+            <article class="balloon-metric">
+              <span class="balloon-metric-label">오늘 집중 시간</span>
+              <strong id="balloon-metric-today" class="balloon-metric-val">-</strong>
+            </article>
+            <article class="balloon-metric">
+              <span class="balloon-metric-label">누적 집중 시간</span>
+              <strong id="balloon-metric-total" class="balloon-metric-val">-</strong>
+            </article>
+            <article class="balloon-metric">
+              <span class="balloon-metric-label">목표 달성 시간</span>
+              <strong id="balloon-metric-success" class="balloon-metric-val">-</strong>
+            </article>
+          </div>
+
+          <article class="balloon-ai-report" aria-live="polite">
+            <p class="balloon-ai-kicker">AI 입시 리포트</p>
+            <h3 id="balloon-ai-headline" class="balloon-ai-headline">
+              리포트를 계산하는 중입니다...
+            </h3>
+            <p id="balloon-ai-detail" class="balloon-ai-detail">
+              현재 백분위와 공부 시간을 분석하고 있습니다.
+            </p>
+            <p id="balloon-ai-meta" class="balloon-ai-meta">학습 지표 기반 추정치</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Group timer rooms section -->
+      <section id="tab-rooms" class="tab-panel">
         <!-- Room List View -->
         <div id="rooms-list-view">
-            <div class="rooms-header">
-                <div class="rooms-header-text">
-                    <h2 class="rooms-title">그룹 타이머</h2>
-                    <p class="rooms-subtitle">함께 공부하고, 서로를 자극하세요</p>
-                </div>
+          <div class="rooms-header">
+            <div class="rooms-header-text">
+              <h2 class="rooms-title">그룹 타이머</h2>
+              <p class="rooms-subtitle">함께 공부하고, 서로를 자극하세요</p>
             </div>
+          </div>
 
-            <!-- List view tabs -->
-            <div class="room-list-tabs">
-                <button class="room-list-tab active" data-tab="my" onclick="GroupRooms.switchListTab('my')">내 방</button>
-                <button class="room-list-tab" data-tab="public" onclick="GroupRooms.switchListTab('public')">공개 방 탐색</button>
-            </div>
+          <!-- List view tabs -->
+          <div class="room-list-tabs">
+            <button
+              class="room-list-tab active"
+              data-tab="my"
+              onclick="GroupRooms.switchListTab('my')"
+            >
+              내 방
+            </button>
+            <button
+              class="room-list-tab"
+              data-tab="public"
+              onclick="GroupRooms.switchListTab('public')"
+            >
+              공개 방 탐색
+            </button>
+          </div>
 
-            <!-- My rooms panel -->
-            <div id="room-list-panel-my" class="room-list-panel">
-                <div class="rooms-actions">
-                    <button id="rooms-open-create" class="room-btn-primary" onclick="GroupRooms.showCreateModal()">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                        방 만들기
-                    </button>
-                    <button id="rooms-open-join" class="room-btn-ghost" onclick="GroupRooms.showJoinModal()">코드로 입장</button>
-                </div>
-                <div id="rooms-list" class="rooms-list"></div>
+          <!-- My rooms panel -->
+          <div id="room-list-panel-my" class="room-list-panel">
+            <div class="rooms-actions">
+              <button
+                id="rooms-open-create"
+                class="room-btn-primary"
+                onclick="GroupRooms.showCreateModal()"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M8 2v12M2 8h12"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                방 만들기
+              </button>
+              <button
+                id="rooms-open-join"
+                class="room-btn-ghost"
+                onclick="GroupRooms.showJoinModal()"
+              >
+                코드로 입장
+              </button>
             </div>
+            <div id="rooms-list" class="rooms-list"></div>
+          </div>
 
-            <!-- Public rooms browse panel -->
-            <div id="room-list-panel-public" class="room-list-panel hidden">
-                <div class="room-public-controls">
-                    <div class="room-search-wrap">
-                        <svg class="room-search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-                        <input id="room-search-input" class="room-search-input" type="text" placeholder="방 이름, 목표 검색..." oninput="GroupRooms._onPublicSearch(this.value)">
-                    </div>
-                    <div class="room-sort-pills">
-                        <button class="room-sort-pill active" data-sort="study" onclick="GroupRooms.setPublicSort('study')">공부량순</button>
-                        <button class="room-sort-pill" data-sort="members" onclick="GroupRooms.setPublicSort('members')">인원순</button>
-                        <button class="room-sort-pill" data-sort="new" onclick="GroupRooms.setPublicSort('new')">최신순</button>
-                    </div>
-                </div>
-                <div id="room-public-list" class="rooms-list"></div>
-                <button id="room-public-load-more" class="room-load-more-btn hidden" onclick="GroupRooms.loadMorePublic()">더 보기</button>
+          <!-- Public rooms browse panel -->
+          <div id="room-list-panel-public" class="room-list-panel hidden">
+            <div class="room-public-controls">
+              <div class="room-search-wrap">
+                <svg
+                  class="room-search-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                >
+                  <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6" />
+                  <path
+                    d="M11 11l3 3"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <input
+                  id="room-search-input"
+                  class="room-search-input"
+                  type="text"
+                  placeholder="방 이름, 목표 검색..."
+                  oninput="GroupRooms._onPublicSearch(this.value)"
+                />
+              </div>
+              <div class="room-sort-pills">
+                <button
+                  class="room-sort-pill active"
+                  data-sort="study"
+                  onclick="GroupRooms.setPublicSort('study')"
+                >
+                  공부량순
+                </button>
+                <button
+                  class="room-sort-pill"
+                  data-sort="members"
+                  onclick="GroupRooms.setPublicSort('members')"
+                >
+                  인원순
+                </button>
+                <button
+                  class="room-sort-pill"
+                  data-sort="new"
+                  onclick="GroupRooms.setPublicSort('new')"
+                >
+                  최신순
+                </button>
+              </div>
             </div>
+            <div id="room-public-list" class="rooms-list"></div>
+            <button
+              id="room-public-load-more"
+              class="room-load-more-btn hidden"
+              onclick="GroupRooms.loadMorePublic()"
+            >
+              더 보기
+            </button>
+          </div>
         </div>
 
         <!-- Room Detail View -->
         <div id="rooms-room-view" class="hidden">
-            <div class="room-view-header">
-                <button class="room-back-btn" onclick="GroupRooms.backToList()">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 15L7.5 10l5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="room-view-header">
+            <button class="room-back-btn" onclick="GroupRooms.backToList()">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M12.5 15L7.5 10l5-5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <div class="room-view-meta">
+              <span id="room-view-name" class="room-view-name"></span>
+              <span id="room-view-goal" class="room-view-goal"></span>
+            </div>
+            <button
+              class="room-settings-btn"
+              onclick="GroupRooms.showSettingsModal()"
+              aria-label="방 설정"
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.7" />
+                <path
+                  d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Room Visual -->
+          <div id="room-visual" class="room-visual wallpaper-default">
+            <div class="room-visual-ambience"></div>
+            <div class="room-visual-floor"></div>
+            <div id="room-props-display" class="room-props-display"></div>
+            <div id="room-decor-score-chip" class="room-decor-score-chip">REALISM 0</div>
+            <button
+              id="room-decor-open-btn"
+              class="room-decor-open-btn"
+              onclick="GroupRooms.showDecorModal()"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M13 3a1 1 0 00-1.4 0L5 9.6 3 11l1.4 1.4 1.4-2L12.4 4.4A1 1 0 0013 3zM2 14h12"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              방 꾸미기
+            </button>
+          </div>
+
+          <div class="room-invite-row">
+            <div class="room-invite-info">
+              <span class="room-invite-label">초대 코드</span>
+              <code id="room-view-code" class="room-invite-code"></code>
+            </div>
+            <div class="room-invite-btns">
+              <button
+                class="room-copy-btn room-copy-btn-secondary"
+                onclick="GroupRooms.shareDecorShowcase()"
+              >
+                룸 자랑
+              </button>
+              <button
+                class="room-copy-btn room-copy-btn-secondary"
+                onclick="GroupRooms.copyInviteLink()"
+              >
+                복사
+              </button>
+              <button class="room-copy-btn" onclick="GroupRooms.shareInviteLink()">
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                  <path
+                    d="M9.5 1L12 3.5 9.5 6M2 7v2a2 2 0 002 2h5.5M5 4.5L2.5 7 5 9.5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                공유
+              </button>
+            </div>
+          </div>
+
+          <!-- Stats: Donut chart + Weekly bar -->
+          <div class="room-stats-section">
+            <div class="room-stat-card">
+              <div class="room-stat-card-title">오늘 공부량</div>
+              <div class="room-donut-wrap">
+                <div class="room-donut-chart-container">
+                  <svg viewBox="0 0 40 40" class="room-donut-svg">
+                    <circle
+                      cx="20"
+                      cy="20"
+                      r="15.9155"
+                      fill="none"
+                      stroke="var(--surface-soft)"
+                      stroke-width="3.5"
+                    />
+                    <g id="room-donut-segments"></g>
+                  </svg>
+                  <div id="room-donut-center" class="room-donut-center">
+                    <div class="room-donut-center-val">—</div>
+                    <div class="room-donut-center-label">공부 중</div>
+                  </div>
+                </div>
+                <div id="room-donut-legend" class="room-donut-legend"></div>
+              </div>
+            </div>
+            <div class="room-stat-card">
+              <div class="room-stat-card-title">이번 주 그룹 공부량</div>
+              <div id="room-weekly-chart" class="room-weekly-chart">
+                <div class="room-weekly-loading">불러오는 중…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="room-panels">
+            <!-- Leaderboard -->
+            <div class="room-panel room-panel-lb">
+              <div class="room-panel-title">오늘의 순위</div>
+              <div id="room-leaderboard" class="room-leaderboard"></div>
+            </div>
+
+            <!-- Activity feed -->
+            <div class="room-panel room-panel-activity">
+              <div class="room-panel-title">실시간 활동</div>
+              <div id="room-activity-feed" class="room-activity-feed"></div>
+            </div>
+          </div>
+
+          <!-- Chat -->
+          <div class="room-chat">
+            <div class="room-panel-title">그룹 채팅</div>
+            <div id="room-chat-messages" class="room-chat-messages"></div>
+            <div class="room-chat-input-row">
+              <input
+                id="room-chat-input"
+                class="room-chat-input"
+                type="text"
+                maxlength="500"
+                placeholder="메시지를 입력하세요"
+                onkeydown="
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    GroupRooms.sendMessage();
+                  }
+                "
+              />
+              <button class="room-chat-send-btn" onclick="GroupRooms.sendMessage()">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M16 9L2 2l2.5 7L2 16l14-7z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Create Room Bottom Sheet -->
+      <div
+        id="room-create-modal"
+        class="room-sheet-backdrop hidden"
+        onclick="if (event.target === this) GroupRooms.hideCreateModal();"
+      >
+        <div class="room-sheet">
+          <div class="room-sheet-handle"></div>
+          <h2 class="room-sheet-title">방 만들기</h2>
+          <form
+            id="room-create-form"
+            onsubmit="GroupRooms.submitCreateRoom(event)"
+            class="room-form"
+          >
+            <div class="room-field">
+              <label class="room-field-label">방 이름</label>
+              <input
+                id="room-create-name"
+                class="room-input"
+                type="text"
+                maxlength="60"
+                placeholder="예: 의대 목표 새벽반"
+                required
+              />
+            </div>
+            <div class="room-field">
+              <label class="room-field-label"
+                >목표 <span class="room-field-optional">선택</span></label
+              >
+              <input
+                id="room-create-goal"
+                class="room-input"
+                type="text"
+                maxlength="100"
+                placeholder="목표 대학 또는 목표"
+              />
+            </div>
+            <div class="room-field">
+              <label class="room-field-label">최대 인원</label>
+              <input
+                id="room-create-max"
+                class="room-input"
+                type="number"
+                min="2"
+                max="50"
+                value="10"
+              />
+            </div>
+            <div class="room-sheet-actions">
+              <button id="room-create-submit" type="submit" class="room-btn-primary">
+                방 만들기
+              </button>
+              <button
+                id="room-create-cancel"
+                type="button"
+                class="room-btn-ghost"
+                onclick="GroupRooms.hideCreateModal()"
+              >
+                취소
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Join Room Bottom Sheet -->
+      <div
+        id="room-join-modal"
+        class="room-sheet-backdrop hidden"
+        onclick="if (event.target === this) GroupRooms.hideJoinModal();"
+      >
+        <div class="room-sheet">
+          <div class="room-sheet-handle"></div>
+          <h2 class="room-sheet-title">코드로 입장</h2>
+          <p class="room-sheet-desc">친구에게 받은 초대 코드를 입력하세요</p>
+          <form id="room-join-form" onsubmit="GroupRooms.submitJoinRoom(event)" class="room-form">
+            <div class="room-field">
+              <input
+                id="room-join-code"
+                class="room-input room-input-code"
+                type="text"
+                maxlength="12"
+                placeholder="초대 코드 12자리"
+                required
+              />
+            </div>
+            <div class="room-sheet-actions">
+              <button id="room-join-submit" type="submit" class="room-btn-primary">입장하기</button>
+              <button
+                id="room-join-cancel"
+                type="button"
+                class="room-btn-ghost"
+                onclick="GroupRooms.hideJoinModal()"
+              >
+                취소
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Room Settings Bottom Sheet -->
+      <div
+        id="room-settings-modal"
+        class="room-sheet-backdrop hidden"
+        onclick="if (event.target === this) GroupRooms.hideSettingsModal();"
+      >
+        <div class="room-sheet">
+          <div class="room-sheet-handle"></div>
+          <h2 class="room-sheet-title">방 설정</h2>
+
+          <!-- Creator-only: edit room info -->
+          <div id="room-settings-creator-section" class="hidden">
+            <div class="room-settings-group">
+              <div class="room-settings-group-label">방 정보 수정</div>
+              <div class="room-field">
+                <label class="room-field-label">방 이름</label>
+                <input
+                  id="room-edit-name"
+                  class="room-input"
+                  type="text"
+                  maxlength="60"
+                  placeholder="방 이름"
+                />
+              </div>
+              <div class="room-field">
+                <label class="room-field-label"
+                  >목표 <span class="room-field-optional">선택</span></label
+                >
+                <input
+                  id="room-edit-goal"
+                  class="room-input"
+                  type="text"
+                  maxlength="100"
+                  placeholder="목표 대학 또는 목표"
+                />
+              </div>
+              <div class="room-field">
+                <label class="room-field-label">최대 인원</label>
+                <input id="room-edit-max" class="room-input" type="number" min="2" max="50" />
+              </div>
+              <div class="room-field">
+                <div class="room-field-toggle-row">
+                  <div>
+                    <div class="room-field-label">공개 방</div>
+                    <div class="room-field-hint">공개 방은 누구나 검색하여 입장할 수 있어요</div>
+                  </div>
+                  <label class="room-toggle-switch">
+                    <input type="checkbox" id="room-edit-public" />
+                    <span class="room-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+              <button
+                id="room-edit-submit"
+                type="button"
+                class="room-btn-primary room-btn-full"
+                onclick="GroupRooms.submitEditRoom()"
+              >
+                변경 저장
+              </button>
+            </div>
+          </div>
+
+          <div id="room-settings-member-controls" class="hidden"></div>
+
+          <!-- All members: leave / creator: delete -->
+          <div class="room-settings-danger-zone">
+            <button
+              class="room-settings-action room-settings-action-leave"
+              onclick="GroupRooms.leaveCurrentRoom()"
+            >
+              방 나가기
+            </button>
+            <button
+              id="room-settings-delete-btn"
+              class="room-settings-action room-settings-action-delete hidden"
+              onclick="GroupRooms.deleteRoom()"
+            >
+              방 삭제하기
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Room Decoration Bottom Sheet -->
+      <div
+        id="room-decor-modal"
+        class="room-sheet-backdrop hidden"
+        onclick="if (event.target === this) GroupRooms.hideDecorModal();"
+      >
+        <div class="room-sheet room-sheet-tall">
+          <div class="room-sheet-handle"></div>
+
+          <!-- Header -->
+          <div class="room-decor-header">
+            <h2 class="room-sheet-title" style="margin: 0">방 꾸미기</h2>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <div class="room-decor-gold-badge">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="7" fill="#FFB300" opacity=".2" />
+                  <circle cx="8" cy="8" r="4" fill="#FFB300" />
+                </svg>
+                <span id="room-decor-gold-val">—</span>G
+              </div>
+              <button
+                id="room-decor-close-btn"
+                class="room-sheet-close-btn"
+                onclick="GroupRooms.hideDecorModal()"
+                aria-label="닫기"
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path
+                    d="M4 4l10 10M14 4L4 14"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="room-decor-tabs">
+            <button
+              class="room-decor-tab active"
+              data-tab="wallpaper"
+              onclick="GroupRooms.switchDecorTab('wallpaper')"
+            >
+              벽지
+            </button>
+            <button
+              class="room-decor-tab"
+              data-tab="props"
+              onclick="GroupRooms.switchDecorTab('props')"
+            >
+              소품
+            </button>
+            <button
+              class="room-decor-tab"
+              data-tab="contrib"
+              onclick="GroupRooms.switchDecorTab('contrib')"
+            >
+              기여도
+            </button>
+            <button
+              class="room-decor-tab"
+              data-tab="showcase"
+              onclick="GroupRooms.switchDecorTab('showcase')"
+            >
+              자랑
+            </button>
+          </div>
+
+          <!-- Wallpaper tab -->
+          <div id="room-decor-wallpaper" class="room-decor-panel">
+            <div id="room-wallpaper-grid" class="room-wallpaper-grid"></div>
+          </div>
+
+          <!-- Props tab -->
+          <div id="room-decor-props" class="room-decor-panel hidden">
+            <p class="room-decor-hint">소품을 구매하면 방에 배치됩니다. (최대 9개)</p>
+            <div id="room-props-grid" class="room-props-grid"></div>
+          </div>
+
+          <!-- Contribution tab -->
+          <div id="room-decor-contrib" class="room-decor-panel hidden">
+            <div id="room-contrib-list" class="room-contrib-list">
+              <div class="room-weekly-loading">불러오는 중…</div>
+            </div>
+          </div>
+
+          <!-- Showcase tab -->
+          <div id="room-decor-showcase" class="room-decor-panel hidden">
+            <div class="room-showcase-card">
+              <div class="room-showcase-kicker">ROOM STYLE REPORT</div>
+              <div id="room-showcase-grade" class="room-showcase-grade">준비 중</div>
+              <div class="room-showcase-score-row">
+                <span>리얼리즘 점수</span>
+                <strong id="room-showcase-score">0</strong>
+              </div>
+              <div id="room-showcase-meta" class="room-showcase-meta">
+                오늘 그룹 공부 0분 · 내 순위 -
+              </div>
+              <div id="room-showcase-mood" class="room-showcase-mood">분위기를 계산 중입니다.</div>
+              <div id="room-showcase-caption" class="room-showcase-caption">
+                아직 꾸미기 정보가 없어요.
+              </div>
+              <div class="room-showcase-actions">
+                <button
+                  class="room-copy-btn room-copy-btn-secondary"
+                  onclick="GroupRooms.copyDecorShowcaseText()"
+                >
+                  문구 복사
                 </button>
-                <div class="room-view-meta">
-                    <span id="room-view-name" class="room-view-name"></span>
-                    <span id="room-view-goal" class="room-view-goal"></span>
-                </div>
-                <button class="room-settings-btn" onclick="GroupRooms.showSettingsModal()" aria-label="방 설정">
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                <button
+                  class="room-copy-btn room-copy-btn-secondary"
+                  onclick="GroupRooms.saveDecorShowcaseImage()"
+                >
+                  카드 저장
                 </button>
-            </div>
-
-            <!-- Room Visual -->
-            <div id="room-visual" class="room-visual wallpaper-default">
-                <div class="room-visual-ambience"></div>
-                <div class="room-visual-floor"></div>
-                <div id="room-props-display" class="room-props-display"></div>
-                <div id="room-decor-score-chip" class="room-decor-score-chip">REALISM 0</div>
-                <button id="room-decor-open-btn" class="room-decor-open-btn" onclick="GroupRooms.showDecorModal()">
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13 3a1 1 0 00-1.4 0L5 9.6 3 11l1.4 1.4 1.4-2L12.4 4.4A1 1 0 0013 3zM2 14h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    방 꾸미기
+                <button class="room-copy-btn" onclick="GroupRooms.shareDecorShowcase()">
+                  자랑 공유
                 </button>
+              </div>
             </div>
-
-            <div class="room-invite-row">
-                <div class="room-invite-info">
-                    <span class="room-invite-label">초대 코드</span>
-                    <code id="room-view-code" class="room-invite-code"></code>
-                </div>
-                <div class="room-invite-btns">
-                    <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.shareDecorShowcase()">룸 자랑</button>
-                    <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.copyInviteLink()">복사</button>
-                    <button class="room-copy-btn" onclick="GroupRooms.shareInviteLink()">
-                        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M9.5 1L12 3.5 9.5 6M2 7v2a2 2 0 002 2h5.5M5 4.5L2.5 7 5 9.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        공유
-                    </button>
-                </div>
-            </div>
-
-            <!-- Stats: Donut chart + Weekly bar -->
-            <div class="room-stats-section">
-                <div class="room-stat-card">
-                    <div class="room-stat-card-title">오늘 공부량</div>
-                    <div class="room-donut-wrap">
-                        <div class="room-donut-chart-container">
-                            <svg viewBox="0 0 40 40" class="room-donut-svg">
-                                <circle cx="20" cy="20" r="15.9155" fill="none" stroke="var(--surface-soft)" stroke-width="3.5"/>
-                                <g id="room-donut-segments"></g>
-                            </svg>
-                            <div id="room-donut-center" class="room-donut-center">
-                                <div class="room-donut-center-val">—</div>
-                                <div class="room-donut-center-label">공부 중</div>
-                            </div>
-                        </div>
-                        <div id="room-donut-legend" class="room-donut-legend"></div>
-                    </div>
-                </div>
-                <div class="room-stat-card">
-                    <div class="room-stat-card-title">이번 주 그룹 공부량</div>
-                    <div id="room-weekly-chart" class="room-weekly-chart">
-                        <div class="room-weekly-loading">불러오는 중…</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="room-panels">
-                <!-- Leaderboard -->
-                <div class="room-panel room-panel-lb">
-                    <div class="room-panel-title">오늘의 순위</div>
-                    <div id="room-leaderboard" class="room-leaderboard"></div>
-                </div>
-
-                <!-- Activity feed -->
-                <div class="room-panel room-panel-activity">
-                    <div class="room-panel-title">실시간 활동</div>
-                    <div id="room-activity-feed" class="room-activity-feed"></div>
-                </div>
-            </div>
-
-            <!-- Chat -->
-            <div class="room-chat">
-                <div class="room-panel-title">그룹 채팅</div>
-                <div id="room-chat-messages" class="room-chat-messages"></div>
-                <div class="room-chat-input-row">
-                    <input id="room-chat-input" class="room-chat-input" type="text" maxlength="500"
-                           placeholder="메시지를 입력하세요"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();GroupRooms.sendMessage();}">
-                    <button class="room-chat-send-btn" onclick="GroupRooms.sendMessage()">
-                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M16 9L2 2l2.5 7L2 16l14-7z" fill="currentColor"/></svg>
-                    </button>
-                </div>
-            </div>
+          </div>
         </div>
-        </section>
-
-        <!-- Create Room Bottom Sheet -->
-        <div id="room-create-modal" class="room-sheet-backdrop hidden" onclick="if(event.target===this)GroupRooms.hideCreateModal()">
-            <div class="room-sheet">
-                <div class="room-sheet-handle"></div>
-                <h2 class="room-sheet-title">방 만들기</h2>
-                <form id="room-create-form" onsubmit="GroupRooms.submitCreateRoom(event)" class="room-form">
-                    <div class="room-field">
-                        <label class="room-field-label">방 이름</label>
-                        <input id="room-create-name" class="room-input" type="text" maxlength="60" placeholder="예: 의대 목표 새벽반" required>
-                    </div>
-                    <div class="room-field">
-                        <label class="room-field-label">목표 <span class="room-field-optional">선택</span></label>
-                        <input id="room-create-goal" class="room-input" type="text" maxlength="100" placeholder="목표 대학 또는 목표">
-                    </div>
-                    <div class="room-field">
-                        <label class="room-field-label">최대 인원</label>
-                        <input id="room-create-max" class="room-input" type="number" min="2" max="50" value="10">
-                    </div>
-                    <div class="room-sheet-actions">
-                        <button id="room-create-submit" type="submit" class="room-btn-primary">방 만들기</button>
-                        <button id="room-create-cancel" type="button" class="room-btn-ghost" onclick="GroupRooms.hideCreateModal()">취소</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Join Room Bottom Sheet -->
-        <div id="room-join-modal" class="room-sheet-backdrop hidden" onclick="if(event.target===this)GroupRooms.hideJoinModal()">
-            <div class="room-sheet">
-                <div class="room-sheet-handle"></div>
-                <h2 class="room-sheet-title">코드로 입장</h2>
-                <p class="room-sheet-desc">친구에게 받은 초대 코드를 입력하세요</p>
-                <form id="room-join-form" onsubmit="GroupRooms.submitJoinRoom(event)" class="room-form">
-                    <div class="room-field">
-                        <input id="room-join-code" class="room-input room-input-code" type="text" maxlength="12" placeholder="초대 코드 12자리" required>
-                    </div>
-                    <div class="room-sheet-actions">
-                        <button id="room-join-submit" type="submit" class="room-btn-primary">입장하기</button>
-                        <button id="room-join-cancel" type="button" class="room-btn-ghost" onclick="GroupRooms.hideJoinModal()">취소</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Room Settings Bottom Sheet -->
-        <div id="room-settings-modal" class="room-sheet-backdrop hidden" onclick="if(event.target===this)GroupRooms.hideSettingsModal()">
-            <div class="room-sheet">
-                <div class="room-sheet-handle"></div>
-                <h2 class="room-sheet-title">방 설정</h2>
-
-                <!-- Creator-only: edit room info -->
-                <div id="room-settings-creator-section" class="hidden">
-                    <div class="room-settings-group">
-                        <div class="room-settings-group-label">방 정보 수정</div>
-                        <div class="room-field">
-                            <label class="room-field-label">방 이름</label>
-                            <input id="room-edit-name" class="room-input" type="text" maxlength="60" placeholder="방 이름">
-                        </div>
-                        <div class="room-field">
-                            <label class="room-field-label">목표 <span class="room-field-optional">선택</span></label>
-                            <input id="room-edit-goal" class="room-input" type="text" maxlength="100" placeholder="목표 대학 또는 목표">
-                        </div>
-                        <div class="room-field">
-                            <label class="room-field-label">최대 인원</label>
-                            <input id="room-edit-max" class="room-input" type="number" min="2" max="50">
-                        </div>
-                        <div class="room-field">
-                            <div class="room-field-toggle-row">
-                                <div>
-                                    <div class="room-field-label">공개 방</div>
-                                    <div class="room-field-hint">공개 방은 누구나 검색하여 입장할 수 있어요</div>
-                                </div>
-                                <label class="room-toggle-switch">
-                                    <input type="checkbox" id="room-edit-public">
-                                    <span class="room-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <button id="room-edit-submit" type="button" class="room-btn-primary room-btn-full" onclick="GroupRooms.submitEditRoom()">변경 저장</button>
-                    </div>
-                </div>
-
-                <div id="room-settings-member-controls" class="hidden"></div>
-
-                <!-- All members: leave / creator: delete -->
-                <div class="room-settings-danger-zone">
-                    <button class="room-settings-action room-settings-action-leave" onclick="GroupRooms.leaveCurrentRoom()">방 나가기</button>
-                    <button id="room-settings-delete-btn" class="room-settings-action room-settings-action-delete hidden" onclick="GroupRooms.deleteRoom()">방 삭제하기</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Room Decoration Bottom Sheet -->
-        <div id="room-decor-modal" class="room-sheet-backdrop hidden" onclick="if(event.target===this)GroupRooms.hideDecorModal()">
-            <div class="room-sheet room-sheet-tall">
-                <div class="room-sheet-handle"></div>
-
-                <!-- Header -->
-                <div class="room-decor-header">
-                    <h2 class="room-sheet-title" style="margin:0">방 꾸미기</h2>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <div class="room-decor-gold-badge">
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#FFB300" opacity=".2"/><circle cx="8" cy="8" r="4" fill="#FFB300"/></svg>
-                            <span id="room-decor-gold-val">—</span>G
-                        </div>
-                        <button id="room-decor-close-btn" class="room-sheet-close-btn" onclick="GroupRooms.hideDecorModal()" aria-label="닫기">
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tabs -->
-                <div class="room-decor-tabs">
-                    <button class="room-decor-tab active" data-tab="wallpaper" onclick="GroupRooms.switchDecorTab('wallpaper')">벽지</button>
-                    <button class="room-decor-tab" data-tab="props" onclick="GroupRooms.switchDecorTab('props')">소품</button>
-                    <button class="room-decor-tab" data-tab="contrib" onclick="GroupRooms.switchDecorTab('contrib')">기여도</button>
-                    <button class="room-decor-tab" data-tab="showcase" onclick="GroupRooms.switchDecorTab('showcase')">자랑</button>
-                </div>
-
-                <!-- Wallpaper tab -->
-                <div id="room-decor-wallpaper" class="room-decor-panel">
-                    <div id="room-wallpaper-grid" class="room-wallpaper-grid"></div>
-                </div>
-
-                <!-- Props tab -->
-                <div id="room-decor-props" class="room-decor-panel hidden">
-                    <p class="room-decor-hint">소품을 구매하면 방에 배치됩니다. (최대 9개)</p>
-                    <div id="room-props-grid" class="room-props-grid"></div>
-                </div>
-
-                <!-- Contribution tab -->
-                <div id="room-decor-contrib" class="room-decor-panel hidden">
-                    <div id="room-contrib-list" class="room-contrib-list">
-                        <div class="room-weekly-loading">불러오는 중…</div>
-                    </div>
-                </div>
-
-                <!-- Showcase tab -->
-                <div id="room-decor-showcase" class="room-decor-panel hidden">
-                    <div class="room-showcase-card">
-                        <div class="room-showcase-kicker">ROOM STYLE REPORT</div>
-                        <div id="room-showcase-grade" class="room-showcase-grade">준비 중</div>
-                        <div class="room-showcase-score-row">
-                            <span>리얼리즘 점수</span>
-                            <strong id="room-showcase-score">0</strong>
-                        </div>
-                        <div id="room-showcase-meta" class="room-showcase-meta">오늘 그룹 공부 0분 · 내 순위 -</div>
-                        <div id="room-showcase-mood" class="room-showcase-mood">분위기를 계산 중입니다.</div>
-                        <div id="room-showcase-caption" class="room-showcase-caption">아직 꾸미기 정보가 없어요.</div>
-                        <div class="room-showcase-actions">
-                            <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.copyDecorShowcaseText()">문구 복사</button>
-                            <button class="room-copy-btn room-copy-btn-secondary" onclick="GroupRooms.saveDecorShowcaseImage()">카드 저장</button>
-                            <button class="room-copy-btn" onclick="GroupRooms.shareDecorShowcase()">자랑 공유</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </main>
 
-    <div id="hub-overlay" class="hub-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="hub-overlay-title">
-        <div class="hub-overlay-card">
-            <div class="hub-overlay-head">
-                <h3 id="hub-overlay-title">빠른 실행</h3>
-                <button id="hub-overlay-close" type="button" class="hub-overlay-close" aria-label="닫기">×</button>
-            </div>
-            <div id="hub-overlay-body" class="hub-overlay-body"></div>
-            <div class="hub-overlay-foot">
-                <button id="hub-overlay-confirm" type="button" class="home-refresh-btn">확인</button>
-            </div>
+    <div
+      id="hub-overlay"
+      class="hub-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="hub-overlay-title"
+    >
+      <div class="hub-overlay-card">
+        <div class="hub-overlay-head">
+          <h3 id="hub-overlay-title">빠른 실행</h3>
+          <button id="hub-overlay-close" type="button" class="hub-overlay-close" aria-label="닫기">
+            ×
+          </button>
         </div>
+        <div id="hub-overlay-body" class="hub-overlay-body"></div>
+        <div class="hub-overlay-foot">
+          <button id="hub-overlay-confirm" type="button" class="home-refresh-btn">확인</button>
+        </div>
+      </div>
     </div>
 
     <!-- Result Overlay -->
     <div id="overlay" class="result-overlay hidden">
-        <div class="result-card">
-            <h1 id="res-title" class="result-header">학습 완료!</h1>
-            <div id="res-loot" class="result-details"></div>
-            <div id="study-proof-section" class="study-proof-section hidden">
-                <div class="study-proof-title">공부 인증샷 업로드</div>
-                <label for="study-proof-file" class="study-proof-picker">사진 선택</label>
-                <input id="study-proof-file" type="file" accept="image/*" class="study-proof-file" multiple>
-                <button id="study-proof-upload-btn" type="button" class="study-proof-upload-btn" disabled>인증샷들 업로드하고 추가 골드 받기</button>
-                <div id="study-proof-status" class="study-proof-status"></div>
-            </div>
-            <button id="reset-btn" class="btn-primary cmd-btn">돌아가기</button>
+      <div class="result-card">
+        <h1 id="res-title" class="result-header">학습 완료!</h1>
+        <div id="res-loot" class="result-details"></div>
+        <div id="study-proof-section" class="study-proof-section hidden">
+          <div class="study-proof-title">공부 인증샷 업로드</div>
+          <label for="study-proof-file" class="study-proof-picker">사진 선택</label>
+          <input
+            id="study-proof-file"
+            type="file"
+            accept="image/*"
+            class="study-proof-file"
+            multiple
+          />
+          <button id="study-proof-upload-btn" type="button" class="study-proof-upload-btn" disabled>
+            인증샷들 업로드하고 추가 골드 받기
+          </button>
+          <div id="study-proof-status" class="study-proof-status"></div>
         </div>
+        <button id="reset-btn" class="btn-primary cmd-btn">돌아가기</button>
+      </div>
     </div>
 
     <!-- Profile Edit Modal -->
-    <div id="profile-edit-backdrop" class="room-sheet-backdrop hidden" onclick="if(event.target===this)closeEditProfile()">
-        <div class="room-sheet room-sheet-tall">
-            <div class="room-sheet-header">
-                <h2 class="room-sheet-title">프로필 수정</h2>
-                <button class="room-sheet-close-btn" onclick="closeEditProfile()" aria-label="닫기">×</button>
-            </div>
-            <div id="profile-edit-body" class="room-sheet-body" style="padding:12px 16px 8px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto;">
-                <!-- Profile Image -->
-                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-                    <div id="profile-edit-avatar-preview" style="width:72px;height:72px;border-radius:50%;background:var(--surface-soft);border:2px solid var(--line-color);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;" onclick="document.getElementById('profile-edit-photo-input').click()">
-                        <span id="profile-edit-avatar-letter">?</span>
-                        <img id="profile-edit-avatar-img" style="width:100%;height:100%;object-fit:cover;display:none;" alt="프로필">
-                    </div>
-                    <label for="profile-edit-photo-input" style="font-size:11px;color:var(--text-muted);cursor:pointer;">사진 변경</label>
-                    <input type="file" id="profile-edit-photo-input" accept="image/*" style="display:none;">
-                </div>
-                <!-- Nickname -->
-                <div class="room-form-group">
-                    <label class="room-label" for="profile-edit-nickname">닉네임</label>
-                    <input id="profile-edit-nickname" class="room-input" type="text" maxlength="20" placeholder="2~20자">
-                </div>
-                <!-- University -->
-                <div class="room-form-group" style="position:relative;">
-                    <label class="room-label" for="profile-edit-university">목표 대학교</label>
-                    <input id="profile-edit-university" class="room-input" type="text" placeholder="대학명 검색" autocomplete="off">
-                    <div id="profile-edit-univ-results" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;"></div>
-                </div>
-                <!-- N수생 -->
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="checkbox" id="profile-edit-nsu" style="accent-color:var(--accent-blue);width:16px;height:16px;cursor:pointer;">
-                    <label for="profile-edit-nsu" style="font-size:12px;color:var(--text-secondary);cursor:pointer;">N수생입니다</label>
-                </div>
-                <!-- Prev University -->
-                <div id="profile-edit-prev-univ-field" class="room-form-group hidden" style="position:relative;">
-                    <label class="room-label" for="profile-edit-prev-university">전적 대학교</label>
-                    <input id="profile-edit-prev-university" class="room-input" type="text" placeholder="재학/졸업한 대학" autocomplete="off">
-                    <div id="profile-edit-prev-univ-results" class="hidden" style="position:absolute;top:100%;left:0;right:0;background:var(--surface-strong);border:1px solid var(--line-color);border-top:none;max-height:160px;overflow-y:auto;z-index:2000;"></div>
-                </div>
-                <!-- Friend Request Setting -->
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface-soft);border:1px solid var(--line-color);border-radius:10px;gap:10px;">
-                    <div>
-                        <div style="font-size:12px;color:var(--text-primary);font-weight:600;">동맹 신청 받기</div>
-                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">비활성화 시 다른 사용자가 동맹 신청을 보낼 수 없습니다.</div>
-                    </div>
-                    <label style="position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;">
-                        <input type="checkbox" id="profile-edit-allow-friend-req" style="opacity:0;width:0;height:0;">
-                        <span id="profile-edit-friend-req-slider" style="position:absolute;cursor:pointer;inset:0;background:#333;border-radius:24px;transition:background 0.2s;"></span>
-                    </label>
-                </div>
-                <!-- Error -->
-                <div id="profile-edit-error" style="font-size:11px;color:#ff6b6b;min-height:14px;"></div>
-            </div>
-            <div style="padding:0 16px calc(16px + env(safe-area-inset-bottom));display:flex;gap:8px;flex-shrink:0;">
-                <button type="button" class="room-btn-ghost" style="flex:1;" onclick="closeEditProfile()">취소</button>
-                <button type="button" class="room-btn-primary" style="flex:2;" id="profile-edit-submit-btn" onclick="submitEditProfile()">저장</button>
-            </div>
+    <div
+      id="profile-edit-backdrop"
+      class="room-sheet-backdrop hidden"
+      onclick="if (event.target === this) closeEditProfile();"
+    >
+      <div class="room-sheet room-sheet-tall">
+        <div class="room-sheet-header">
+          <h2 class="room-sheet-title">프로필 수정</h2>
+          <button class="room-sheet-close-btn" onclick="closeEditProfile()" aria-label="닫기">
+            ×
+          </button>
         </div>
+        <div
+          id="profile-edit-body"
+          class="room-sheet-body"
+          style="
+            padding: 12px 16px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+          "
+        >
+          <!-- Profile Image -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px">
+            <div
+              id="profile-edit-avatar-preview"
+              style="
+                width: 72px;
+                height: 72px;
+                border-radius: 50%;
+                background: var(--surface-soft);
+                border: 2px solid var(--line-color);
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 28px;
+                cursor: pointer;
+              "
+              onclick="document.getElementById('profile-edit-photo-input').click()"
+            >
+              <span id="profile-edit-avatar-letter">?</span>
+              <img
+                id="profile-edit-avatar-img"
+                style="width: 100%; height: 100%; object-fit: cover; display: none"
+                alt="프로필"
+              />
+            </div>
+            <label
+              for="profile-edit-photo-input"
+              style="font-size: 11px; color: var(--text-muted); cursor: pointer"
+              >사진 변경</label
+            >
+            <input
+              type="file"
+              id="profile-edit-photo-input"
+              accept="image/*"
+              style="display: none"
+            />
+          </div>
+          <!-- Nickname -->
+          <div class="room-form-group">
+            <label class="room-label" for="profile-edit-nickname">닉네임</label>
+            <input
+              id="profile-edit-nickname"
+              class="room-input"
+              type="text"
+              maxlength="20"
+              placeholder="2~20자"
+            />
+          </div>
+          <!-- University -->
+          <div class="room-form-group" style="position: relative">
+            <label class="room-label" for="profile-edit-university">목표 대학교</label>
+            <input
+              id="profile-edit-university"
+              class="room-input"
+              type="text"
+              placeholder="대학명 검색"
+              autocomplete="off"
+            />
+            <div
+              id="profile-edit-univ-results"
+              class="hidden"
+              style="
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--surface-strong);
+                border: 1px solid var(--line-color);
+                border-top: none;
+                max-height: 160px;
+                overflow-y: auto;
+                z-index: 2000;
+              "
+            ></div>
+          </div>
+          <!-- N수생 -->
+          <div style="display: flex; align-items: center; gap: 8px">
+            <input
+              type="checkbox"
+              id="profile-edit-nsu"
+              style="accent-color: var(--accent-blue); width: 16px; height: 16px; cursor: pointer"
+            />
+            <label
+              for="profile-edit-nsu"
+              style="font-size: 12px; color: var(--text-secondary); cursor: pointer"
+              >N수생입니다</label
+            >
+          </div>
+          <!-- Prev University -->
+          <div
+            id="profile-edit-prev-univ-field"
+            class="room-form-group hidden"
+            style="position: relative"
+          >
+            <label class="room-label" for="profile-edit-prev-university">전적 대학교</label>
+            <input
+              id="profile-edit-prev-university"
+              class="room-input"
+              type="text"
+              placeholder="재학/졸업한 대학"
+              autocomplete="off"
+            />
+            <div
+              id="profile-edit-prev-univ-results"
+              class="hidden"
+              style="
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: var(--surface-strong);
+                border: 1px solid var(--line-color);
+                border-top: none;
+                max-height: 160px;
+                overflow-y: auto;
+                z-index: 2000;
+              "
+            ></div>
+          </div>
+          <!-- Friend Request Setting -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 10px 12px;
+              background: var(--surface-soft);
+              border: 1px solid var(--line-color);
+              border-radius: 10px;
+              gap: 10px;
+            "
+          >
+            <div>
+              <div style="font-size: 12px; color: var(--text-primary); font-weight: 600">
+                동맹 신청 받기
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">
+                비활성화 시 다른 사용자가 동맹 신청을 보낼 수 없습니다.
+              </div>
+            </div>
+            <label
+              style="
+                position: relative;
+                display: inline-block;
+                width: 42px;
+                height: 24px;
+                flex-shrink: 0;
+              "
+            >
+              <input
+                type="checkbox"
+                id="profile-edit-allow-friend-req"
+                style="opacity: 0; width: 0; height: 0"
+              />
+              <span
+                id="profile-edit-friend-req-slider"
+                style="
+                  position: absolute;
+                  cursor: pointer;
+                  inset: 0;
+                  background: #333;
+                  border-radius: 24px;
+                  transition: background 0.2s;
+                "
+              ></span>
+            </label>
+          </div>
+          <!-- Error -->
+          <div
+            id="profile-edit-error"
+            style="font-size: 11px; color: #ff6b6b; min-height: 14px"
+          ></div>
+        </div>
+        <div
+          style="
+            padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+          "
+        >
+          <button type="button" class="room-btn-ghost" style="flex: 1" onclick="closeEditProfile()">
+            취소
+          </button>
+          <button
+            type="button"
+            class="room-btn-primary"
+            style="flex: 2"
+            id="profile-edit-submit-btn"
+            onclick="submitEditProfile()"
+          >
+            저장
+          </button>
+        </div>
+      </div>
     </div>
 
     <script src="/study-hub/wakelock.js?v=4"></script>
@@ -1091,28 +1840,33 @@
     <script src="/study-hub/cam.js?v=4"></script>
     <script src="/study-hub/ui.js?v=11"></script>
     <script>
-    (function () {
-        var apiOrigin = String(window.PATH_API_ORIGIN || '').trim().replace(/\/$/, '');
+      (function () {
+        var apiOrigin = String(window.PATH_API_ORIGIN || '')
+          .trim()
+          .replace(/\/$/, '');
 
         function loadRoomsScript() {
-            if (window.__pathRoomsScriptLoaded) return;
-            window.__pathRoomsScriptLoaded = true;
-            var rooms = document.createElement('script');
-            rooms.src = '/study-hub/rooms.js?v=2';
-            document.body.appendChild(rooms);
+          if (window.__pathRoomsScriptLoaded) return;
+          window.__pathRoomsScriptLoaded = true;
+          var rooms = document.createElement('script');
+          rooms.src = '/study-hub/rooms.js?v=2';
+          document.body.appendChild(rooms);
         }
 
         function appendSocket(src, onError) {
-            var s = document.createElement('script');
-            s.src = src;
-            s.onload = loadRoomsScript;
-            s.onerror = onError || loadRoomsScript;
-            document.body.appendChild(s);
+          var s = document.createElement('script');
+          s.src = src;
+          s.onload = loadRoomsScript;
+          s.onerror = onError || loadRoomsScript;
+          document.body.appendChild(s);
         }
 
         appendSocket('/socket.io/socket.io.js');
-    })();
+      })();
     </script>
-    <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{});</script>
-</body>
+    <script>
+      if ('serviceWorker' in navigator)
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    </script>
+  </body>
 </html>

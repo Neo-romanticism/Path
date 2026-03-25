@@ -1,669 +1,835 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>P.A.T.H 관리자 대시보드</title>
     <!-- PWA -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0b0f19">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0f19" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <style>
-        :root {
-            --bg: #0b0f19;
-            --surface: #141a29;
-            --surface-2: #1b2336;
-            --line: rgba(255, 255, 255, 0.1);
-            --line-strong: rgba(255, 255, 255, 0.2);
-            --text: #eef2ff;
-            --muted: #98a2c7;
-            --primary: #e3b341;
-            --primary-bg: rgba(227, 179, 65, 0.12);
-            --danger: #f16363;
-            --danger-bg: rgba(241, 99, 99, 0.12);
-            --success: #55d187;
-            --success-bg: rgba(85, 209, 135, 0.14);
-            --pending: #ffcd58;
-            --pending-bg: rgba(255, 205, 88, 0.14);
-        }
+      :root {
+        --bg: #0b0f19;
+        --surface: #141a29;
+        --surface-2: #1b2336;
+        --line: rgba(255, 255, 255, 0.1);
+        --line-strong: rgba(255, 255, 255, 0.2);
+        --text: #eef2ff;
+        --muted: #98a2c7;
+        --primary: #e3b341;
+        --primary-bg: rgba(227, 179, 65, 0.12);
+        --danger: #f16363;
+        --danger-bg: rgba(241, 99, 99, 0.12);
+        --success: #55d187;
+        --success-bg: rgba(85, 209, 135, 0.14);
+        --pending: #ffcd58;
+        --pending-bg: rgba(255, 205, 88, 0.14);
+      }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        body {
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at 12% 8%, rgba(227, 179, 65, 0.13), transparent 30%),
-                radial-gradient(circle at 88% 4%, rgba(73, 156, 255, 0.16), transparent 27%),
-                var(--bg);
-            color: var(--text);
-            font-family: "Noto Sans KR", "Pretendard", sans-serif;
-            padding: 20px;
-        }
+      body {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% 8%, rgba(227, 179, 65, 0.13), transparent 30%),
+          radial-gradient(circle at 88% 4%, rgba(73, 156, 255, 0.16), transparent 27%), var(--bg);
+        color: var(--text);
+        font-family: 'Noto Sans KR', 'Pretendard', sans-serif;
+        padding: 20px;
+      }
 
-        .wrap {
-            max-width: 1220px;
-            margin: 0 auto;
-        }
+      .wrap {
+        max-width: 1220px;
+        margin: 0 auto;
+      }
 
-        .header {
-            background: linear-gradient(120deg, rgba(227, 179, 65, 0.08), rgba(73, 156, 255, 0.08));
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 18px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 14px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
+      .header {
+        background: linear-gradient(120deg, rgba(227, 179, 65, 0.08), rgba(73, 156, 255, 0.08));
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
 
-        .title {
-            font-size: 18px;
-            letter-spacing: 0.08em;
-            font-weight: 700;
-        }
+      .title {
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
 
-        .title-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
 
+      .title-logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        border: 1px solid var(--line-strong);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px;
+        object-fit: cover;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
+      }
+
+      .sub {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        border: 1px solid var(--line-strong);
+        background: var(--surface);
+        color: var(--text);
+        border-radius: 9px;
+        font-size: 12px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+
+      .btn.primary {
+        border-color: var(--primary);
+        background: var(--primary-bg);
+        color: var(--primary);
+      }
+
+      .btn.danger {
+        border-color: var(--danger);
+        background: var(--danger-bg);
+        color: var(--danger);
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .auto-refresh {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+        user-select: none;
+      }
+
+      .notice {
+        display: none;
+        margin: 12px 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .notice.error {
+        display: block;
+        border-color: var(--danger);
+        background: var(--danger-bg);
+        color: #ffd0d0;
+      }
+
+      .notice.ok {
+        display: block;
+        border-color: var(--success);
+        background: var(--success-bg);
+        color: #d6ffe7;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        padding: 12px;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 5px;
+      }
+
+      .stat-value {
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .tab-btn.active {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: var(--primary-bg);
+      }
+
+      .panel {
+        display: none;
+      }
+
+      .panel.active {
+        display: block;
+      }
+
+      .filter-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .field {
+        width: 100%;
+        padding: 9px 10px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 11px;
+        padding: 14px;
+      }
+
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+
+      .name {
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      .meta strong {
+        color: #d9e0ff;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        border: 1px solid transparent;
+      }
+
+      .badge.pending {
+        color: var(--pending);
+        background: var(--pending-bg);
+        border-color: rgba(255, 205, 88, 0.32);
+      }
+      .badge.approved {
+        color: var(--success);
+        background: var(--success-bg);
+        border-color: rgba(85, 209, 135, 0.3);
+      }
+      .badge.rejected {
+        color: var(--danger);
+        background: var(--danger-bg);
+        border-color: rgba(241, 99, 99, 0.35);
+      }
+      .badge.none {
+        color: #9ca6cc;
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--line);
+      }
+
+      .review-block {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px;
+        background: var(--surface-2);
+      }
+
+      .review-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .proof {
+        display: block;
+        width: min(320px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        margin-top: 8px;
+        cursor: pointer;
+      }
+
+      .action-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .score-input-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .score-input-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .score-input-item span {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .edit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .edit-grid .field {
+        margin: 0;
+      }
+
+      .empty {
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        padding: 22px;
+        text-align: center;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.02);
+        font-size: 13px;
+      }
+
+      .result-meta {
+        margin-bottom: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .uni-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .uni-card {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .uni-card .label {
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .uni-card .value {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .uni-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 10px;
+        align-items: center;
+      }
+
+      .json-editor {
+        width: 100%;
+        min-height: 190px;
+        resize: vertical;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: #0e1422;
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        padding: 10px;
+        margin-top: 8px;
+      }
+
+      .cmd-output {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #0d1220;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        min-height: 90px;
+      }
+
+      @media (max-width: 980px) {
         .title-logo {
-            width: 30px;
-            height: 30px;
-            border-radius: 9px;
-            border: 1px solid var(--line-strong);
-            background: rgba(255, 255, 255, 0.08);
-            padding: 2px;
-            object-fit: cover;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.24);
-        }
-
-        .sub {
-            margin-top: 4px;
-            font-size: 12px;
-            color: var(--muted);
-        }
-
-        .toolbar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            border: 1px solid var(--line-strong);
-            background: var(--surface);
-            color: var(--text);
-            border-radius: 9px;
-            font-size: 12px;
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .btn.primary {
-            border-color: var(--primary);
-            background: var(--primary-bg);
-            color: var(--primary);
-        }
-
-        .btn.danger {
-            border-color: var(--danger);
-            background: var(--danger-bg);
-            color: var(--danger);
-        }
-
-        .btn:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-
-        .auto-refresh {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: var(--muted);
-            user-select: none;
-        }
-
-        .notice {
-            display: none;
-            margin: 12px 0;
-            padding: 10px 12px;
-            border-radius: 10px;
-            font-size: 13px;
-            border: 1px solid var(--line);
-            background: var(--surface);
-        }
-
-        .notice.error {
-            display: block;
-            border-color: var(--danger);
-            background: var(--danger-bg);
-            color: #ffd0d0;
-        }
-
-        .notice.ok {
-            display: block;
-            border-color: var(--success);
-            background: var(--success-bg);
-            color: #d6ffe7;
+          width: 26px;
+          height: 26px;
+          border-radius: 8px;
         }
 
         .stats {
-            display: grid;
-            grid-template-columns: repeat(6, minmax(140px, 1fr));
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 11px;
-            padding: 12px;
-        }
-
-        .stat-label {
-            font-size: 11px;
-            color: var(--muted);
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
-            font-size: 22px;
-            font-weight: 700;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-        }
-
-        .tab-btn {
-            border: 1px solid var(--line);
-            background: var(--surface);
-            color: var(--muted);
-            border-radius: 999px;
-            padding: 8px 14px;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .tab-btn.active {
-            border-color: var(--primary);
-            color: var(--primary);
-            background: var(--primary-bg);
-        }
-
-        .panel {
-            display: none;
-        }
-
-        .panel.active {
-            display: block;
+          grid-template-columns: repeat(2, minmax(140px, 1fr));
         }
 
         .filter-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .field {
-            width: 100%;
-            padding: 9px 10px;
-            border-radius: 9px;
-            border: 1px solid var(--line);
-            background: var(--surface);
-            color: var(--text);
-            font-size: 13px;
-        }
-
-        .list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .card {
-            border: 1px solid var(--line);
-            background: var(--surface);
-            border-radius: 11px;
-            padding: 14px;
-        }
-
-        .card-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
-
-        .name {
-            font-size: 14px;
-            font-weight: 700;
-        }
-
-        .meta {
-            font-size: 12px;
-            color: var(--muted);
-            line-height: 1.7;
-        }
-
-        .meta strong {
-            color: #d9e0ff;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-            border: 1px solid transparent;
-        }
-
-        .badge.pending { color: var(--pending); background: var(--pending-bg); border-color: rgba(255, 205, 88, 0.32); }
-        .badge.approved { color: var(--success); background: var(--success-bg); border-color: rgba(85, 209, 135, 0.3); }
-        .badge.rejected { color: var(--danger); background: var(--danger-bg); border-color: rgba(241, 99, 99, 0.35); }
-        .badge.none { color: #9ca6cc; background: rgba(255, 255, 255, 0.05); border-color: var(--line); }
-
-        .review-block {
-            margin-top: 10px;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            padding: 11px;
-            background: var(--surface-2);
-        }
-
-        .review-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 13px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .proof {
-            display: block;
-            width: min(320px, 100%);
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            margin-top: 8px;
-            cursor: pointer;
-        }
-
-        .action-row {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-
-        .score-input-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(180px, 1fr));
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .score-input-item {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .score-input-item span {
-            font-size: 11px;
-            color: var(--muted);
+          grid-template-columns: 1fr;
         }
 
         .edit-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(180px, 1fr));
-            gap: 8px;
-            margin-top: 10px;
+          grid-template-columns: 1fr;
         }
 
-        .edit-grid .field {
-            margin: 0;
-        }
-
-        .empty {
-            border: 1px dashed var(--line);
-            border-radius: 12px;
-            padding: 22px;
-            text-align: center;
-            color: var(--muted);
-            background: rgba(255, 255, 255, 0.02);
-            font-size: 13px;
-        }
-
-        .result-meta {
-            margin-bottom: 8px;
-            font-size: 12px;
-            color: var(--muted);
+        .score-input-grid {
+          grid-template-columns: 1fr;
         }
 
         .uni-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(120px, 1fr));
-            gap: 10px;
-            margin-bottom: 12px;
+          grid-template-columns: repeat(2, minmax(120px, 1fr));
         }
-
-        .uni-card {
-            border: 1px solid var(--line);
-            background: var(--surface);
-            border-radius: 10px;
-            padding: 10px;
-        }
-
-        .uni-card .label {
-            font-size: 11px;
-            color: var(--muted);
-            margin-bottom: 6px;
-        }
-
-        .uni-card .value {
-            font-size: 18px;
-            font-weight: 700;
-        }
-
-        .uni-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 10px;
-            align-items: center;
-        }
-
-        .json-editor {
-            width: 100%;
-            min-height: 190px;
-            resize: vertical;
-            border-radius: 9px;
-            border: 1px solid var(--line);
-            background: #0e1422;
-            color: var(--text);
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 12px;
-            line-height: 1.5;
-            padding: 10px;
-            margin-top: 8px;
-        }
-
-        .cmd-output {
-            white-space: pre-wrap;
-            word-break: break-word;
-            background: #0d1220;
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            padding: 10px;
-            font-size: 12px;
-            color: var(--muted);
-            min-height: 90px;
-        }
-
-        @media (max-width: 980px) {
-            .title-logo {
-                width: 26px;
-                height: 26px;
-                border-radius: 8px;
-            }
-
-            .stats {
-                grid-template-columns: repeat(2, minmax(140px, 1fr));
-            }
-
-            .filter-row {
-                grid-template-columns: 1fr;
-            }
-
-            .edit-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .score-input-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .uni-grid {
-                grid-template-columns: repeat(2, minmax(120px, 1fr));
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="wrap">
-        <header class="header">
-            <div>
-                <div class="title-row">
-                    <img class="title-logo" src="/brand/app-icon-master-1024.png" alt="P.A.T.H 로고">
-                    <h1 class="title">P.A.T.H ADMIN DASHBOARD</h1>
-                </div>
-                <p class="sub">점수/내신 검수, 사용자 상태 모니터링, 운영 현황 확인</p>
-            </div>
-            <div class="toolbar">
-                <span class="sub" id="last-updated">마지막 동기화: -</span>
-                <button class="btn" id="refresh-btn" type="button">새로고침</button>
-                <label class="auto-refresh">
-                    <input id="auto-refresh" type="checkbox" checked>
-                    30초 자동 새로고침
-                </label>
-            </div>
-        </header>
+      <header class="header">
+        <div>
+          <div class="title-row">
+            <img class="title-logo" src="/brand/app-icon-master-1024.png" alt="P.A.T.H 로고" />
+            <h1 class="title">P.A.T.H ADMIN DASHBOARD</h1>
+          </div>
+          <p class="sub">점수/내신 검수, 사용자 상태 모니터링, 운영 현황 확인</p>
+        </div>
+        <div class="toolbar">
+          <span class="sub" id="last-updated">마지막 동기화: -</span>
+          <button class="btn" id="refresh-btn" type="button">새로고침</button>
+          <label class="auto-refresh">
+            <input id="auto-refresh" type="checkbox" checked />
+            30초 자동 새로고침
+          </label>
+        </div>
+      </header>
 
-        <div id="notice" class="notice"></div>
+      <div id="notice" class="notice"></div>
 
-        <section class="stats" id="stats">
-            <div class="stat-card"><p class="stat-label">전체 유저</p><p class="stat-value" id="stat-users">-</p></div>
-            <div class="stat-card"><p class="stat-label">검수 대기(총)</p><p class="stat-value" id="stat-pending-total">-</p></div>
-            <div class="stat-card"><p class="stat-label">평가원 대기</p><p class="stat-value" id="stat-pending-score">-</p></div>
-            <div class="stat-card"><p class="stat-label">내신 대기</p><p class="stat-value" id="stat-pending-gpa">-</p></div>
-            <div class="stat-card"><p class="stat-label">신고 대기</p><p class="stat-value" id="stat-report-pending">-</p></div>
-            <div class="stat-card"><p class="stat-label">관리자 계정</p><p class="stat-value" id="stat-admin">-</p></div>
-        </section>
+      <section class="stats" id="stats">
+        <div class="stat-card">
+          <p class="stat-label">전체 유저</p>
+          <p class="stat-value" id="stat-users">-</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">검수 대기(총)</p>
+          <p class="stat-value" id="stat-pending-total">-</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">평가원 대기</p>
+          <p class="stat-value" id="stat-pending-score">-</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">내신 대기</p>
+          <p class="stat-value" id="stat-pending-gpa">-</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">신고 대기</p>
+          <p class="stat-value" id="stat-report-pending">-</p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">관리자 계정</p>
+          <p class="stat-value" id="stat-admin">-</p>
+        </div>
+      </section>
 
-        <nav class="tabs">
-            <button class="tab-btn active" data-tab="pending" type="button">검수 대기</button>
-            <button class="tab-btn" data-tab="reports" type="button">신고 큐</button>
-            <button class="tab-btn" data-tab="users" type="button">사용자 관리</button>
-            <button class="tab-btn" data-tab="logs" type="button">관리 로그</button>
-            <button class="tab-btn" data-tab="university-data" type="button">대학 데이터</button>
-        </nav>
+      <nav class="tabs">
+        <button class="tab-btn active" data-tab="pending" type="button">검수 대기</button>
+        <button class="tab-btn" data-tab="reports" type="button">신고 큐</button>
+        <button class="tab-btn" data-tab="users" type="button">사용자 관리</button>
+        <button class="tab-btn" data-tab="logs" type="button">관리 로그</button>
+        <button class="tab-btn" data-tab="university-data" type="button">대학 데이터</button>
+      </nav>
 
-        <section class="panel active" id="panel-pending">
-            <div class="list" id="pending-list">
-                <div class="empty">대기 데이터를 불러오는 중입니다.</div>
-            </div>
-        </section>
+      <section class="panel active" id="panel-pending">
+        <div class="list" id="pending-list">
+          <div class="empty">대기 데이터를 불러오는 중입니다.</div>
+        </div>
+      </section>
 
-        <section class="panel" id="panel-users">
-            <div class="filter-row">
-                <input id="search-input" class="field" placeholder="닉네임, 실명, 대학 검색" type="text">
-                <select id="score-filter" class="field">
-                    <option value="all">평가원 상태 전체</option>
-                    <option value="none">미제출</option>
-                    <option value="pending">대기</option>
-                    <option value="approved">승인</option>
-                    <option value="rejected">반려</option>
-                </select>
-                <select id="gpa-filter" class="field">
-                    <option value="all">내신 상태 전체</option>
-                    <option value="none">미제출</option>
-                    <option value="pending">대기</option>
-                    <option value="approved">승인</option>
-                    <option value="rejected">반려</option>
-                </select>
-                <label class="auto-refresh">
-                    <input id="admin-only" type="checkbox">
-                    관리자만 보기
-                </label>
-            </div>
+      <section class="panel" id="panel-users">
+        <div class="filter-row">
+          <input
+            id="search-input"
+            class="field"
+            placeholder="닉네임, 실명, 대학 검색"
+            type="text"
+          />
+          <select id="score-filter" class="field">
+            <option value="all">평가원 상태 전체</option>
+            <option value="none">미제출</option>
+            <option value="pending">대기</option>
+            <option value="approved">승인</option>
+            <option value="rejected">반려</option>
+          </select>
+          <select id="gpa-filter" class="field">
+            <option value="all">내신 상태 전체</option>
+            <option value="none">미제출</option>
+            <option value="pending">대기</option>
+            <option value="approved">승인</option>
+            <option value="rejected">반려</option>
+          </select>
+          <label class="auto-refresh">
+            <input id="admin-only" type="checkbox" />
+            관리자만 보기
+          </label>
+        </div>
 
-            <p class="result-meta" id="users-result-meta"></p>
-            <div class="list" id="user-list">
-                <div class="empty">사용자 데이터를 불러오는 중입니다.</div>
-            </div>
-        </section>
+        <p class="result-meta" id="users-result-meta"></p>
+        <div class="list" id="user-list">
+          <div class="empty">사용자 데이터를 불러오는 중입니다.</div>
+        </div>
+      </section>
 
-        <section class="panel" id="panel-reports">
-            <div class="filter-row" style="grid-template-columns: 1fr 2fr auto;">
-                <select id="report-status-filter" class="field">
-                    <option value="pending">대기만</option>
-                    <option value="reviewed">처리 완료</option>
-                    <option value="dismissed">기각</option>
-                    <option value="all">전체</option>
-                </select>
-                <input id="report-search-input" class="field" type="text" placeholder="게시글 제목/신고자/대상자 검색">
-                <button class="btn" id="report-refresh-btn" type="button">신고 새로고침</button>
-            </div>
-            <p class="result-meta" id="reports-result-meta"></p>
-            <div class="list" id="reports-list">
-                <div class="empty">신고 데이터를 불러오는 중입니다.</div>
-            </div>
-        </section>
+      <section class="panel" id="panel-reports">
+        <div class="filter-row" style="grid-template-columns: 1fr 2fr auto">
+          <select id="report-status-filter" class="field">
+            <option value="pending">대기만</option>
+            <option value="reviewed">처리 완료</option>
+            <option value="dismissed">기각</option>
+            <option value="all">전체</option>
+          </select>
+          <input
+            id="report-search-input"
+            class="field"
+            type="text"
+            placeholder="게시글 제목/신고자/대상자 검색"
+          />
+          <button class="btn" id="report-refresh-btn" type="button">신고 새로고침</button>
+        </div>
+        <p class="result-meta" id="reports-result-meta"></p>
+        <div class="list" id="reports-list">
+          <div class="empty">신고 데이터를 불러오는 중입니다.</div>
+        </div>
+      </section>
 
-        <section class="panel" id="panel-logs">
-            <div class="filter-row" style="grid-template-columns: 1fr 2fr auto;">
-                <select id="log-action-filter" class="field">
-                    <option value="all">전체 액션</option>
-                    <option value="admin.update_user">유저정보 수정</option>
-                    <option value="admin.set_role">권한 변경</option>
-                    <option value="admin.approve_score">평가원 승인</option>
-                    <option value="admin.reject_score">평가원 반려</option>
-                    <option value="admin.approve_gpa">내신 승인</option>
-                    <option value="admin.reject_gpa">내신 반려</option>
-                </select>
-                <input id="log-search-input" class="field" type="text" placeholder="액션/관리자/대상/세부정보 검색">
-                <button class="btn" id="log-refresh-btn" type="button">로그 새로고침</button>
-            </div>
-            <p class="result-meta" id="logs-result-meta"></p>
-            <div class="list" id="logs-list">
-                <div class="empty">관리 로그를 불러오는 중입니다.</div>
-            </div>
-        </section>
+      <section class="panel" id="panel-logs">
+        <div class="filter-row" style="grid-template-columns: 1fr 2fr auto">
+          <select id="log-action-filter" class="field">
+            <option value="all">전체 액션</option>
+            <option value="admin.update_user">유저정보 수정</option>
+            <option value="admin.set_role">권한 변경</option>
+            <option value="admin.approve_score">평가원 승인</option>
+            <option value="admin.reject_score">평가원 반려</option>
+            <option value="admin.approve_gpa">내신 승인</option>
+            <option value="admin.reject_gpa">내신 반려</option>
+          </select>
+          <input
+            id="log-search-input"
+            class="field"
+            type="text"
+            placeholder="액션/관리자/대상/세부정보 검색"
+          />
+          <button class="btn" id="log-refresh-btn" type="button">로그 새로고침</button>
+        </div>
+        <p class="result-meta" id="logs-result-meta"></p>
+        <div class="list" id="logs-list">
+          <div class="empty">관리 로그를 불러오는 중입니다.</div>
+        </div>
+      </section>
 
-        <section class="panel" id="panel-university-data">
-            <div class="uni-grid" id="uni-summary-cards">
-                <div class="uni-card"><p class="label">Manifest 소스</p><p class="value" id="uni-source-count">-</p></div>
-                <div class="uni-card"><p class="label">활성 소스</p><p class="value" id="uni-enabled-count">-</p></div>
-                <div class="uni-card"><p class="label">파이프라인 레코드</p><p class="value" id="uni-record-count">-</p></div>
-                <div class="uni-card"><p class="label">Rejected</p><p class="value" id="uni-rejected-count">-</p></div>
-            </div>
+      <section class="panel" id="panel-university-data">
+        <div class="uni-grid" id="uni-summary-cards">
+          <div class="uni-card">
+            <p class="label">Manifest 소스</p>
+            <p class="value" id="uni-source-count">-</p>
+          </div>
+          <div class="uni-card">
+            <p class="label">활성 소스</p>
+            <p class="value" id="uni-enabled-count">-</p>
+          </div>
+          <div class="uni-card">
+            <p class="label">파이프라인 레코드</p>
+            <p class="value" id="uni-record-count">-</p>
+          </div>
+          <div class="uni-card">
+            <p class="label">Rejected</p>
+            <p class="value" id="uni-rejected-count">-</p>
+          </div>
+        </div>
 
-            <div class="card" style="margin-bottom:10px;">
-                <div class="card-head">
-                    <h3 class="name">수집/검증 실행</h3>
-                    <span class="meta">서버에서 CLI 실행</span>
-                </div>
-                <div class="uni-actions">
-                    <input id="uni-collect-source" class="field" style="max-width:240px;" type="text" placeholder="특정 source ID (선택)">
-                    <label class="auto-refresh"><input id="uni-collect-dryrun" type="checkbox"> dryRun</label>
-                    <button class="btn" type="button" id="uni-refresh-config-btn">설정 새로고침</button>
-                    <button class="btn" type="button" id="uni-collect-btn">Collect 실행</button>
-                    <button class="btn" type="button" id="uni-report-btn">품질 리포트</button>
-                    <button class="btn" type="button" id="uni-export-btn">Export 실행</button>
-                    <button class="btn" type="button" id="uni-validate-btn">Validate 실행</button>
-                </div>
-                <div class="cmd-output" id="uni-output">아직 실행 로그가 없습니다.</div>
-            </div>
+        <div class="card" style="margin-bottom: 10px">
+          <div class="card-head">
+            <h3 class="name">수집/검증 실행</h3>
+            <span class="meta">서버에서 CLI 실행</span>
+          </div>
+          <div class="uni-actions">
+            <input
+              id="uni-collect-source"
+              class="field"
+              style="max-width: 240px"
+              type="text"
+              placeholder="특정 source ID (선택)"
+            />
+            <label class="auto-refresh"
+              ><input id="uni-collect-dryrun" type="checkbox" /> dryRun</label
+            >
+            <button class="btn" type="button" id="uni-refresh-config-btn">설정 새로고침</button>
+            <button class="btn" type="button" id="uni-collect-btn">Collect 실행</button>
+            <button class="btn" type="button" id="uni-report-btn">품질 리포트</button>
+            <button class="btn" type="button" id="uni-export-btn">Export 실행</button>
+            <button class="btn" type="button" id="uni-validate-btn">Validate 실행</button>
+          </div>
+          <div class="cmd-output" id="uni-output">아직 실행 로그가 없습니다.</div>
+        </div>
 
-            <div class="card" style="margin-bottom:10px;">
-                <div class="card-head">
-                    <h3 class="name">Manifest 편집</h3>
-                    <span class="meta">source-manifest.json</span>
-                </div>
-                <textarea id="uni-manifest-editor" class="json-editor" spellcheck="false"></textarea>
-            </div>
+        <div class="card" style="margin-bottom: 10px">
+          <div class="card-head">
+            <h3 class="name">Manifest 편집</h3>
+            <span class="meta">source-manifest.json</span>
+          </div>
+          <textarea id="uni-manifest-editor" class="json-editor" spellcheck="false"></textarea>
+        </div>
 
-            <div class="card">
-                <div class="card-head">
-                    <h3 class="name">신뢰 정책 편집</h3>
-                    <span class="meta">university-trust-policy.json</span>
-                </div>
-                <textarea id="uni-policy-editor" class="json-editor" spellcheck="false"></textarea>
-                <div class="action-row">
-                    <button class="btn primary" type="button" id="uni-save-config-btn">설정 저장</button>
-                </div>
-            </div>
-        </section>
+        <div class="card">
+          <div class="card-head">
+            <h3 class="name">신뢰 정책 편집</h3>
+            <span class="meta">university-trust-policy.json</span>
+          </div>
+          <textarea id="uni-policy-editor" class="json-editor" spellcheck="false"></textarea>
+          <div class="action-row">
+            <button class="btn primary" type="button" id="uni-save-config-btn">설정 저장</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script src="/shared/nav.js?v=5"></script>
     <script>
-        const state = {
-            pending: [],
-            users: [],
-            reports: [],
-            logs: [],
-            universityData: {
-                manifest: { sources: [] },
-                trustPolicy: {},
-                summary: {}
-            },
-            adminRole: 'none',
-            loading: false,
-            autoRefreshId: null,
-            activeTab: 'pending'
-        };
+      const state = {
+        pending: [],
+        users: [],
+        reports: [],
+        logs: [],
+        universityData: {
+          manifest: { sources: [] },
+          trustPolicy: {},
+          summary: {},
+        },
+        adminRole: 'none',
+        loading: false,
+        autoRefreshId: null,
+        activeTab: 'pending',
+      };
 
-        const requiredScoreFields = [
-            { key: 'korean_std', label: '국어 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
-            { key: 'korean_percentile', label: '국어 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-            { key: 'math_std', label: '수학 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
-            { key: 'math_percentile', label: '수학 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-            { key: 'english_std', label: '영어 표준점수', min: 0, max: 200, allowDecimal: false, placeholder: '0~200' },
-            { key: 'english_percentile', label: '영어 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-            { key: 'explore1_std', label: '탐구1 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
-            { key: 'explore1_percentile', label: '탐구1 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-            { key: 'explore2_std', label: '탐구2 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
-            { key: 'explore2_percentile', label: '탐구2 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-            { key: 'history_std', label: '한국사 표준점수', min: 0, max: 100, allowDecimal: false, placeholder: '0~100' },
-            { key: 'history_percentile', label: '한국사 백분위', min: 0, max: 100, allowDecimal: true, placeholder: '0~100' },
-        ];
+      const requiredScoreFields = [
+        {
+          key: 'korean_std',
+          label: '국어 표준점수',
+          min: 0,
+          max: 200,
+          allowDecimal: false,
+          placeholder: '0~200',
+        },
+        {
+          key: 'korean_percentile',
+          label: '국어 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+        {
+          key: 'math_std',
+          label: '수학 표준점수',
+          min: 0,
+          max: 200,
+          allowDecimal: false,
+          placeholder: '0~200',
+        },
+        {
+          key: 'math_percentile',
+          label: '수학 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+        {
+          key: 'english_std',
+          label: '영어 표준점수',
+          min: 0,
+          max: 200,
+          allowDecimal: false,
+          placeholder: '0~200',
+        },
+        {
+          key: 'english_percentile',
+          label: '영어 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+        {
+          key: 'explore1_std',
+          label: '탐구1 표준점수',
+          min: 0,
+          max: 100,
+          allowDecimal: false,
+          placeholder: '0~100',
+        },
+        {
+          key: 'explore1_percentile',
+          label: '탐구1 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+        {
+          key: 'explore2_std',
+          label: '탐구2 표준점수',
+          min: 0,
+          max: 100,
+          allowDecimal: false,
+          placeholder: '0~100',
+        },
+        {
+          key: 'explore2_percentile',
+          label: '탐구2 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+        {
+          key: 'history_std',
+          label: '한국사 표준점수',
+          min: 0,
+          max: 100,
+          allowDecimal: false,
+          placeholder: '0~100',
+        },
+        {
+          key: 'history_percentile',
+          label: '한국사 백분위',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '0~100',
+        },
+      ];
 
-        const optionalScoreFields = [
-            { key: 'second_lang_std', label: '제2외국어 표준점수 (선택)', min: 0, max: 100, allowDecimal: false, placeholder: '비우면 미입력' },
-            { key: 'second_lang_percentile', label: '제2외국어 백분위 (선택)', min: 0, max: 100, allowDecimal: true, placeholder: '비우면 미입력' },
-        ];
+      const optionalScoreFields = [
+        {
+          key: 'second_lang_std',
+          label: '제2외국어 표준점수 (선택)',
+          min: 0,
+          max: 100,
+          allowDecimal: false,
+          placeholder: '비우면 미입력',
+        },
+        {
+          key: 'second_lang_percentile',
+          label: '제2외국어 백분위 (선택)',
+          min: 0,
+          max: 100,
+          allowDecimal: true,
+          placeholder: '비우면 미입력',
+        },
+      ];
 
-        function safeScoreValue(value) {
-            const num = Number(value);
-            return Number.isFinite(num) ? String(num) : '';
-        }
+      function safeScoreValue(value) {
+        const num = Number(value);
+        return Number.isFinite(num) ? String(num) : '';
+      }
 
-        function renderScoreInputFields(userId, user) {
-            const renderField = (field) => {
-                const value = esc(safeScoreValue(user?.[field.key]));
-                const step = field.allowDecimal ? '0.1' : '1';
-                return `
+      function renderScoreInputFields(userId, user) {
+        const renderField = (field) => {
+          const value = esc(safeScoreValue(user?.[field.key]));
+          const step = field.allowDecimal ? '0.1' : '1';
+          return `
                     <label class="score-input-item">
                         <span>${field.label}</span>
                         <input
@@ -677,9 +843,9 @@
                             placeholder="${field.placeholder}">
                     </label>
                 `;
-            };
+        };
 
-            return `
+        return `
                 <div class="score-input-grid">
                     ${requiredScoreFields.map(renderField).join('')}
                 </div>
@@ -687,250 +853,265 @@
                     ${optionalScoreFields.map(renderField).join('')}
                 </div>
             `;
+      }
+
+      function parseScoreFieldInput(rawValue, field, required) {
+        const text = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
+        if (!text) {
+          if (!required) return { ok: true, value: null };
+          return { ok: false, error: `${field.label}를 입력해주세요.` };
         }
 
-        function parseScoreFieldInput(rawValue, field, required) {
-            const text = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim();
-            if (!text) {
-                if (!required) return { ok: true, value: null };
-                return { ok: false, error: `${field.label}를 입력해주세요.` };
-            }
+        const num = Number(text);
+        if (!Number.isFinite(num)) {
+          return { ok: false, error: `${field.label}는 숫자여야 합니다.` };
+        }
+        if (!field.allowDecimal && !Number.isInteger(num)) {
+          return { ok: false, error: `${field.label}는 정수여야 합니다.` };
+        }
+        if (num < field.min || num > field.max) {
+          return {
+            ok: false,
+            error: `${field.label}는 ${field.min}~${field.max} 범위여야 합니다.`,
+          };
+        }
+        return { ok: true, value: num };
+      }
 
-            const num = Number(text);
-            if (!Number.isFinite(num)) {
-                return { ok: false, error: `${field.label}는 숫자여야 합니다.` };
-            }
-            if (!field.allowDecimal && !Number.isInteger(num)) {
-                return { ok: false, error: `${field.label}는 정수여야 합니다.` };
-            }
-            if (num < field.min || num > field.max) {
-                return { ok: false, error: `${field.label}는 ${field.min}~${field.max} 범위여야 합니다.` };
-            }
-            return { ok: true, value: num };
+      function collectApprovedScorePayload(userId) {
+        const scores = {};
+
+        for (const field of requiredScoreFields) {
+          const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
+          const parsed = parseScoreFieldInput(rawValue, field, true);
+          if (!parsed.ok) return parsed;
+          scores[field.key] = parsed.value;
         }
 
-        function collectApprovedScorePayload(userId) {
-            const scores = {};
-
-            for (const field of requiredScoreFields) {
-                const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
-                const parsed = parseScoreFieldInput(rawValue, field, true);
-                if (!parsed.ok) return parsed;
-                scores[field.key] = parsed.value;
-            }
-
-            for (const field of optionalScoreFields) {
-                const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
-                const parsed = parseScoreFieldInput(rawValue, field, false);
-                if (!parsed.ok) return parsed;
-                scores[field.key] = parsed.value;
-            }
-
-            const hasSecondLangStd = scores.second_lang_std !== null;
-            const hasSecondLangPercentile = scores.second_lang_percentile !== null;
-            if (hasSecondLangStd !== hasSecondLangPercentile) {
-                return { ok: false, error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' };
-            }
-
-            return { ok: true, value: scores };
+        for (const field of optionalScoreFields) {
+          const rawValue = document.getElementById(`score-${field.key}-${userId}`)?.value;
+          const parsed = parseScoreFieldInput(rawValue, field, false);
+          if (!parsed.ok) return parsed;
+          scores[field.key] = parsed.value;
         }
 
-        function canEditSensitiveFields() {
-            return state.adminRole === 'main';
+        const hasSecondLangStd = scores.second_lang_std !== null;
+        const hasSecondLangPercentile = scores.second_lang_percentile !== null;
+        if (hasSecondLangStd !== hasSecondLangPercentile) {
+          return { ok: false, error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' };
         }
 
-        function canEditGoldField() {
-            return state.adminRole === 'main' || state.adminRole === 'sub';
+        return { ok: true, value: scores };
+      }
+
+      function canEditSensitiveFields() {
+        return state.adminRole === 'main';
+      }
+
+      function canEditGoldField() {
+        return state.adminRole === 'main' || state.adminRole === 'sub';
+      }
+
+      function isBlankSensitiveInput(value) {
+        return value === null || value === undefined || String(value).trim() === '';
+      }
+
+      function validateUserEditInput(payload) {
+        const nickname = String(payload.nickname || '').trim();
+        if (nickname.length < 2 || nickname.length > 20) {
+          return '닉네임은 2~20자 사이여야 합니다.';
+        }
+        if (!/^[a-zA-Z0-9가-힣_]+$/.test(nickname)) {
+          return '닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.';
         }
 
-        function isBlankSensitiveInput(value) {
-            return value === null || value === undefined || String(value).trim() === '';
+        const realName = String(payload.real_name || '').trim();
+        if (!realName) return '실명을 입력해주세요.';
+        if (realName.length > 50) return '실명은 50자 이하여야 합니다.';
+
+        const university = String(payload.university || '').trim();
+        if (university.length > 100) return '대학교명은 100자 이하여야 합니다.';
+
+        const prevUniversity = String(payload.prev_university || '').trim();
+        if (payload.is_n_su && !prevUniversity) {
+          return 'N수생은 전적 대학교를 입력해주세요.';
+        }
+        if (prevUniversity.length > 100) return '전적 대학교명은 100자 이하여야 합니다.';
+
+        if (canEditGoldField() && !isBlankSensitiveInput(payload.gold)) {
+          const gold = Number.parseInt(payload.gold, 10);
+          if (!Number.isInteger(gold) || gold < 0) return '골드는 0 이상의 정수여야 합니다.';
         }
 
-        function validateUserEditInput(payload) {
-            const nickname = String(payload.nickname || '').trim();
-            if (nickname.length < 2 || nickname.length > 20) {
-                return '닉네임은 2~20자 사이여야 합니다.';
-            }
-            if (!/^[a-zA-Z0-9가-힣_]+$/.test(nickname)) {
-                return '닉네임은 한글, 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.';
-            }
+        if (!canEditSensitiveFields()) return '';
 
-            const realName = String(payload.real_name || '').trim();
-            if (!realName) return '실명을 입력해주세요.';
-            if (realName.length > 50) return '실명은 50자 이하여야 합니다.';
-
-            const university = String(payload.university || '').trim();
-            if (university.length > 100) return '대학교명은 100자 이하여야 합니다.';
-
-            const prevUniversity = String(payload.prev_university || '').trim();
-            if (payload.is_n_su && !prevUniversity) {
-                return 'N수생은 전적 대학교를 입력해주세요.';
-            }
-            if (prevUniversity.length > 100) return '전적 대학교명은 100자 이하여야 합니다.';
-
-            if (canEditGoldField() && !isBlankSensitiveInput(payload.gold)) {
-                const gold = Number.parseInt(payload.gold, 10);
-                if (!Number.isInteger(gold) || gold < 0) return '골드는 0 이상의 정수여야 합니다.';
-            }
-
-            if (!canEditSensitiveFields()) return '';
-
-            if (!isBlankSensitiveInput(payload.diamond)) {
-                const diamond = Number.parseInt(payload.diamond, 10);
-                if (!Number.isInteger(diamond) || diamond < 0) return '다이아는 0 이상의 정수여야 합니다.';
-            }
-
-            if (!isBlankSensitiveInput(payload.exp)) {
-                const exp = Number.parseInt(payload.exp, 10);
-                if (!Number.isInteger(exp) || exp < 0) return 'EXP는 0 이상의 정수여야 합니다.';
-            }
-
-            const tier = String(payload.tier || '').trim();
-            if (tier && tier.length > 20) return '티어는 1~20자 사이여야 합니다.';
-
-            if (!isBlankSensitiveInput(payload.tickets)) {
-                const tickets = Number.parseInt(payload.tickets, 10);
-                if (!Number.isInteger(tickets) || tickets < 0) return '티켓은 0 이상의 정수여야 합니다.';
-            }
-
-            const gpaText = String(payload.gpa_score || '').trim();
-            if (gpaText) {
-                const gpa = Number.parseFloat(gpaText);
-                if (!Number.isFinite(gpa) || gpa < 1 || gpa > 9) {
-                    return '내신은 1.0~9.0 범위로 입력해주세요.';
-                }
-            }
-
-            return '';
+        if (!isBlankSensitiveInput(payload.diamond)) {
+          const diamond = Number.parseInt(payload.diamond, 10);
+          if (!Number.isInteger(diamond) || diamond < 0)
+            return '다이아는 0 이상의 정수여야 합니다.';
         }
 
-        function esc(value) {
-            const div = document.createElement('div');
-            div.textContent = value == null ? '' : String(value);
-            return div.innerHTML;
+        if (!isBlankSensitiveInput(payload.exp)) {
+          const exp = Number.parseInt(payload.exp, 10);
+          if (!Number.isInteger(exp) || exp < 0) return 'EXP는 0 이상의 정수여야 합니다.';
         }
 
-        function formatDate(value) {
-            if (!value) return '-';
-            const date = new Date(value);
-            if (Number.isNaN(date.getTime())) return '-';
-            return date.toLocaleString('ko-KR', { hour12: false });
+        const tier = String(payload.tier || '').trim();
+        if (tier && tier.length > 20) return '티어는 1~20자 사이여야 합니다.';
+
+        if (!isBlankSensitiveInput(payload.tickets)) {
+          const tickets = Number.parseInt(payload.tickets, 10);
+          if (!Number.isInteger(tickets) || tickets < 0) return '티켓은 0 이상의 정수여야 합니다.';
         }
 
-        function statusText(status) {
-            return {
-                none: '미제출',
-                pending: '대기',
-                approved: '승인',
-                rejected: '반려'
-            }[status || 'none'] || '미제출';
+        const gpaText = String(payload.gpa_score || '').trim();
+        if (gpaText) {
+          const gpa = Number.parseFloat(gpaText);
+          if (!Number.isFinite(gpa) || gpa < 1 || gpa > 9) {
+            return '내신은 1.0~9.0 범위로 입력해주세요.';
+          }
         }
 
-        function setNotice(message, type) {
-            const el = document.getElementById('notice');
-            el.className = 'notice';
-            if (!message) {
-                el.textContent = '';
-                return;
-            }
-            el.classList.add(type === 'error' ? 'error' : 'ok');
-            el.textContent = message;
+        return '';
+      }
+
+      function esc(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+      }
+
+      function formatDate(value) {
+        if (!value) return '-';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '-';
+        return date.toLocaleString('ko-KR', { hour12: false });
+      }
+
+      function statusText(status) {
+        return (
+          {
+            none: '미제출',
+            pending: '대기',
+            approved: '승인',
+            rejected: '반려',
+          }[status || 'none'] || '미제출'
+        );
+      }
+
+      function setNotice(message, type) {
+        const el = document.getElementById('notice');
+        el.className = 'notice';
+        if (!message) {
+          el.textContent = '';
+          return;
+        }
+        el.classList.add(type === 'error' ? 'error' : 'ok');
+        el.textContent = message;
+      }
+
+      function setUniversityOutput(text, isError = false) {
+        const el = document.getElementById('uni-output');
+        if (!el) return;
+        el.style.color = isError ? '#ffd0d0' : 'var(--muted)';
+        el.textContent = text || '-';
+      }
+
+      async function apiFetch(url, options) {
+        const response = await fetch(url, {
+          credentials: 'include',
+          ...options,
+        });
+
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch (_) {
+          payload = null;
         }
 
-        function setUniversityOutput(text, isError = false) {
-            const el = document.getElementById('uni-output');
-            if (!el) return;
-            el.style.color = isError ? '#ffd0d0' : 'var(--muted)';
-            el.textContent = text || '-';
+        if (!response.ok) {
+          const error = new Error(payload?.error || '요청 처리 중 오류가 발생했습니다.');
+          error.status = response.status;
+          throw error;
         }
 
-        async function apiFetch(url, options) {
-            const response = await fetch(url, {
-                credentials: 'include',
-                ...options
-            });
+        return payload || {};
+      }
 
-            let payload = null;
-            try {
-                payload = await response.json();
-            } catch (_) {
-                payload = null;
-            }
+      function updateStats() {
+        const pendingScore = state.pending.filter((item) => item.score_status === 'pending').length;
+        const pendingGpa = state.pending.filter((item) => item.gpa_status === 'pending').length;
+        const pendingReports = state.reports.filter((item) => item.status === 'pending').length;
 
-            if (!response.ok) {
-                const error = new Error(payload?.error || '요청 처리 중 오류가 발생했습니다.');
-                error.status = response.status;
-                throw error;
-            }
+        document.getElementById('stat-users').textContent = state.users.length;
+        document.getElementById('stat-pending-total').textContent = pendingScore + pendingGpa;
+        document.getElementById('stat-pending-score').textContent = pendingScore;
+        document.getElementById('stat-pending-gpa').textContent = pendingGpa;
+        document.getElementById('stat-report-pending').textContent = pendingReports;
+        document.getElementById('stat-admin').textContent = state.users.filter(
+          (u) => !!u.is_admin,
+        ).length;
+      }
 
-            return payload || {};
+      function reportStatusClass(status) {
+        if (status === 'pending') return 'pending';
+        if (status === 'reviewed') return 'approved';
+        if (status === 'dismissed') return 'rejected';
+        return 'none';
+      }
+
+      function reportStatusText(status) {
+        return (
+          {
+            pending: '대기',
+            reviewed: '처리 완료',
+            dismissed: '기각',
+          }[status] || '-'
+        );
+      }
+
+      function getFilteredReports() {
+        const keyword = document.getElementById('report-search-input').value.trim().toLowerCase();
+        const status = document.getElementById('report-status-filter').value;
+        return state.reports.filter((report) => {
+          if (status !== 'all' && report.status !== status) return false;
+          if (!keyword) return true;
+          const target =
+            `${report.report_type || ''} ${report.post_title || ''} ${report.comment_body || ''} ${report.reporter_nickname || ''} ${report.target_nickname || ''}`.toLowerCase();
+          return target.includes(keyword);
+        });
+      }
+
+      function renderReports() {
+        const listEl = document.getElementById('reports-list');
+        const filtered = getFilteredReports();
+        document.getElementById('reports-result-meta').textContent =
+          `검색 결과 ${filtered.length}건 / 전체 ${state.reports.length}건`;
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<div class="empty">조건에 맞는 신고가 없습니다.</div>';
+          return;
         }
 
-        function updateStats() {
-            const pendingScore = state.pending.filter((item) => item.score_status === 'pending').length;
-            const pendingGpa = state.pending.filter((item) => item.gpa_status === 'pending').length;
-            const pendingReports = state.reports.filter((item) => item.status === 'pending').length;
-
-            document.getElementById('stat-users').textContent = state.users.length;
-            document.getElementById('stat-pending-total').textContent = pendingScore + pendingGpa;
-            document.getElementById('stat-pending-score').textContent = pendingScore;
-            document.getElementById('stat-pending-gpa').textContent = pendingGpa;
-            document.getElementById('stat-report-pending').textContent = pendingReports;
-            document.getElementById('stat-admin').textContent = state.users.filter((u) => !!u.is_admin).length;
-        }
-
-        function reportStatusClass(status) {
-            if (status === 'pending') return 'pending';
-            if (status === 'reviewed') return 'approved';
-            if (status === 'dismissed') return 'rejected';
-            return 'none';
-        }
-
-        function reportStatusText(status) {
-            return {
-                pending: '대기',
-                reviewed: '처리 완료',
-                dismissed: '기각'
-            }[status] || '-';
-        }
-
-        function getFilteredReports() {
-            const keyword = document.getElementById('report-search-input').value.trim().toLowerCase();
-            const status = document.getElementById('report-status-filter').value;
-            return state.reports.filter((report) => {
-                if (status !== 'all' && report.status !== status) return false;
-                if (!keyword) return true;
-                const target = `${report.report_type || ''} ${report.post_title || ''} ${report.comment_body || ''} ${report.reporter_nickname || ''} ${report.target_nickname || ''}`.toLowerCase();
-                return target.includes(keyword);
-            });
-        }
-
-        function renderReports() {
-            const listEl = document.getElementById('reports-list');
-            const filtered = getFilteredReports();
-            document.getElementById('reports-result-meta').textContent = `검색 결과 ${filtered.length}건 / 전체 ${state.reports.length}건`;
-
-            if (!filtered.length) {
-                listEl.innerHTML = '<div class="empty">조건에 맞는 신고가 없습니다.</div>';
-                return;
-            }
-
-            listEl.innerHTML = filtered.map((report) => {
-                const statusClass = reportStatusClass(report.status);
-                const targetLabel = report.report_type === 'comment' ? '댓글' : '게시글';
-                const targetId = report.report_type === 'comment' ? report.comment_id : report.post_id;
-                const openTargetUrl = report.report_type === 'comment'
-                    ? `/community/post/${report.post_id}?cmt=${report.comment_id}#comment-${report.comment_id}`
-                    : `/community/post/${report.post_id}`;
-                const decisionButtons = report.status === 'pending'
-                    ? `
+        listEl.innerHTML = filtered
+          .map((report) => {
+            const statusClass = reportStatusClass(report.status);
+            const targetLabel = report.report_type === 'comment' ? '댓글' : '게시글';
+            const targetId = report.report_type === 'comment' ? report.comment_id : report.post_id;
+            const openTargetUrl =
+              report.report_type === 'comment'
+                ? `/community/post/${report.post_id}?cmt=${report.comment_id}#comment-${report.comment_id}`
+                : `/community/post/${report.post_id}`;
+            const decisionButtons =
+              report.status === 'pending'
+                ? `
                         <button class="btn primary" type="button" onclick="reviewReport('${report.report_type}', ${report.id}, 'reviewed', this)">처리 완료</button>
                         <button class="btn danger" type="button" onclick="reviewReport('${report.report_type}', ${report.id}, 'dismiss', this)">기각</button>
                     `
-                    : '';
+                : '';
 
-                return `
+            return `
                     <article class="card">
                         <div class="card-head">
                             <h3 class="name">신고 #${report.id} · ${targetLabel} #${targetId}</h3>
@@ -954,34 +1135,42 @@
                         </div>
                     </article>
                 `;
-            }).join('');
+          })
+          .join('');
+      }
+
+      function getFilteredLogs() {
+        const keyword = document.getElementById('log-search-input').value.trim().toLowerCase();
+        const actionFilter = document.getElementById('log-action-filter').value;
+        return state.logs.filter((log) => {
+          if (actionFilter !== 'all' && log.action !== actionFilter) return false;
+          if (!keyword) return true;
+          const target =
+            `${log.action || ''} ${log.actor_nickname || ''} ${log.target_nickname || ''} ${JSON.stringify(log.details || {})}`.toLowerCase();
+          return target.includes(keyword);
+        });
+      }
+
+      function renderLogs() {
+        const listEl = document.getElementById('logs-list');
+        const filtered = getFilteredLogs();
+        document.getElementById('logs-result-meta').textContent =
+          `검색 결과 ${filtered.length}건 / 전체 ${state.logs.length}건`;
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<div class="empty">조건에 맞는 로그가 없습니다.</div>';
+          return;
         }
 
-        function getFilteredLogs() {
-            const keyword = document.getElementById('log-search-input').value.trim().toLowerCase();
-            const actionFilter = document.getElementById('log-action-filter').value;
-            return state.logs.filter((log) => {
-                if (actionFilter !== 'all' && log.action !== actionFilter) return false;
-                if (!keyword) return true;
-                const target = `${log.action || ''} ${log.actor_nickname || ''} ${log.target_nickname || ''} ${JSON.stringify(log.details || {})}`.toLowerCase();
-                return target.includes(keyword);
-            });
-        }
-
-        function renderLogs() {
-            const listEl = document.getElementById('logs-list');
-            const filtered = getFilteredLogs();
-            document.getElementById('logs-result-meta').textContent = `검색 결과 ${filtered.length}건 / 전체 ${state.logs.length}건`;
-
-            if (!filtered.length) {
-                listEl.innerHTML = '<div class="empty">조건에 맞는 로그가 없습니다.</div>';
-                return;
-            }
-
-            listEl.innerHTML = filtered.map((log) => {
-                const actorText = log.actor_nickname ? `${esc(log.actor_nickname)} (ID ${log.actor_user_id || '-'})` : `ID ${log.actor_user_id || '-'}`;
-                const targetText = log.target_nickname ? `${esc(log.target_nickname)} (ID ${log.target_user_id || '-'})` : `ID ${log.target_user_id || '-'}`;
-                return `
+        listEl.innerHTML = filtered
+          .map((log) => {
+            const actorText = log.actor_nickname
+              ? `${esc(log.actor_nickname)} (ID ${log.actor_user_id || '-'})`
+              : `ID ${log.actor_user_id || '-'}`;
+            const targetText = log.target_nickname
+              ? `${esc(log.target_nickname)} (ID ${log.target_user_id || '-'})`
+              : `ID ${log.target_user_id || '-'}`;
+            return `
                     <article class="card">
                         <div class="card-head">
                             <h3 class="name">${esc(log.action || '-')}</h3>
@@ -1000,44 +1189,54 @@
                         </div>
                     </article>
                 `;
-            }).join('');
+          })
+          .join('');
+      }
+
+      function renderUniversityData() {
+        const summary = state.universityData.summary || {};
+        document.getElementById('uni-source-count').textContent = Number(summary.sourceCount || 0);
+        document.getElementById('uni-enabled-count').textContent = Number(
+          summary.enabledSourceCount || 0,
+        );
+        document.getElementById('uni-record-count').textContent = Number(summary.recordCount || 0);
+        document.getElementById('uni-rejected-count').textContent = Number(
+          summary.rejectedCount || 0,
+        );
+
+        const manifestEditor = document.getElementById('uni-manifest-editor');
+        const policyEditor = document.getElementById('uni-policy-editor');
+        if (manifestEditor) {
+          manifestEditor.value = JSON.stringify(
+            state.universityData.manifest || { sources: [] },
+            null,
+            2,
+          );
+        }
+        if (policyEditor) {
+          policyEditor.value = JSON.stringify(state.universityData.trustPolicy || {}, null, 2);
         }
 
-        function renderUniversityData() {
-            const summary = state.universityData.summary || {};
-            document.getElementById('uni-source-count').textContent = Number(summary.sourceCount || 0);
-            document.getElementById('uni-enabled-count').textContent = Number(summary.enabledSourceCount || 0);
-            document.getElementById('uni-record-count').textContent = Number(summary.recordCount || 0);
-            document.getElementById('uni-rejected-count').textContent = Number(summary.rejectedCount || 0);
+        const mainOnly = state.adminRole !== 'main';
+        const saveBtn = document.getElementById('uni-save-config-btn');
+        const collectBtn = document.getElementById('uni-collect-btn');
+        const exportBtn = document.getElementById('uni-export-btn');
+        if (saveBtn) saveBtn.disabled = mainOnly;
+        if (collectBtn) collectBtn.disabled = mainOnly;
+        if (exportBtn) exportBtn.disabled = mainOnly;
+      }
 
-            const manifestEditor = document.getElementById('uni-manifest-editor');
-            const policyEditor = document.getElementById('uni-policy-editor');
-            if (manifestEditor) {
-                manifestEditor.value = JSON.stringify(state.universityData.manifest || { sources: [] }, null, 2);
-            }
-            if (policyEditor) {
-                policyEditor.value = JSON.stringify(state.universityData.trustPolicy || {}, null, 2);
-            }
-
-            const mainOnly = state.adminRole !== 'main';
-            const saveBtn = document.getElementById('uni-save-config-btn');
-            const collectBtn = document.getElementById('uni-collect-btn');
-            const exportBtn = document.getElementById('uni-export-btn');
-            if (saveBtn) saveBtn.disabled = mainOnly;
-            if (collectBtn) collectBtn.disabled = mainOnly;
-            if (exportBtn) exportBtn.disabled = mainOnly;
+      function renderPending() {
+        const listEl = document.getElementById('pending-list');
+        if (!state.pending.length) {
+          listEl.innerHTML = '<div class="empty">현재 검수 대기 건이 없습니다.</div>';
+          return;
         }
 
-        function renderPending() {
-            const listEl = document.getElementById('pending-list');
-            if (!state.pending.length) {
-                listEl.innerHTML = '<div class="empty">현재 검수 대기 건이 없습니다.</div>';
-                return;
-            }
-
-            listEl.innerHTML = state.pending.map((user) => {
-                const userName = `${esc(user.real_name || '-') } (${esc(user.nickname || '-')})`;
-                const commonMeta = `
+        listEl.innerHTML = state.pending
+          .map((user) => {
+            const userName = `${esc(user.real_name || '-')} (${esc(user.nickname || '-')})`;
+            const commonMeta = `
                     <p class="meta">
                         <strong>대학:</strong> ${esc(user.university || '-')}<br>
                         ${user.is_n_su ? `<strong>N수:</strong> 예 (전적대 ${esc(user.prev_university || '-')})<br>` : ''}
@@ -1045,7 +1244,9 @@
                     </p>
                 `;
 
-                const scoreBlock = user.score_status === 'pending' ? `
+            const scoreBlock =
+              user.score_status === 'pending'
+                ? `
                     <div class="review-block" id="score-card-${user.id}">
                         <div class="review-title">
                             <span>평가원 점수 검수</span>
@@ -1058,9 +1259,12 @@
                             <button class="btn danger" type="button" onclick="rejectScore(${user.id}, this)">점수 반려</button>
                         </div>
                     </div>
-                ` : '';
+                `
+                : '';
 
-                const gpaBlock = user.gpa_status === 'pending' ? `
+            const gpaBlock =
+              user.gpa_status === 'pending'
+                ? `
                     <div class="review-block" id="gpa-card-${user.id}">
                         <div class="review-title">
                             <span>내신 등급 검수</span>
@@ -1074,9 +1278,10 @@
                             <button class="btn danger" type="button" onclick="rejectGpa(${user.id}, this)">내신 반려</button>
                         </div>
                     </div>
-                ` : '';
+                `
+                : '';
 
-                return `
+            return `
                     <article class="card">
                         <div class="card-head">
                             <h3 class="name">${userName}</h3>
@@ -1087,56 +1292,70 @@
                         ${gpaBlock}
                     </article>
                 `;
-            }).join('');
+          })
+          .join('');
+      }
+
+      function getFilteredUsers() {
+        const keyword = document.getElementById('search-input').value.trim().toLowerCase();
+        const scoreFilter = document.getElementById('score-filter').value;
+        const gpaFilter = document.getElementById('gpa-filter').value;
+        const adminOnly = document.getElementById('admin-only').checked;
+
+        return state.users.filter((u) => {
+          if (adminOnly && !u.is_admin) return false;
+          if (scoreFilter !== 'all' && (u.score_status || 'none') !== scoreFilter) return false;
+          if (gpaFilter !== 'all' && (u.gpa_status || 'none') !== gpaFilter) return false;
+
+          if (!keyword) return true;
+          const target =
+            `${u.nickname || ''} ${u.real_name || ''} ${u.university || ''} ${u.user_code || ''}`.toLowerCase();
+          return target.includes(keyword);
+        });
+      }
+
+      function renderUsers() {
+        const listEl = document.getElementById('user-list');
+        const filtered = getFilteredUsers();
+        const roleLabel =
+          state.adminRole === 'main'
+            ? '주관리자'
+            : state.adminRole === 'sub'
+              ? '부관리자'
+              : '권한없음';
+        const roleGuide = canEditSensitiveFields()
+          ? '경제/점수/내신 필드 수정 가능'
+          : canEditGoldField()
+            ? '부관리자 모드: 골드 + 기본 프로필 필드 수정 가능'
+            : '기본 프로필 필드만 수정 가능';
+        document.getElementById('users-result-meta').textContent =
+          `검색 결과 ${filtered.length}명 / 전체 ${state.users.length}명 · 현재 권한: ${roleLabel} (${roleGuide})`;
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<div class="empty">조건에 맞는 사용자가 없습니다.</div>';
+          return;
         }
 
-        function getFilteredUsers() {
-            const keyword = document.getElementById('search-input').value.trim().toLowerCase();
-            const scoreFilter = document.getElementById('score-filter').value;
-            const gpaFilter = document.getElementById('gpa-filter').value;
-            const adminOnly = document.getElementById('admin-only').checked;
-
-            return state.users.filter((u) => {
-                if (adminOnly && !u.is_admin) return false;
-                if (scoreFilter !== 'all' && (u.score_status || 'none') !== scoreFilter) return false;
-                if (gpaFilter !== 'all' && (u.gpa_status || 'none') !== gpaFilter) return false;
-
-                if (!keyword) return true;
-                const target = `${u.nickname || ''} ${u.real_name || ''} ${u.university || ''} ${u.user_code || ''}`.toLowerCase();
-                return target.includes(keyword);
-            });
-        }
-
-        function renderUsers() {
-            const listEl = document.getElementById('user-list');
-            const filtered = getFilteredUsers();
-            const roleLabel = state.adminRole === 'main' ? '주관리자' : (state.adminRole === 'sub' ? '부관리자' : '권한없음');
-            const roleGuide = canEditSensitiveFields()
-                ? '경제/점수/내신 필드 수정 가능'
-                : (canEditGoldField() ? '부관리자 모드: 골드 + 기본 프로필 필드 수정 가능' : '기본 프로필 필드만 수정 가능');
-            document.getElementById('users-result-meta').textContent = `검색 결과 ${filtered.length}명 / 전체 ${state.users.length}명 · 현재 권한: ${roleLabel} (${roleGuide})`;
-
-            if (!filtered.length) {
-                listEl.innerHTML = '<div class="empty">조건에 맞는 사용자가 없습니다.</div>';
-                return;
-            }
-
-            listEl.innerHTML = filtered.map((u) => {
-                const scoreClass = u.score_status || 'none';
-                const gpaClass = u.gpa_status || 'none';
-                const safeNicknameValue = esc(u.nickname || '');
-                const safeRealNameValue = esc(u.real_name || '');
-                const safeUniversityValue = esc(u.university || '');
-                const safePrevUniversityValue = esc(u.prev_university || '');
-                const safeTierValue = esc(u.tier || '');
-                const safeGoldValue = Number.isFinite(Number(u.gold)) ? Number(u.gold) : 0;
-                const safeDiamondValue = Number.isFinite(Number(u.diamond)) ? Number(u.diamond) : 0;
-                const safeExpValue = Number.isFinite(Number(u.exp)) ? Number(u.exp) : 0;
-                const safeTicketsValue = Number.isFinite(Number(u.tickets)) ? Number(u.tickets) : 0;
-                const safeGpaValue = u.gpa_score === null || u.gpa_score === undefined ? '' : Number(u.gpa_score);
-                const goldDisabled = canEditGoldField() ? '' : 'disabled title="관리자만 수정 가능"';
-                const sensitiveDisabled = canEditSensitiveFields() ? '' : 'disabled title="주관리자만 수정 가능"';
-                return `
+        listEl.innerHTML = filtered
+          .map((u) => {
+            const scoreClass = u.score_status || 'none';
+            const gpaClass = u.gpa_status || 'none';
+            const safeNicknameValue = esc(u.nickname || '');
+            const safeRealNameValue = esc(u.real_name || '');
+            const safeUniversityValue = esc(u.university || '');
+            const safePrevUniversityValue = esc(u.prev_university || '');
+            const safeTierValue = esc(u.tier || '');
+            const safeGoldValue = Number.isFinite(Number(u.gold)) ? Number(u.gold) : 0;
+            const safeDiamondValue = Number.isFinite(Number(u.diamond)) ? Number(u.diamond) : 0;
+            const safeExpValue = Number.isFinite(Number(u.exp)) ? Number(u.exp) : 0;
+            const safeTicketsValue = Number.isFinite(Number(u.tickets)) ? Number(u.tickets) : 0;
+            const safeGpaValue =
+              u.gpa_score === null || u.gpa_score === undefined ? '' : Number(u.gpa_score);
+            const goldDisabled = canEditGoldField() ? '' : 'disabled title="관리자만 수정 가능"';
+            const sensitiveDisabled = canEditSensitiveFields()
+              ? ''
+              : 'disabled title="주관리자만 수정 가능"';
+            return `
                     <article class="card">
                         <div class="card-head">
                             <h3 class="name">${esc(u.real_name || '-')} (${esc(u.nickname || '-')})</h3>
@@ -1188,456 +1407,491 @@
                         </div>
                     </article>
                 `;
-            }).join('');
+          })
+          .join('');
+      }
+
+      function getUserById(userId) {
+        return state.users.find((u) => u.id === userId) || null;
+      }
+
+      function resetUserEdit(userId) {
+        const user = getUserById(userId);
+        if (!user) return;
+
+        const nicknameEl = document.getElementById(`edit-nickname-${userId}`);
+        const realNameEl = document.getElementById(`edit-real-name-${userId}`);
+        const universityEl = document.getElementById(`edit-university-${userId}`);
+        const prevUniversityEl = document.getElementById(`edit-prev-university-${userId}`);
+        const isNSuEl = document.getElementById(`edit-is-nsu-${userId}`);
+        const goldEl = document.getElementById(`edit-gold-${userId}`);
+        const diamondEl = document.getElementById(`edit-diamond-${userId}`);
+        const expEl = document.getElementById(`edit-exp-${userId}`);
+        const tierEl = document.getElementById(`edit-tier-${userId}`);
+        const ticketsEl = document.getElementById(`edit-tickets-${userId}`);
+        const gpaScoreEl = document.getElementById(`edit-gpa-score-${userId}`);
+        const gpaPublicEl = document.getElementById(`edit-gpa-public-${userId}`);
+
+        if (nicknameEl) nicknameEl.value = user.nickname || '';
+        if (realNameEl) realNameEl.value = user.real_name || '';
+        if (universityEl) universityEl.value = user.university || '';
+        if (prevUniversityEl) prevUniversityEl.value = user.prev_university || '';
+        if (isNSuEl) isNSuEl.checked = !!user.is_n_su;
+        if (goldEl) goldEl.value = Number.isFinite(Number(user.gold)) ? Number(user.gold) : 0;
+        if (diamondEl)
+          diamondEl.value = Number.isFinite(Number(user.diamond)) ? Number(user.diamond) : 0;
+        if (expEl) expEl.value = Number.isFinite(Number(user.exp)) ? Number(user.exp) : 0;
+        if (tierEl) tierEl.value = user.tier || '';
+        if (ticketsEl)
+          ticketsEl.value = Number.isFinite(Number(user.tickets)) ? Number(user.tickets) : 0;
+        if (gpaScoreEl)
+          gpaScoreEl.value =
+            user.gpa_score === null || user.gpa_score === undefined ? '' : Number(user.gpa_score);
+        if (gpaPublicEl) gpaPublicEl.checked = !!user.gpa_public;
+      }
+
+      async function saveUserEdit(userId, button) {
+        const payload = {
+          user_id: userId,
+          nickname: document.getElementById(`edit-nickname-${userId}`)?.value || '',
+          real_name: document.getElementById(`edit-real-name-${userId}`)?.value || '',
+          university: document.getElementById(`edit-university-${userId}`)?.value || '',
+          prev_university: document.getElementById(`edit-prev-university-${userId}`)?.value || '',
+          is_n_su: !!document.getElementById(`edit-is-nsu-${userId}`)?.checked,
+        };
+
+        if (canEditGoldField()) {
+          payload.gold = document.getElementById(`edit-gold-${userId}`)?.value || '0';
         }
 
-        function getUserById(userId) {
-            return state.users.find((u) => u.id === userId) || null;
+        if (canEditSensitiveFields()) {
+          payload.diamond = document.getElementById(`edit-diamond-${userId}`)?.value || '0';
+          payload.exp = document.getElementById(`edit-exp-${userId}`)?.value || '0';
+          payload.tier = document.getElementById(`edit-tier-${userId}`)?.value || '';
+          payload.tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
+          payload.gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
+          payload.gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
         }
 
-        function resetUserEdit(userId) {
-            const user = getUserById(userId);
-            if (!user) return;
-
-            const nicknameEl = document.getElementById(`edit-nickname-${userId}`);
-            const realNameEl = document.getElementById(`edit-real-name-${userId}`);
-            const universityEl = document.getElementById(`edit-university-${userId}`);
-            const prevUniversityEl = document.getElementById(`edit-prev-university-${userId}`);
-            const isNSuEl = document.getElementById(`edit-is-nsu-${userId}`);
-            const goldEl = document.getElementById(`edit-gold-${userId}`);
-            const diamondEl = document.getElementById(`edit-diamond-${userId}`);
-            const expEl = document.getElementById(`edit-exp-${userId}`);
-            const tierEl = document.getElementById(`edit-tier-${userId}`);
-            const ticketsEl = document.getElementById(`edit-tickets-${userId}`);
-            const gpaScoreEl = document.getElementById(`edit-gpa-score-${userId}`);
-            const gpaPublicEl = document.getElementById(`edit-gpa-public-${userId}`);
-
-            if (nicknameEl) nicknameEl.value = user.nickname || '';
-            if (realNameEl) realNameEl.value = user.real_name || '';
-            if (universityEl) universityEl.value = user.university || '';
-            if (prevUniversityEl) prevUniversityEl.value = user.prev_university || '';
-            if (isNSuEl) isNSuEl.checked = !!user.is_n_su;
-            if (goldEl) goldEl.value = Number.isFinite(Number(user.gold)) ? Number(user.gold) : 0;
-            if (diamondEl) diamondEl.value = Number.isFinite(Number(user.diamond)) ? Number(user.diamond) : 0;
-            if (expEl) expEl.value = Number.isFinite(Number(user.exp)) ? Number(user.exp) : 0;
-            if (tierEl) tierEl.value = user.tier || '';
-            if (ticketsEl) ticketsEl.value = Number.isFinite(Number(user.tickets)) ? Number(user.tickets) : 0;
-            if (gpaScoreEl) gpaScoreEl.value = user.gpa_score === null || user.gpa_score === undefined ? '' : Number(user.gpa_score);
-            if (gpaPublicEl) gpaPublicEl.checked = !!user.gpa_public;
+        const validationMessage = validateUserEditInput(payload);
+        if (validationMessage) {
+          setNotice(validationMessage, 'error');
+          return;
         }
 
-        async function saveUserEdit(userId, button) {
-            const payload = {
-                user_id: userId,
-                nickname: document.getElementById(`edit-nickname-${userId}`)?.value || '',
-                real_name: document.getElementById(`edit-real-name-${userId}`)?.value || '',
-                university: document.getElementById(`edit-university-${userId}`)?.value || '',
-                prev_university: document.getElementById(`edit-prev-university-${userId}`)?.value || '',
-                is_n_su: !!document.getElementById(`edit-is-nsu-${userId}`)?.checked,
-            };
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          setNotice(`유저 ${userId} 정보 수정 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
 
-            if (canEditGoldField()) {
-                payload.gold = document.getElementById(`edit-gold-${userId}`)?.value || '0';
+      async function loadAdminMeta() {
+        const data = await apiFetch('/api/admin');
+        state.adminRole = data.admin_role || 'none';
+      }
+
+      async function loadPending() {
+        const data = await apiFetch('/api/admin/pending');
+        state.pending = data.submissions || [];
+        renderPending();
+      }
+
+      async function loadUsers() {
+        const data = await apiFetch('/api/admin/all-users');
+        state.users = data.users || [];
+        renderUsers();
+      }
+
+      async function loadReports() {
+        const status = document.getElementById('report-status-filter')?.value || 'pending';
+        const data = await apiFetch(
+          `/api/admin/community-reports?status=${encodeURIComponent(status)}&limit=100&page=0`,
+        );
+        state.reports = data.reports || [];
+        renderReports();
+      }
+
+      async function loadLogs() {
+        const action = document.getElementById('log-action-filter')?.value || 'all';
+        const q = document.getElementById('log-search-input')?.value || '';
+        const data = await apiFetch(
+          `/api/admin/audit-logs?action=${encodeURIComponent(action)}&q=${encodeURIComponent(q)}&limit=100&page=0`,
+        );
+        state.logs = data.logs || [];
+        renderLogs();
+      }
+
+      async function loadUniversityDataConfig() {
+        const data = await apiFetch('/api/admin/university-data/config');
+        state.universityData = {
+          manifest: data.manifest || { sources: [] },
+          trustPolicy: data.trustPolicy || {},
+          summary: data.summary || {},
+        };
+        renderUniversityData();
+      }
+
+      function setLastUpdated() {
+        document.getElementById('last-updated').textContent =
+          `마지막 동기화: ${new Date().toLocaleString('ko-KR', { hour12: false })}`;
+      }
+
+      async function refreshAll(showMessage) {
+        if (state.loading) return;
+        state.loading = true;
+        setNotice('', 'ok');
+
+        try {
+          await Promise.all([
+            loadAdminMeta(),
+            loadPending(),
+            loadUsers(),
+            loadReports(),
+            loadLogs(),
+            loadUniversityDataConfig(),
+          ]);
+          updateStats();
+          setLastUpdated();
+          if (showMessage) setNotice('데이터를 최신 상태로 반영했습니다.', 'ok');
+        } catch (error) {
+          const pendingEl = document.getElementById('pending-list');
+          const usersEl = document.getElementById('user-list');
+          const reportsEl = document.getElementById('reports-list');
+          const logsEl = document.getElementById('logs-list');
+          const uniOutEl = document.getElementById('uni-output');
+          const blocked = error.status === 401 || error.status === 403;
+          const guide = blocked
+            ? '관리자 권한이 필요합니다. 관리자 계정으로 로그인 후 다시 시도해주세요.'
+            : error.message;
+
+          pendingEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
+          usersEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
+          reportsEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
+          logsEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
+          if (uniOutEl) uniOutEl.textContent = guide;
+          document.getElementById('users-result-meta').textContent = '';
+          document.getElementById('reports-result-meta').textContent = '';
+          document.getElementById('logs-result-meta').textContent = '';
+          setNotice(guide, 'error');
+        } finally {
+          state.loading = false;
+        }
+      }
+
+      async function reviewReport(reportType, reportId, decision, button) {
+        const label = decision === 'dismiss' ? '기각' : '처리 완료';
+
+        await withActionLock(button, async () => {
+          await apiFetch(
+            `/api/admin/community-reports/${encodeURIComponent(reportType)}/${reportId}/review`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ decision }),
+            },
+          );
+          setNotice(`신고 #${reportId} ${label} 처리 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
+
+      function withActionLock(button, task) {
+        if (!button) return task();
+        button.disabled = true;
+        const original = button.textContent;
+        button.textContent = '처리 중...';
+        return task().finally(() => {
+          button.disabled = false;
+          button.textContent = original;
+        });
+      }
+
+      async function approveScore(userId, button) {
+        const parsed = collectApprovedScorePayload(userId);
+        if (!parsed.ok) {
+          alert(parsed.error);
+          return;
+        }
+
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/approve-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, scores: parsed.value }),
+          });
+          setNotice(`유저 ${userId} 과목별 점수 승인 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
+
+      async function rejectScore(userId, button) {
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/reject-score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId }),
+          });
+          setNotice(`유저 ${userId} 평가원 점수 반려 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
+
+      async function approveGpa(userId, button) {
+        const gpaInput = document.getElementById(`gpa-${userId}`);
+        const gpa = Number.parseFloat(gpaInput?.value);
+        if (Number.isNaN(gpa) || gpa < 1 || gpa > 9) {
+          alert('내신은 1.0~9.0 범위에서 입력해주세요.');
+          return;
+        }
+
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/approve-gpa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, gpa }),
+          });
+          setNotice(`유저 ${userId} 내신 승인 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
+
+      async function rejectGpa(userId, button) {
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/reject-gpa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId }),
+          });
+          setNotice(`유저 ${userId} 내신 반려 완료`, 'ok');
+          await refreshAll(false);
+        }).catch((error) => {
+          setNotice(error.message, 'error');
+        });
+      }
+
+      async function runUniversityAction(endpoint, body, button, successLabel) {
+        await withActionLock(button, async () => {
+          const data = await apiFetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {}),
+          });
+
+          const out = [data.stdout, data.stderr].filter(Boolean).join('\n\n') || '[ok] done';
+          setUniversityOutput(out, false);
+          setNotice(successLabel, 'ok');
+          await loadUniversityDataConfig();
+        }).catch((error) => {
+          setUniversityOutput(error.message, true);
+          setNotice(error.message, 'error');
+        });
+      }
+
+      async function saveUniversityConfig(button) {
+        const manifestText = document.getElementById('uni-manifest-editor').value;
+        const policyText = document.getElementById('uni-policy-editor').value;
+        let manifest;
+        let trustPolicy;
+
+        try {
+          manifest = JSON.parse(manifestText);
+        } catch (err) {
+          setNotice(`Manifest JSON 파싱 오류: ${err.message}`, 'error');
+          return;
+        }
+
+        try {
+          trustPolicy = JSON.parse(policyText);
+        } catch (err) {
+          setNotice(`정책 JSON 파싱 오류: ${err.message}`, 'error');
+          return;
+        }
+
+        await withActionLock(button, async () => {
+          await apiFetch('/api/admin/university-data/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ manifest, trustPolicy }),
+          });
+          setNotice('대학 데이터 설정 저장 완료', 'ok');
+          setUniversityOutput('[ok] config saved');
+          await loadUniversityDataConfig();
+        }).catch((error) => {
+          setUniversityOutput(error.message, true);
+          setNotice(error.message, 'error');
+        });
+      }
+
+      function switchTab(tab) {
+        state.activeTab = tab;
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        document.querySelectorAll('.panel').forEach((panel) => {
+          panel.classList.toggle('active', panel.id === `panel-${tab}`);
+        });
+      }
+
+      function bindEvents() {
+        // Touch + click dedup helper (pointerup for touch, click for mouse)
+        const _ts = new WeakMap();
+        function _bind(el, fn) {
+          if (!el) return;
+          el.addEventListener(
+            'pointerup',
+            function (e) {
+              if (e.pointerType !== 'touch') return;
+              var now = Date.now();
+              if (now - (_ts.get(el) || 0) < 250) return;
+              _ts.set(el, now);
+              e.preventDefault();
+              fn.call(el, e);
+            },
+            { passive: false },
+          );
+          el.addEventListener('click', function (e) {
+            var now = Date.now();
+            if (now - (_ts.get(el) || 0) < 350) {
+              e.preventDefault();
+              return;
             }
+            fn.call(el, e);
+          });
+        }
 
-            if (canEditSensitiveFields()) {
-                payload.diamond = document.getElementById(`edit-diamond-${userId}`)?.value || '0';
-                payload.exp = document.getElementById(`edit-exp-${userId}`)?.value || '0';
-                payload.tier = document.getElementById(`edit-tier-${userId}`)?.value || '';
-                payload.tickets = document.getElementById(`edit-tickets-${userId}`)?.value || '0';
-                payload.gpa_score = document.getElementById(`edit-gpa-score-${userId}`)?.value || '';
-                payload.gpa_public = !!document.getElementById(`edit-gpa-public-${userId}`)?.checked;
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          _bind(btn, () => switchTab(btn.dataset.tab));
+        });
+
+        _bind(document.getElementById('refresh-btn'), () => refreshAll(true));
+
+        ['search-input', 'score-filter', 'gpa-filter', 'admin-only'].forEach((id) => {
+          document.getElementById(id).addEventListener('input', renderUsers);
+          document.getElementById(id).addEventListener('change', renderUsers);
+        });
+
+        ['report-search-input', 'report-status-filter'].forEach((id) => {
+          document.getElementById(id).addEventListener('input', renderReports);
+          document.getElementById(id).addEventListener('change', async () => {
+            if (id === 'report-status-filter') {
+              await loadReports();
+              updateStats();
+            } else {
+              renderReports();
             }
+          });
+        });
 
-            const validationMessage = validateUserEditInput(payload);
-            if (validationMessage) {
-                setNotice(validationMessage, 'error');
-                return;
-            }
+        _bind(document.getElementById('report-refresh-btn'), async function () {
+          try {
+            await loadReports();
+            updateStats();
+            setLastUpdated();
+            setNotice('신고 데이터를 갱신했습니다.', 'ok');
+          } catch (error) {
+            setNotice(error.message, 'error');
+          }
+        });
 
+        ['log-search-input', 'log-action-filter'].forEach((id) => {
+          document.getElementById(id).addEventListener('input', renderLogs);
+          document.getElementById(id).addEventListener('change', async () => {
+            await loadLogs();
+          });
+        });
 
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/update-user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                setNotice(`유저 ${userId} 정보 수정 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
+        _bind(document.getElementById('log-refresh-btn'), async function () {
+          try {
+            await loadLogs();
+            setLastUpdated();
+            setNotice('관리 로그를 갱신했습니다.', 'ok');
+          } catch (error) {
+            setNotice(error.message, 'error');
+          }
+        });
 
+        _bind(document.getElementById('uni-refresh-config-btn'), async function () {
+          try {
+            await loadUniversityDataConfig();
+            setNotice('대학 데이터 설정을 새로고침했습니다.', 'ok');
+          } catch (error) {
+            setNotice(error.message, 'error');
+          }
+        });
 
-        async function loadAdminMeta() {
-            const data = await apiFetch('/api/admin');
-            state.adminRole = data.admin_role || 'none';
-        }
+        _bind(document.getElementById('uni-save-config-btn'), function () {
+          saveUniversityConfig(this);
+        });
 
-        async function loadPending() {
-            const data = await apiFetch('/api/admin/pending');
-            state.pending = data.submissions || [];
-            renderPending();
-        }
+        _bind(document.getElementById('uni-collect-btn'), function () {
+          const source = document.getElementById('uni-collect-source').value.trim();
+          const dryRun = document.getElementById('uni-collect-dryrun').checked;
+          runUniversityAction(
+            '/api/admin/university-data/collect',
+            { source, dryRun },
+            this,
+            'Collect 실행 완료',
+          );
+        });
 
-        async function loadUsers() {
-            const data = await apiFetch('/api/admin/all-users');
-            state.users = data.users || [];
-            renderUsers();
-        }
+        _bind(document.getElementById('uni-report-btn'), function () {
+          runUniversityAction(
+            '/api/admin/university-data/report',
+            {},
+            this,
+            '품질 리포트 실행 완료',
+          );
+        });
 
-        async function loadReports() {
-            const status = document.getElementById('report-status-filter')?.value || 'pending';
-            const data = await apiFetch(`/api/admin/community-reports?status=${encodeURIComponent(status)}&limit=100&page=0`);
-            state.reports = data.reports || [];
-            renderReports();
-        }
+        _bind(document.getElementById('uni-export-btn'), function () {
+          runUniversityAction('/api/admin/university-data/export', {}, this, 'Export 실행 완료');
+        });
 
-        async function loadLogs() {
-            const action = document.getElementById('log-action-filter')?.value || 'all';
-            const q = document.getElementById('log-search-input')?.value || '';
-            const data = await apiFetch(`/api/admin/audit-logs?action=${encodeURIComponent(action)}&q=${encodeURIComponent(q)}&limit=100&page=0`);
-            state.logs = data.logs || [];
-            renderLogs();
-        }
+        _bind(document.getElementById('uni-validate-btn'), function () {
+          runUniversityAction(
+            '/api/admin/university-data/validate',
+            {},
+            this,
+            'Validate 실행 완료',
+          );
+        });
 
-        async function loadUniversityDataConfig() {
-            const data = await apiFetch('/api/admin/university-data/config');
-            state.universityData = {
-                manifest: data.manifest || { sources: [] },
-                trustPolicy: data.trustPolicy || {},
-                summary: data.summary || {}
-            };
-            renderUniversityData();
-        }
+        document.getElementById('auto-refresh').addEventListener('change', (event) => {
+          if (event.target.checked) {
+            state.autoRefreshId = setInterval(() => refreshAll(false), 30000);
+          } else {
+            clearInterval(state.autoRefreshId);
+            state.autoRefreshId = null;
+          }
+        });
+      }
 
-        function setLastUpdated() {
-            document.getElementById('last-updated').textContent = `마지막 동기화: ${new Date().toLocaleString('ko-KR', { hour12: false })}`;
-        }
+      bindEvents();
+      refreshAll(false);
+      state.autoRefreshId = setInterval(() => refreshAll(false), 30000);
 
-        async function refreshAll(showMessage) {
-            if (state.loading) return;
-            state.loading = true;
-            setNotice('', 'ok');
-
-            try {
-                await Promise.all([loadAdminMeta(), loadPending(), loadUsers(), loadReports(), loadLogs(), loadUniversityDataConfig()]);
-                updateStats();
-                setLastUpdated();
-                if (showMessage) setNotice('데이터를 최신 상태로 반영했습니다.', 'ok');
-            } catch (error) {
-                const pendingEl = document.getElementById('pending-list');
-                const usersEl = document.getElementById('user-list');
-                const reportsEl = document.getElementById('reports-list');
-                const logsEl = document.getElementById('logs-list');
-                const uniOutEl = document.getElementById('uni-output');
-                const blocked = error.status === 401 || error.status === 403;
-                const guide = blocked
-                    ? '관리자 권한이 필요합니다. 관리자 계정으로 로그인 후 다시 시도해주세요.'
-                    : error.message;
-
-                pendingEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
-                usersEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
-                reportsEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
-                logsEl.innerHTML = `<div class="empty">${esc(guide)}</div>`;
-                if (uniOutEl) uniOutEl.textContent = guide;
-                document.getElementById('users-result-meta').textContent = '';
-                document.getElementById('reports-result-meta').textContent = '';
-                document.getElementById('logs-result-meta').textContent = '';
-                setNotice(guide, 'error');
-            } finally {
-                state.loading = false;
-            }
-        }
-
-        async function reviewReport(reportType, reportId, decision, button) {
-            const label = decision === 'dismiss' ? '기각' : '처리 완료';
-
-            await withActionLock(button, async () => {
-                await apiFetch(`/api/admin/community-reports/${encodeURIComponent(reportType)}/${reportId}/review`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ decision })
-                });
-                setNotice(`신고 #${reportId} ${label} 처리 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
-
-        function withActionLock(button, task) {
-            if (!button) return task();
-            button.disabled = true;
-            const original = button.textContent;
-            button.textContent = '처리 중...';
-            return task().finally(() => {
-                button.disabled = false;
-                button.textContent = original;
-            });
-        }
-
-        async function approveScore(userId, button) {
-            const parsed = collectApprovedScorePayload(userId);
-            if (!parsed.ok) {
-                alert(parsed.error);
-                return;
-            }
-
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/approve-score', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, scores: parsed.value })
-                });
-                setNotice(`유저 ${userId} 과목별 점수 승인 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
-
-        async function rejectScore(userId, button) {
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/reject-score', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
-                });
-                setNotice(`유저 ${userId} 평가원 점수 반려 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
-
-        async function approveGpa(userId, button) {
-            const gpaInput = document.getElementById(`gpa-${userId}`);
-            const gpa = Number.parseFloat(gpaInput?.value);
-            if (Number.isNaN(gpa) || gpa < 1 || gpa > 9) {
-                alert('내신은 1.0~9.0 범위에서 입력해주세요.');
-                return;
-            }
-
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/approve-gpa', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, gpa })
-                });
-                setNotice(`유저 ${userId} 내신 승인 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
-
-        async function rejectGpa(userId, button) {
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/reject-gpa', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId })
-                });
-                setNotice(`유저 ${userId} 내신 반려 완료`, 'ok');
-                await refreshAll(false);
-            }).catch((error) => {
-                setNotice(error.message, 'error');
-            });
-        }
-
-        async function runUniversityAction(endpoint, body, button, successLabel) {
-            await withActionLock(button, async () => {
-                const data = await apiFetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body || {})
-                });
-
-                const out = [data.stdout, data.stderr].filter(Boolean).join('\n\n') || '[ok] done';
-                setUniversityOutput(out, false);
-                setNotice(successLabel, 'ok');
-                await loadUniversityDataConfig();
-            }).catch((error) => {
-                setUniversityOutput(error.message, true);
-                setNotice(error.message, 'error');
-            });
-        }
-
-        async function saveUniversityConfig(button) {
-            const manifestText = document.getElementById('uni-manifest-editor').value;
-            const policyText = document.getElementById('uni-policy-editor').value;
-            let manifest;
-            let trustPolicy;
-
-            try {
-                manifest = JSON.parse(manifestText);
-            } catch (err) {
-                setNotice(`Manifest JSON 파싱 오류: ${err.message}`, 'error');
-                return;
-            }
-
-            try {
-                trustPolicy = JSON.parse(policyText);
-            } catch (err) {
-                setNotice(`정책 JSON 파싱 오류: ${err.message}`, 'error');
-                return;
-            }
-
-            await withActionLock(button, async () => {
-                await apiFetch('/api/admin/university-data/config', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ manifest, trustPolicy })
-                });
-                setNotice('대학 데이터 설정 저장 완료', 'ok');
-                setUniversityOutput('[ok] config saved');
-                await loadUniversityDataConfig();
-            }).catch((error) => {
-                setUniversityOutput(error.message, true);
-                setNotice(error.message, 'error');
-            });
-        }
-
-        function switchTab(tab) {
-            state.activeTab = tab;
-            document.querySelectorAll('.tab-btn').forEach((btn) => {
-                btn.classList.toggle('active', btn.dataset.tab === tab);
-            });
-            document.querySelectorAll('.panel').forEach((panel) => {
-                panel.classList.toggle('active', panel.id === `panel-${tab}`);
-            });
-        }
-
-        function bindEvents() {
-            // Touch + click dedup helper (pointerup for touch, click for mouse)
-            const _ts = new WeakMap();
-            function _bind(el, fn) {
-                if (!el) return;
-                el.addEventListener('pointerup', function (e) {
-                    if (e.pointerType !== 'touch') return;
-                    var now = Date.now();
-                    if (now - (_ts.get(el) || 0) < 250) return;
-                    _ts.set(el, now);
-                    e.preventDefault();
-                    fn.call(el, e);
-                }, { passive: false });
-                el.addEventListener('click', function (e) {
-                    var now = Date.now();
-                    if (now - (_ts.get(el) || 0) < 350) { e.preventDefault(); return; }
-                    fn.call(el, e);
-                });
-            }
-
-            document.querySelectorAll('.tab-btn').forEach((btn) => {
-                _bind(btn, () => switchTab(btn.dataset.tab));
-            });
-
-            _bind(document.getElementById('refresh-btn'), () => refreshAll(true));
-
-            ['search-input', 'score-filter', 'gpa-filter', 'admin-only'].forEach((id) => {
-                document.getElementById(id).addEventListener('input', renderUsers);
-                document.getElementById(id).addEventListener('change', renderUsers);
-            });
-
-            ['report-search-input', 'report-status-filter'].forEach((id) => {
-                document.getElementById(id).addEventListener('input', renderReports);
-                document.getElementById(id).addEventListener('change', async () => {
-                    if (id === 'report-status-filter') {
-                        await loadReports();
-                        updateStats();
-                    } else {
-                        renderReports();
-                    }
-                });
-            });
-
-            _bind(document.getElementById('report-refresh-btn'), async function () {
-                try {
-                    await loadReports();
-                    updateStats();
-                    setLastUpdated();
-                    setNotice('신고 데이터를 갱신했습니다.', 'ok');
-                } catch (error) {
-                    setNotice(error.message, 'error');
-                }
-            });
-
-            ['log-search-input', 'log-action-filter'].forEach((id) => {
-                document.getElementById(id).addEventListener('input', renderLogs);
-                document.getElementById(id).addEventListener('change', async () => {
-                    await loadLogs();
-                });
-            });
-
-            _bind(document.getElementById('log-refresh-btn'), async function () {
-                try {
-                    await loadLogs();
-                    setLastUpdated();
-                    setNotice('관리 로그를 갱신했습니다.', 'ok');
-                } catch (error) {
-                    setNotice(error.message, 'error');
-                }
-            });
-
-            _bind(document.getElementById('uni-refresh-config-btn'), async function () {
-                try {
-                    await loadUniversityDataConfig();
-                    setNotice('대학 데이터 설정을 새로고침했습니다.', 'ok');
-                } catch (error) {
-                    setNotice(error.message, 'error');
-                }
-            });
-
-            _bind(document.getElementById('uni-save-config-btn'), function () {
-                saveUniversityConfig(this);
-            });
-
-            _bind(document.getElementById('uni-collect-btn'), function () {
-                const source = document.getElementById('uni-collect-source').value.trim();
-                const dryRun = document.getElementById('uni-collect-dryrun').checked;
-                runUniversityAction(
-                    '/api/admin/university-data/collect',
-                    { source, dryRun },
-                    this,
-                    'Collect 실행 완료'
-                );
-            });
-
-            _bind(document.getElementById('uni-report-btn'), function () {
-                runUniversityAction('/api/admin/university-data/report', {}, this, '품질 리포트 실행 완료');
-            });
-
-            _bind(document.getElementById('uni-export-btn'), function () {
-                runUniversityAction('/api/admin/university-data/export', {}, this, 'Export 실행 완료');
-            });
-
-            _bind(document.getElementById('uni-validate-btn'), function () {
-                runUniversityAction('/api/admin/university-data/validate', {}, this, 'Validate 실행 완료');
-            });
-
-            document.getElementById('auto-refresh').addEventListener('change', (event) => {
-                if (event.target.checked) {
-                    state.autoRefreshId = setInterval(() => refreshAll(false), 30000);
-                } else {
-                    clearInterval(state.autoRefreshId);
-                    state.autoRefreshId = null;
-                }
-            });
-        }
-
-        bindEvents();
-        refreshAll(false);
-        state.autoRefreshId = setInterval(() => refreshAll(false), 30000);
-
-        window.reviewReport = reviewReport;
-        window.approveScore = approveScore;
-        window.rejectScore = rejectScore;
-        window.approveGpa = approveGpa;
-        window.rejectGpa = rejectGpa;
-        window.saveUserEdit = saveUserEdit;
-        window.resetUserEdit = resetUserEdit;
+      window.reviewReport = reviewReport;
+      window.approveScore = approveScore;
+      window.rejectScore = rejectScore;
+      window.approveGpa = approveGpa;
+      window.rejectGpa = rejectGpa;
+      window.saveUserEdit = saveUserEdit;
+      window.resetUserEdit = resetUserEdit;
     </script>
-</body>
+  </body>
 </html>

@@ -52,22 +52,28 @@ const CACHE_FIRST_PATTERNS = [
 // ─── Install ───────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => {
-      return cache.addAll(APP_SHELL.map(url => new Request(url, { credentials: 'include' })));
-    }).then(() => self.skipWaiting())
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => {
+        return cache.addAll(APP_SHELL.map((url) => new Request(url, { credentials: 'include' })));
+      })
+      .then(() => self.skipWaiting()),
   );
 });
 
 // ─── Activate ──────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys
-          .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
-          .map((key) => caches.delete(key))
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => {
+        return Promise.all(
+          keys
+            .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
+            .map((key) => caches.delete(key)),
+        );
+      })
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -161,12 +167,14 @@ async function staleWhileRevalidate(request) {
   const cache = await caches.open(DYNAMIC_CACHE);
   const cached = await cache.match(request);
 
-  const fetchPromise = fetch(request).then((response) => {
-    if (response.ok) {
-      cache.put(request, response.clone());
-    }
-    return response;
-  }).catch(() => null);
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => null);
 
   return cached || fetchPromise || offlineFallback(request);
 }
@@ -175,8 +183,10 @@ function offlineFallback(request) {
   const url = new URL(request.url);
   // For HTML pages, redirect to login (which is cached)
   if (request.headers.get('Accept')?.includes('text/html')) {
-    return caches.match('/login/') || new Response(
-      `<!DOCTYPE html>
+    return (
+      caches.match('/login/') ||
+      new Response(
+        `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -219,7 +229,8 @@ function offlineFallback(request) {
   <button onclick="location.reload()">다시 시도</button>
 </body>
 </html>`,
-      { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+      )
     );
   }
   return new Response('', { status: 503 });
@@ -236,7 +247,7 @@ self.addEventListener('push', (event) => {
       badge: '/icons/icon-96.png',
       vibrate: [100, 50, 100],
       data: { url: data.url || '/study-hub/' },
-    })
+    }),
   );
 });
 
@@ -249,6 +260,6 @@ self.addEventListener('notificationclick', (event) => {
         if (client.url.includes(url) && 'focus' in client) return client.focus();
       }
       if (clients.openWindow) return clients.openWindow(url);
-    })
+    }),
   );
 });

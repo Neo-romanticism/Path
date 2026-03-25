@@ -16,24 +16,28 @@ if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 // ── PNG helpers ──────────────────────────────────────────────────────────────
 function crc32(buf) {
   let crc = 0xffffffff;
-  const table = crc32.table || (crc32.table = (() => {
-    const t = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) {
-      let c = i;
-      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
-      t[i] = c;
-    }
-    return t;
-  })());
+  const table =
+    crc32.table ||
+    (crc32.table = (() => {
+      const t = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        t[i] = c;
+      }
+      return t;
+    })());
   for (const byte of buf) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
 }
 
 function chunk(type, data) {
   const typeBytes = Buffer.from(type, 'ascii');
-  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
   const crcInput = Buffer.concat([typeBytes, data]);
-  const crcBuf = Buffer.alloc(4); crcBuf.writeUInt32BE(crc32(crcInput));
+  const crcBuf = Buffer.alloc(4);
+  crcBuf.writeUInt32BE(crc32(crcInput));
   return Buffer.concat([len, typeBytes, data, crcBuf]);
 }
 
@@ -45,8 +49,8 @@ function makePNG(pixels, size) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
-  ihdr[8] = 8;  // bit depth
-  ihdr[9] = 2;  // color type: truecolor RGB
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // color type: truecolor RGB
   ihdr[10] = ihdr[11] = ihdr[12] = 0;
 
   // Raw image data (filter byte 0 = None per row)
@@ -77,7 +81,9 @@ function makePNG(pixels, size) {
 function setPixel(pixels, size, x, y, r, g, b) {
   if (x < 0 || y < 0 || x >= size || y >= size) return;
   const i = (y * size + x) * 3;
-  pixels[i] = r; pixels[i + 1] = g; pixels[i + 2] = b;
+  pixels[i] = r;
+  pixels[i + 1] = g;
+  pixels[i + 2] = b;
 }
 
 // Anti-aliased circle draw
@@ -88,12 +94,12 @@ function drawCircle(pixels, size, cx, cy, radius, r, g, b) {
       if (dist <= radius - 0.5) {
         setPixel(pixels, size, x, y, r, g, b);
       } else if (dist < radius + 0.5) {
-        const alpha = (radius + 0.5 - dist);
+        const alpha = radius + 0.5 - dist;
         const bi = (y * size + x) * 3;
         if (x >= 0 && y >= 0 && x < size && y < size) {
-          pixels[bi]   = Math.round(pixels[bi]   * (1 - alpha) + r * alpha);
-          pixels[bi+1] = Math.round(pixels[bi+1] * (1 - alpha) + g * alpha);
-          pixels[bi+2] = Math.round(pixels[bi+2] * (1 - alpha) + b * alpha);
+          pixels[bi] = Math.round(pixels[bi] * (1 - alpha) + r * alpha);
+          pixels[bi + 1] = Math.round(pixels[bi + 1] * (1 - alpha) + g * alpha);
+          pixels[bi + 2] = Math.round(pixels[bi + 2] * (1 - alpha) + b * alpha);
         }
       }
     }
@@ -110,11 +116,11 @@ function hLine(pixels, size, x1, x2, y, r, g, b, thickness = 1) {
 // Draw rectangle outline
 function rectOutline(pixels, size, x, y, w, h, r, g, b, thickness = 1) {
   for (let t = 0; t < thickness; t++) {
-    hLine(pixels, size, x+t, x+w-t, y+t, r, g, b);        // top
-    hLine(pixels, size, x+t, x+w-t, y+h-t, r, g, b);      // bottom
-    for (let row = y+t; row <= y+h-t; row++) {
-      setPixel(pixels, size, x+t, row, r, g, b);
-      setPixel(pixels, size, x+w-t, row, r, g, b);
+    hLine(pixels, size, x + t, x + w - t, y + t, r, g, b); // top
+    hLine(pixels, size, x + t, x + w - t, y + h - t, r, g, b); // bottom
+    for (let row = y + t; row <= y + h - t; row++) {
+      setPixel(pixels, size, x + t, row, r, g, b);
+      setPixel(pixels, size, x + w - t, row, r, g, b);
     }
   }
 }
@@ -140,17 +146,60 @@ function drawPathIcon(size) {
   const cornerLen = Math.floor(size * 0.12);
   const innerPad = pad + Math.floor(size * 0.07);
   // top-left
-  hLine(pixels, size, innerPad, innerPad + cornerLen, innerPad, gr, gg, gb, Math.max(1, Math.floor(size * 0.008)));
+  hLine(
+    pixels,
+    size,
+    innerPad,
+    innerPad + cornerLen,
+    innerPad,
+    gr,
+    gg,
+    gb,
+    Math.max(1, Math.floor(size * 0.008)),
+  );
   for (let i = 0; i < cornerLen; i++) setPixel(pixels, size, innerPad, innerPad + i, gr, gg, gb);
   // top-right
-  hLine(pixels, size, size - innerPad - cornerLen, size - innerPad, innerPad, gr, gg, gb, Math.max(1, Math.floor(size * 0.008)));
-  for (let i = 0; i < cornerLen; i++) setPixel(pixels, size, size - innerPad, innerPad + i, gr, gg, gb);
+  hLine(
+    pixels,
+    size,
+    size - innerPad - cornerLen,
+    size - innerPad,
+    innerPad,
+    gr,
+    gg,
+    gb,
+    Math.max(1, Math.floor(size * 0.008)),
+  );
+  for (let i = 0; i < cornerLen; i++)
+    setPixel(pixels, size, size - innerPad, innerPad + i, gr, gg, gb);
   // bottom-left
-  hLine(pixels, size, innerPad, innerPad + cornerLen, size - innerPad, gr, gg, gb, Math.max(1, Math.floor(size * 0.008)));
-  for (let i = 0; i < cornerLen; i++) setPixel(pixels, size, innerPad, size - innerPad - i, gr, gg, gb);
+  hLine(
+    pixels,
+    size,
+    innerPad,
+    innerPad + cornerLen,
+    size - innerPad,
+    gr,
+    gg,
+    gb,
+    Math.max(1, Math.floor(size * 0.008)),
+  );
+  for (let i = 0; i < cornerLen; i++)
+    setPixel(pixels, size, innerPad, size - innerPad - i, gr, gg, gb);
   // bottom-right
-  hLine(pixels, size, size - innerPad - cornerLen, size - innerPad, size - innerPad, gr, gg, gb, Math.max(1, Math.floor(size * 0.008)));
-  for (let i = 0; i < cornerLen; i++) setPixel(pixels, size, size - innerPad, size - innerPad - i, gr, gg, gb);
+  hLine(
+    pixels,
+    size,
+    size - innerPad - cornerLen,
+    size - innerPad,
+    size - innerPad,
+    gr,
+    gg,
+    gb,
+    Math.max(1, Math.floor(size * 0.008)),
+  );
+  for (let i = 0; i < cornerLen; i++)
+    setPixel(pixels, size, size - innerPad, size - innerPad - i, gr, gg, gb);
 
   // ── Draw "PATH" letter by letter using pixel font ──────────────────────
   // Use a simple 5x7 pixel font approach scaled to icon size
@@ -173,34 +222,49 @@ function drawPathIcon(size) {
 
   // P
   const px = startX;
-  drawBar(px, startY, sw, letterHeight);                              // left vertical
-  drawBar(px, startY, letterWidth * 0.7, sw);                        // top horizontal
+  drawBar(px, startY, sw, letterHeight); // left vertical
+  drawBar(px, startY, letterWidth * 0.7, sw); // top horizontal
   drawBar(px, startY + Math.floor(letterHeight * 0.45), letterWidth * 0.7, sw); // mid horizontal
-  drawBar(px + Math.floor(letterWidth * 0.7) - sw, startY, sw, Math.floor(letterHeight * 0.45) + sw); // right top curve
+  drawBar(
+    px + Math.floor(letterWidth * 0.7) - sw,
+    startY,
+    sw,
+    Math.floor(letterHeight * 0.45) + sw,
+  ); // right top curve
 
   // A
   const ax = startX + letterWidth + spacing;
-  drawBar(ax, startY, sw, letterHeight);                              // left vertical
-  drawBar(ax + letterWidth - sw, startY, sw, letterHeight);           // right vertical
-  drawBar(ax, startY, letterWidth, sw);                               // top horizontal
+  drawBar(ax, startY, sw, letterHeight); // left vertical
+  drawBar(ax + letterWidth - sw, startY, sw, letterHeight); // right vertical
+  drawBar(ax, startY, letterWidth, sw); // top horizontal
   drawBar(ax, startY + Math.floor(letterHeight * 0.48), letterWidth, sw); // mid horizontal
 
   // T
   const tx = startX + (letterWidth + spacing) * 2;
-  drawBar(tx, startY, letterWidth, sw);                               // top horizontal
+  drawBar(tx, startY, letterWidth, sw); // top horizontal
   drawBar(tx + Math.floor((letterWidth - sw) / 2), startY, sw, letterHeight); // center vertical
 
   // H
   const hx = startX + (letterWidth + spacing) * 3;
-  drawBar(hx, startY, sw, letterHeight);                              // left vertical
-  drawBar(hx + letterWidth - sw, startY, sw, letterHeight);           // right vertical
+  drawBar(hx, startY, sw, letterHeight); // left vertical
+  drawBar(hx + letterWidth - sw, startY, sw, letterHeight); // right vertical
   drawBar(hx, startY + Math.floor(letterHeight * 0.45), letterWidth, sw); // mid horizontal
 
   // ── Decorative line below text ─────────────────────────────────────────
   const lineY = startY + letterHeight + Math.floor(size * 0.06);
   const lineLen = Math.floor(size * 0.42);
   const lineThick = Math.max(1, Math.floor(size * 0.007));
-  hLine(pixels, size, cx - Math.floor(lineLen/2), cx + Math.floor(lineLen/2), lineY, gr, gg, gb, lineThick);
+  hLine(
+    pixels,
+    size,
+    cx - Math.floor(lineLen / 2),
+    cx + Math.floor(lineLen / 2),
+    lineY,
+    gr,
+    gg,
+    gb,
+    lineThick,
+  );
 
   // ── Red accent dot ─────────────────────────────────────────────────────
   const dotY = lineY + Math.floor(size * 0.07);

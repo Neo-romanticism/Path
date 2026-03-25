@@ -1,0 +1,9 @@
+node_modules
+android
+uploads
+*.png
+*.jpeg
+*.jpg
+*.p8
+*.txt
+package-lock.json

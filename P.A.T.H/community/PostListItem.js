@@ -7,11 +7,11 @@
 
 /* ── Category metadata ─────────────────────────────────────────────────── */
 export const CATEGORY_META = {
-  '전체': { label: '전체', cls: 'cat--all' },
-  '념글': { label: '베스트', cls: 'cat--best' },
-  '정보': { label: '정보', cls: 'cat--info' },
-  '질문': { label: 'Q&A',  cls: 'cat--qa'   },
-  '잡담': { label: '잡담', cls: 'cat--chat'  },
+  전체: { label: '전체', cls: 'cat--all' },
+  념글: { label: '베스트', cls: 'cat--best' },
+  정보: { label: '정보', cls: 'cat--info' },
+  질문: { label: 'Q&A', cls: 'cat--qa' },
+  잡담: { label: '잡담', cls: 'cat--chat' },
 };
 
 /**
@@ -40,20 +40,20 @@ export function PostListItem(post) {
   el.className = 'post-row' + (post.isHot ? ' is-hot' : '');
   el.dataset.id = post.id;
 
-  const cat    = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
-  const date   = formatDate(post.createdAt);
-  const views  = fmtNum(post.views);
-  const likes  = fmtNum(post.likes);
+  const cat = CATEGORY_META[post.category] ?? CATEGORY_META['전체'];
+  const date = formatDate(post.createdAt);
+  const views = fmtNum(post.views);
+  const likes = fmtNum(post.likes);
   const verifiedBadge = post.isVerifiedNickname
     ? '<span class="user-verified-badge" aria-label="본인 닉네임 인증" title="본인 닉네임 인증">✓</span>'
     : '';
   const showProfileAvatar = post.isVerifiedNickname && !!post.profileImageUrl;
-  const authorDataAttrs = post.isVerifiedNickname && Number(post.userId) > 0
-    ? `data-user-id="${post.userId}"`
-    : '';
-  const authorBtnClass = post.isVerifiedNickname && Number(post.userId) > 0
-    ? 'post-row__author-btn js-open-user-profile'
-    : 'post-row__author-btn';
+  const authorDataAttrs =
+    post.isVerifiedNickname && Number(post.userId) > 0 ? `data-user-id="${post.userId}"` : '';
+  const authorBtnClass =
+    post.isVerifiedNickname && Number(post.userId) > 0
+      ? 'post-row__author-btn js-open-user-profile'
+      : 'post-row__author-btn';
 
   const numCell = post.isHot
     ? `<span class="post-row__num post-row__num--hot">
@@ -74,13 +74,17 @@ export function PostListItem(post) {
       ${numCell}
       <div class="post-row__top">
         <span class="post-row__cat ${cat.cls}">${cat.label}</span>
-        ${post.hasImage ? `<span class="post-row__media-icon" aria-label="이미지 포함" title="이미지 포함">
+        ${
+          post.hasImage
+            ? `<span class="post-row__media-icon" aria-label="이미지 포함" title="이미지 포함">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <rect x="3" y="5" width="18" height="14" rx="2" ry="2"></rect>
             <circle cx="9" cy="10" r="1.5"></circle>
             <path d="M21 15l-4.5-4.5a1 1 0 0 0-1.4 0L8 17"></path>
           </svg>
-        </span>` : ''}
+        </span>`
+            : ''
+        }
         <span class="post-row__title">${escHtml(post.title)}</span>
         ${post.comments > 0 ? `<span class="post-row__cmts" aria-label="댓글 ${post.comments}개">${post.comments}</span>` : ''}
       </div>
@@ -129,10 +133,10 @@ export function SkeletonItem() {
 /* ── Utilities ───────────────────────────────────────────────────────────── */
 
 function formatDate(iso) {
-  const now  = Date.now();
+  const now = Date.now();
   const diff = (now - new Date(iso).getTime()) / 1000;
-  if (diff < 60)    return '방금';
-  if (diff < 3600)  return `${Math.floor(diff / 60)}분 전`;
+  if (diff < 60) return '방금';
+  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
   const d = new Date(iso);
   const yy = d.getFullYear();
@@ -146,7 +150,7 @@ function formatDate(iso) {
 
 function fmtNum(n) {
   if (n >= 10000) return `${(n / 10000).toFixed(1)}만`;
-  if (n >= 1000)  return `${(n / 1000).toFixed(1)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
 }
 
@@ -157,4 +161,3 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
-

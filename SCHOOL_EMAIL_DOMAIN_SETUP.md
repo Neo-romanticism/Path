@@ -1,11 +1,13 @@
 # 학교 이메일 도메인 인증 시스템 설정 가이드
 
 ## 개요
+
 기존의 전화번호 인증을 완전히 제거하고, 학교 이메일 도메인 기반 인증 시스템을 도입했습니다. 이를 통해 학생을 학교 이메일 도메인으로 검증합니다.
 
 ## ✅ 완료된 작업
 
 ### 1. 데이터베이스 스키마 (server/schema.js)
+
 두 개의 새 테이블이 생성됩니다:
 
 ```sql
@@ -30,14 +32,17 @@ CREATE TABLE school_email_domain_universities (
 ### 2. 유틸리티 함수 (server/utils/schoolEmailDomain.js)
 
 #### `normalizeDomain(raw: string): string`
+
 - 입력: `"  @www.example.ac.kr  "`
 - 출력: `"example.ac.kr"`
 - 정규화: 소문자, @/www 제거, 공백 정리
 
 #### `isValidDomain(domain: string): boolean`
+
 - RFC 규격에 맞는 도메인인지 검증
 
 #### `parseUniversityDomainText(rawText: string): object`
+
 - 형식: `"학교명 도메인"` (각 줄)
 - 반환:
   ```javascript
@@ -59,9 +64,11 @@ CREATE TABLE school_email_domain_universities (
 ### 3. 인증 엔드포인트 (server/routes/auth.js)
 
 #### GET `/api/auth/school-email-domain/check?email=student@school.ac.kr`
+
 학교 이메일의 도메인이 등록된 도메인인지 확인합니다.
 
 **응답:**
+
 ```json
 {
   "ok": true,
@@ -72,6 +79,7 @@ CREATE TABLE school_email_domain_universities (
 ```
 
 #### POST `/api/auth/school-email-domain/import` (관리자 전용)
+
 대량의 도메인 데이터를 가져옵니다. 요청 본문:
 
 ```json
@@ -81,6 +89,7 @@ CREATE TABLE school_email_domain_universities (
 ```
 
 **응답:**
+
 ```json
 {
   "success": true,
@@ -100,6 +109,7 @@ CREATE TABLE school_email_domain_universities (
 ```
 
 ### 4. CLI 임포트 스크립트 (scripts/import-school-email-domains.js)
+
 명령어로 도메인 데이터를 한 번에 가져옵니다:
 
 ```bash
@@ -111,6 +121,7 @@ npm run import:school-domains ./my-domains.txt
 ```
 
 ### 5. 환경 변수 자동 로드 (dotenv)
+
 - `server/db.js`에서 자동으로 `.env` 파일을 로드
 - 더 이상 `export DATABASE_URL=...` 할 필요 없음
 
@@ -119,11 +130,13 @@ npm run import:school-domains ./my-domains.txt
 ### 1. 로컬 개발 환경 설정
 
 **.env 파일 생성** (`.env.example` 참고):
+
 ```bash
 cp .env.example .env
 ```
 
 `.env` 파일 편집:
+
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/path
 NODE_ENV=development
@@ -138,6 +151,7 @@ SITE_URL=http://localhost:5000
 **파일: `server/data/school-email-domains.raw.txt`**
 
 형식 (각 줄):
+
 ```
 가천대학교 gachon.ac.kr
 경복대학교 kbu.ac.kr
@@ -155,6 +169,7 @@ npm run import:school-domains
 ```
 
 **출력 예시:**
+
 ```
 [DONE] 학교 이메일 도메인 가져오기 완료
 {
@@ -188,6 +203,7 @@ curl "http://localhost:5000/api/auth/school-email-domain/check?email=student@gac
 ## 📋 Render 배포 설정
 
 ### 환경 변수 설정
+
 Render 대시보드에서 다음 환경 변수를 설정합니다:
 
 - `DATABASE_URL`: Render가 자동으로 제공 (PostgreSQL 생성 시)
@@ -214,16 +230,19 @@ EOF
 ## 🔧 다음 단계 (미완료)
 
 ### 1. OTP 인증 엔드포인트
+
 - `POST /api/auth/school-email-otp/request` - OTP 요청
 - `POST /api/auth/school-email-otp/verify` - OTP 검증
 
 ### 2. 회원가입 UI 통합
+
 - 이메일 입력 필드
 - 도메인 자동 검증
 - OTP 입력 폼
 - 학교명 자동 표시
 
 ### 3. 계정 티어 시스템
+
 - **Community**: 이메일 미인증
 - **Verified Student**: 학교 이메일로 인증됨
 - **Instructor**: 대학원 이메일 또는 승인
@@ -237,26 +256,28 @@ EOF
 - `PHONE_AUTH_IMPLEMENTATION.md` - 폐기됨 ❌
 - `server/utils/aligo.js` - 삭제됨 ❌
 - `phone_verifications` 테이블 - 스키마에서 제거됨 ❌
-- ALIGO_* 환경 변수 - .env.example에서 제거됨 ❌
+- ALIGO\_\* 환경 변수 - .env.example에서 제거됨 ❌
 - 모든 전화 인증 엔드포인트 - 410 Gone 반환 ❌
 
 ## ✨ 기술 상세
 
 ### 도메인 정규화 예시
+
 ```javascript
 const schoolEmailDomain = require('./server/utils/schoolEmailDomain');
 
-schoolEmailDomain.normalizeDomain('  @WWW.EXAMPLE.AC.KR  ')
+schoolEmailDomain.normalizeDomain('  @WWW.EXAMPLE.AC.KR  ');
 // → 'example.ac.kr'
 
-schoolEmailDomain.isValidDomain('example.ac.kr')
+schoolEmailDomain.isValidDomain('example.ac.kr');
 // → true
 
-schoolEmailDomain.isValidDomain('invalid..domain')
+schoolEmailDomain.isValidDomain('invalid..domain');
 // → false
 ```
 
 ### 파서 실행 예시
+
 ```javascript
 const { parseUniversityDomainText } = require('./server/utils/schoolEmailDomain');
 
@@ -286,6 +307,7 @@ const result = parseUniversityDomainText(`
 ## 🐛 문제 해결
 
 ### "DATABASE_URL이 설정되지 않았습니다" 오류
+
 **해결:** `.env` 파일이 프로젝트 루트에 있는지 확인하고 `DATABASE_URL`이 설정되어 있는지 확인합니다.
 
 ```bash
@@ -293,11 +315,13 @@ cat .env | grep DATABASE_URL
 ```
 
 ### 도메인 임포트 실패
+
 1. 파일 형식 확인: `학교명 도메인` (공백 구분)
 2. UTF-8 인코딩 확인
 3. 데이터베이스 연결 확인
 
 ### 관리자 API 접근 불가
+
 - 계정이 관리자(`is_admin=TRUE`)인지 확인
 - 세션 쿠키가 올바른지 확인
 

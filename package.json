@@ -1,6 +1,6 @@
 {
   "name": "path-app",
-    "version": "1.1.1",
+  "version": "1.1.1",
   "description": "P.A.T.H - 공부 타이머 게임",
   "main": "server/index.js",
   "scripts": {
@@ -25,7 +25,11 @@
     "cap:doctor": "cap doctor",
     "apk:debug": "bash scripts/build-android.sh debug",
     "apk:release": "bash scripts/build-android.sh release-apk",
-    "aab:release": "bash scripts/build-android.sh release-aab"
+    "aab:release": "bash scripts/build-android.sh release-aab",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": "",
@@ -50,6 +54,12 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.2.0"
+    "@capacitor/cli": "^8.2.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1"
   }
 }

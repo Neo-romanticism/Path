@@ -3,36 +3,36 @@
  * Handles service worker registration and the "Add to Home Screen" install banner.
  */
 (function () {
-    'use strict';
+  'use strict';
 
-    // ── Service Worker Registration ────────────────────────────────────────
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-            .register('/sw.js', { scope: '/' })
-            .then((reg) => {
-                // Check for updates every 60 seconds while the page is open
-                setInterval(() => reg.update(), 60000);
-            })
-            .catch(() => {});
-    }
+  // ── Service Worker Registration ────────────────────────────────────────
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        // Check for updates every 60 seconds while the page is open
+        setInterval(() => reg.update(), 60000);
+      })
+      .catch(() => {});
+  }
 
-    // ── Install Prompt ─────────────────────────────────────────────────────
-    const DISMISSED_KEY = 'pwa_install_dismissed';
-    const DISMISSED_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+  // ── Install Prompt ─────────────────────────────────────────────────────
+  const DISMISSED_KEY = 'pwa_install_dismissed';
+  const DISMISSED_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    let deferredPrompt = null;
+  let deferredPrompt = null;
 
-    function wasDismissedRecently() {
-        const ts = localStorage.getItem(DISMISSED_KEY);
-        return ts && Date.now() - Number(ts) < DISMISSED_TTL;
-    }
+  function wasDismissedRecently() {
+    const ts = localStorage.getItem(DISMISSED_KEY);
+    return ts && Date.now() - Number(ts) < DISMISSED_TTL;
+  }
 
-    function createBanner() {
-        const banner = document.createElement('div');
-        banner.id = 'pwa-install-banner';
-        banner.setAttribute('role', 'dialog');
-        banner.setAttribute('aria-label', 'P.A.T.H 앱 설치');
-        banner.innerHTML = `
+  function createBanner() {
+    const banner = document.createElement('div');
+    banner.id = 'pwa-install-banner';
+    banner.setAttribute('role', 'dialog');
+    banner.setAttribute('aria-label', 'P.A.T.H 앱 설치');
+    banner.innerHTML = `
             <div class="pwa-banner-icon">
                 <img src="/icons/icon-96.png" alt="P.A.T.H 아이콘" width="44" height="44">
             </div>
@@ -44,8 +44,8 @@
             <button class="pwa-banner-close" id="pwa-btn-close" aria-label="닫기">✕</button>
         `;
 
-        const style = document.createElement('style');
-        style.textContent = `
+    const style = document.createElement('style');
+    style.textContent = `
             #pwa-install-banner {
                 position: fixed;
                 bottom: 20px;
@@ -120,65 +120,65 @@
             .pwa-banner-close:hover { color: #999; }
         `;
 
-        document.head.appendChild(style);
-        document.body.appendChild(banner);
+    document.head.appendChild(style);
+    document.body.appendChild(banner);
 
-        // Animate in after a tick
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => banner.classList.add('pwa-visible'));
-        });
-
-        document.getElementById('pwa-btn-install').addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            hideBanner(banner, outcome === 'dismissed');
-        });
-
-        document.getElementById('pwa-btn-close').addEventListener('click', () => {
-            localStorage.setItem(DISMISSED_KEY, String(Date.now()));
-            hideBanner(banner, false);
-        });
-
-        return banner;
-    }
-
-    function hideBanner(banner, keepDismissed) {
-        banner.classList.remove('pwa-visible');
-        setTimeout(() => banner.remove(), 500);
-    }
-
-    // Listen for the install prompt event
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        // Show banner only if not recently dismissed and not already installed
-        if (!wasDismissedRecently()) {
-            // Delay slightly so the page can settle
-            setTimeout(() => createBanner(), 3000);
-        }
+    // Animate in after a tick
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => banner.classList.add('pwa-visible'));
     });
 
-    // Hide banner if app was successfully installed
-    window.addEventListener('appinstalled', () => {
-        deferredPrompt = null;
-        const banner = document.getElementById('pwa-install-banner');
-        if (banner) hideBanner(banner, false);
-        console.log('[PWA] P.A.T.H 앱이 설치되었습니다.');
+    document.getElementById('pwa-btn-install').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      hideBanner(banner, outcome === 'dismissed');
     });
 
-    // ── iOS Safari "Add to Home Screen" guide (no beforeinstallprompt on iOS) ──
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+    document.getElementById('pwa-btn-close').addEventListener('click', () => {
+      localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+      hideBanner(banner, false);
+    });
 
-    if (isIOS && !isStandalone && !wasDismissedRecently()) {
-        setTimeout(() => {
-            const toast = document.createElement('div');
-            toast.id = 'pwa-ios-toast';
-            toast.innerHTML = `
+    return banner;
+  }
+
+  function hideBanner(banner, keepDismissed) {
+    banner.classList.remove('pwa-visible');
+    setTimeout(() => banner.remove(), 500);
+  }
+
+  // Listen for the install prompt event
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    // Show banner only if not recently dismissed and not already installed
+    if (!wasDismissedRecently()) {
+      // Delay slightly so the page can settle
+      setTimeout(() => createBanner(), 3000);
+    }
+  });
+
+  // Hide banner if app was successfully installed
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) hideBanner(banner, false);
+    console.log('[PWA] P.A.T.H 앱이 설치되었습니다.');
+  });
+
+  // ── iOS Safari "Add to Home Screen" guide (no beforeinstallprompt on iOS) ──
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  if (isIOS && !isStandalone && !wasDismissedRecently()) {
+    setTimeout(() => {
+      const toast = document.createElement('div');
+      toast.id = 'pwa-ios-toast';
+      toast.innerHTML = `
                 <div style="
                     position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
                     background:#111;border:1px solid rgba(212,175,55,0.35);
@@ -200,9 +200,9 @@
                         style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:4px;flex-shrink:0">✕</button>
                 </div>
             `;
-            document.body.appendChild(toast);
-            // Auto-dismiss after 12s
-            setTimeout(() => toast.remove(), 12000);
-        }, 4000);
-    }
+      document.body.appendChild(toast);
+      // Auto-dismiss after 12s
+      setTimeout(() => toast.remove(), 12000);
+    }, 4000);
+  }
 })();

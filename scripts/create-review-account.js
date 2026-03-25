@@ -7,79 +7,87 @@ const password = process.env.REVIEW_PASSWORD || '';
 const realName = process.env.REVIEW_REAL_NAME || 'Google Play Reviewer';
 
 function validateDatabaseUrl(value) {
-    if (!value) {
-        throw new Error('DATABASE_URL is missing. Set a real PostgreSQL URL before running this script.');
-    }
+  if (!value) {
+    throw new Error(
+      'DATABASE_URL is missing. Set a real PostgreSQL URL before running this script.',
+    );
+  }
 
-    const normalized = String(value).trim();
-    const hasPlaceholder = /(USER|PASS|HOST|DBNAME|DB)\b/i.test(normalized);
-    if (hasPlaceholder) {
-        throw new Error('DATABASE_URL still contains placeholders (USER/PASS/HOST/DB). Replace them with real values.');
-    }
+  const normalized = String(value).trim();
+  const hasPlaceholder = /(USER|PASS|HOST|DBNAME|DB)\b/i.test(normalized);
+  if (hasPlaceholder) {
+    throw new Error(
+      'DATABASE_URL still contains placeholders (USER/PASS/HOST/DB). Replace them with real values.',
+    );
+  }
 
-    let parsed;
-    try {
-        parsed = new URL(normalized);
-    } catch (_) {
-        throw new Error('DATABASE_URL is not a valid URL. Expected format: postgresql://user:password@hostname:5432/database');
-    }
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch (_) {
+    throw new Error(
+      'DATABASE_URL is not a valid URL. Expected format: postgresql://user:password@hostname:5432/database',
+    );
+  }
 
-    const protocolOk = parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:';
-    if (!protocolOk) {
-        throw new Error(`Unsupported DATABASE_URL protocol: ${parsed.protocol}`);
-    }
+  const protocolOk = parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:';
+  if (!protocolOk) {
+    throw new Error(`Unsupported DATABASE_URL protocol: ${parsed.protocol}`);
+  }
 
-    if (!parsed.hostname || /^host$/i.test(parsed.hostname)) {
-        throw new Error('DATABASE_URL hostname is invalid. Use your real DB host (for example, dpg-xxxxx-a.singapore-postgres.render.com).');
-    }
+  if (!parsed.hostname || /^host$/i.test(parsed.hostname)) {
+    throw new Error(
+      'DATABASE_URL hostname is invalid. Use your real DB host (for example, dpg-xxxxx-a.singapore-postgres.render.com).',
+    );
+  }
 }
 
 function generatePassword() {
-    return `Path!${Math.random().toString(36).slice(2, 8)}#${Date.now().toString().slice(-4)}`;
+  return `Path!${Math.random().toString(36).slice(2, 8)}#${Date.now().toString().slice(-4)}`;
 }
 
 async function ensureUserCode(client, userId) {
-    const nextCode = `PATH-${String(userId).padStart(6, '0')}`;
-    await client.query(
-        `UPDATE users
+  const nextCode = `PATH-${String(userId).padStart(6, '0')}`;
+  await client.query(
+    `UPDATE users
          SET user_code = COALESCE(user_code, $2)
          WHERE id = $1`,
-        [userId, nextCode]
-    );
+    [userId, nextCode],
+  );
 }
 
 async function main() {
-    validateDatabaseUrl(process.env.DATABASE_URL);
+  validateDatabaseUrl(process.env.DATABASE_URL);
 
-    const finalPassword = password || generatePassword();
-    const passwordHash = await bcrypt.hash(finalPassword, 10);
+  const finalPassword = password || generatePassword();
+  const passwordHash = await bcrypt.hash(finalPassword, 10);
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        const existing = await client.query('SELECT id FROM users WHERE nickname = $1', [nickname]);
+    const existing = await client.query('SELECT id FROM users WHERE nickname = $1', [nickname]);
 
-        let userId;
-        let mode;
+    let userId;
+    let mode;
 
-        if (existing.rows.length > 0) {
-            userId = existing.rows[0].id;
-            mode = 'updated';
-            await client.query(
-                `UPDATE users
+    if (existing.rows.length > 0) {
+      userId = existing.rows[0].id;
+      mode = 'updated';
+      await client.query(
+        `UPDATE users
                  SET password_hash = $2,
                      real_name = COALESCE(real_name, $3),
                      privacy_agreed = TRUE,
                      eula_version = $4,
                      eula_agreed_at = NOW()
                  WHERE id = $1`,
-                [userId, passwordHash, realName, EULA_VERSION]
-            );
-        } else {
-            mode = 'created';
-            const inserted = await client.query(
-                `INSERT INTO users (
+        [userId, passwordHash, realName, EULA_VERSION],
+      );
+    } else {
+      mode = 'created';
+      const inserted = await client.query(
+        `INSERT INTO users (
                     nickname,
                     password_hash,
                     university,
@@ -91,30 +99,36 @@ async function main() {
                     admin_role
                 ) VALUES ($1, $2, $3, $4, TRUE, $5, NOW(), FALSE, 'none')
                 RETURNING id`,
-                [nickname, passwordHash, null, realName, EULA_VERSION]
-            );
-            userId = inserted.rows[0].id;
-        }
-
-        await ensureUserCode(client, userId);
-        await client.query('COMMIT');
-
-        console.log(JSON.stringify({
-            ok: true,
-            mode,
-            nickname,
-            password: finalPassword,
-            userId,
-            eulaVersion: EULA_VERSION
-        }, null, 2));
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('create-review-account failed:', err.message);
-        process.exitCode = 1;
-    } finally {
-        client.release();
-        pool.end();
+        [nickname, passwordHash, null, realName, EULA_VERSION],
+      );
+      userId = inserted.rows[0].id;
     }
+
+    await ensureUserCode(client, userId);
+    await client.query('COMMIT');
+
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          mode,
+          nickname,
+          password: finalPassword,
+          userId,
+          eulaVersion: EULA_VERSION,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('create-review-account failed:', err.message);
+    process.exitCode = 1;
+  } finally {
+    client.release();
+    pool.end();
+  }
 }
 
 main();

@@ -1,9 +1,9 @@
 const pool = require('./db');
 
 async function initSchema() {
-    const client = await pool.connect();
-    try {
-        await client.query(`
+  const client = await pool.connect();
+  try {
+    await client.query(`
             CREATE TABLE IF NOT EXISTS "sessions" (
                 "sid"    varchar      NOT NULL COLLATE "default",
                 "sess"   json         NOT NULL,
@@ -13,7 +13,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "sessions" ("expire");
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id                      SERIAL PRIMARY KEY,
                 nickname                VARCHAR(30) UNIQUE NOT NULL,
@@ -45,7 +45,7 @@ async function initSchema() {
                 created_at              TIMESTAMP DEFAULT NOW()
             );
         `);
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS active_title VARCHAR(40) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_last_date DATE DEFAULT NULL;
@@ -56,11 +56,11 @@ async function initSchema() {
             WHERE user_code IS NULL;
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_friend_requests BOOLEAN DEFAULT TRUE;
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_role VARCHAR(10) DEFAULT 'none';
             ALTER TABLE users DROP CONSTRAINT IF EXISTS users_admin_role_check;
             ALTER TABLE users
@@ -74,7 +74,7 @@ async function initSchema() {
             END;
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_records (
                 id            SERIAL PRIMARY KEY,
                 user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -89,7 +89,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_records_user_created ON study_records(user_id, created_at);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_subjects (
                 id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -100,7 +100,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_subjects_user_id ON study_subjects(user_id);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_plans (
                 id              SERIAL PRIMARY KEY,
                 user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -115,7 +115,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_plans_user_date ON study_plans(user_id, plan_date);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS invasions (
                 id                  SERIAL PRIMARY KEY,
                 attacker_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -129,7 +129,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_invasions_attacker ON invasions(attacker_id);
             CREATE INDEX IF NOT EXISTS idx_invasions_defender ON invasions(defender_id);
         `);
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS user_titles (
                 id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -143,7 +143,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_user_titles_active ON user_titles(user_id, is_active);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS notifications (
                 id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -155,12 +155,12 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_theme VARCHAR(30) DEFAULT 'default';
             ALTER TABLE users ADD COLUMN IF NOT EXISTS owned_themes TEXT DEFAULT 'default';
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS current_study_subject_id INTEGER DEFAULT NULL;
             ALTER TABLE study_records ADD COLUMN IF NOT EXISTS subject_id INTEGER DEFAULT NULL;
             ALTER TABLE study_records ADD COLUMN IF NOT EXISTS proof_image_url TEXT;
@@ -169,11 +169,11 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_records_user_subject_created ON study_records(user_id, subject_id, created_at);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS diamond INTEGER DEFAULT 0;
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS diamond_purchases (
                 id              SERIAL PRIMARY KEY,
                 user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -187,7 +187,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_diamond_purchases_user_created ON diamond_purchases(user_id, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS diamond_payment_orders (
                 id              SERIAL PRIMARY KEY,
                 order_id        VARCHAR(80) UNIQUE NOT NULL,
@@ -202,7 +202,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_diamond_payment_orders_user_created ON diamond_payment_orders(user_id, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_proof_images (
                 id               SERIAL PRIMARY KEY,
                 study_record_id  INTEGER NOT NULL REFERENCES study_records(id) ON DELETE CASCADE,
@@ -215,18 +215,18 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_proof_images_created_at ON study_proof_images(created_at);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS cam_enabled BOOLEAN DEFAULT FALSE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS cam_visibility VARCHAR(20) DEFAULT 'all';
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS status_emoji VARCHAR(12) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS status_message VARCHAR(60) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local';
             ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(64) UNIQUE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS google_email VARCHAR(255);
@@ -236,7 +236,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_users_apple_email ON users(apple_email);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS school_email_domains (
                 domain      VARCHAR(255) PRIMARY KEY,
                 is_active   BOOLEAN DEFAULT TRUE,
@@ -247,7 +247,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_school_email_domains_active ON school_email_domains(is_active);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS school_email_domain_universities (
                 id               SERIAL PRIMARY KEY,
                 domain           VARCHAR(255) NOT NULL REFERENCES school_email_domains(domain) ON DELETE CASCADE,
@@ -259,18 +259,18 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_school_email_domain_universities_university_name ON school_email_domain_universities(university_name);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_hash VARCHAR(64) DEFAULT NULL;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP DEFAULT NULL;
             CREATE INDEX IF NOT EXISTS idx_users_phone_hash ON users(phone_hash);
         `);
 
-        await client.query(`
+    await client.query(`
             DROP TABLE IF EXISTS phone_verifications;
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS cam_captures (
                 id          SERIAL PRIMARY KEY,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -282,7 +282,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cam_captures_created_at ON cam_captures(created_at);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS friendships (
                 id          SERIAL PRIMARY KEY,
                 sender_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -295,7 +295,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_friendships_receiver ON friendships(receiver_id);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS messages (
                 id          SERIAL PRIMARY KEY,
                 sender_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -309,7 +309,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_path VARCHAR(500) DEFAULT NULL;
             ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_type VARCHAR(100) DEFAULT NULL;
             ALTER TABLE messages ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT NULL;
@@ -317,7 +317,7 @@ async function initSchema() {
                         ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_category VARCHAR(30) NOT NULL DEFAULT 'dm';
                 `);
 
-                await client.query(`
+    await client.query(`
                         UPDATE messages m
                              SET message_category = 'admin_contact'
                          WHERE m.message_category = 'dm'
@@ -336,7 +336,7 @@ async function initSchema() {
                              );
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS hidden_dm_conversations (
                 user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 other_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -347,7 +347,7 @@ async function initSchema() {
                 ON hidden_dm_conversations(user_id, hidden_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS hidden_group_conversations (
                 user_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 room_id   INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
@@ -358,8 +358,8 @@ async function initSchema() {
                 ON hidden_group_conversations(user_id, hidden_at DESC);
         `);
 
-        // ── 커뮤니티 테이블 ─────────────────────────────────────────────
-        await client.query(`
+    // ── 커뮤니티 테이블 ─────────────────────────────────────────────
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_posts (
                 id             SERIAL PRIMARY KEY,
                 user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -382,7 +382,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cp_category_likes_created_at ON community_posts(category, likes DESC, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE community_posts
                 ADD COLUMN IF NOT EXISTS image_url TEXT;
             ALTER TABLE community_posts
@@ -405,7 +405,7 @@ async function initSchema() {
                 CHECK (views >= 0 AND likes >= 0 AND comments_count >= 0) NOT VALID;
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_likes (
                 post_id  INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
                 user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -418,7 +418,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cl_user_created_at ON community_likes(user_id, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_bookmarks (
                 post_id  INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
                 user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -428,7 +428,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cb_user_created_at ON community_bookmarks(user_id, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_comments (
                 id         SERIAL PRIMARY KEY,
                 post_id    INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
@@ -450,7 +450,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_cc_likes_created_at ON community_comments(post_id, likes_count DESC, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_comment_likes (
                 comment_id INTEGER NOT NULL REFERENCES community_comments(id) ON DELETE CASCADE,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -460,7 +460,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_ccl_user_created_at ON community_comment_likes(user_id, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_post_reports (
                 id               SERIAL PRIMARY KEY,
                 post_id          INTEGER NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
@@ -495,7 +495,7 @@ async function initSchema() {
                 ON community_post_reports(status, created_at DESC);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS community_comment_reports (
                 id               SERIAL PRIMARY KEY,
                 comment_id       INTEGER NOT NULL REFERENCES community_comments(id) ON DELETE CASCADE,
@@ -535,8 +535,8 @@ async function initSchema() {
                 ON community_comment_reports(post_id, created_at DESC);
         `);
 
-        // ── 그룹 타이머 방 ─────────────────────────────────────────────────
-        await client.query(`
+    // ── 그룹 타이머 방 ─────────────────────────────────────────────────
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_rooms (
                 id              SERIAL PRIMARY KEY,
                 name            VARCHAR(60) NOT NULL,
@@ -551,7 +551,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_rooms_creator ON study_rooms(creator_id);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_room_members (
                 room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -561,7 +561,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_room_members_user ON study_room_members(user_id);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_room_member_roles (
                 room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -575,7 +575,7 @@ async function initSchema() {
                 ON study_room_member_roles(room_id, role);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS study_room_messages (
                 id          SERIAL PRIMARY KEY,
                 room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
@@ -586,8 +586,8 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_study_room_messages_room ON study_room_messages(room_id, created_at);
         `);
 
-        // ── 방 꾸미기 ──────────────────────────────────────────────────────
-        await client.query(`
+    // ── 방 꾸미기 ──────────────────────────────────────────────────────
+    await client.query(`
             CREATE TABLE IF NOT EXISTS room_owned_items (
                 id              SERIAL PRIMARY KEY,
                 room_id         INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
@@ -600,7 +600,7 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_room_owned_items_room ON room_owned_items(room_id);
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS room_decor_state (
                 room_id         INTEGER PRIMARY KEY REFERENCES study_rooms(id) ON DELETE CASCADE,
                 wallpaper_key   VARCHAR(50) DEFAULT 'default',
@@ -609,7 +609,7 @@ async function initSchema() {
             );
         `);
 
-        await client.query(`
+    await client.query(`
             CREATE TABLE IF NOT EXISTS room_gold_contributed (
                 room_id     INTEGER NOT NULL REFERENCES study_rooms(id) ON DELETE CASCADE,
                 user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -619,16 +619,16 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_room_gold_contributed_room ON room_gold_contributed(room_id);
         `);
 
-        // ── 공개/비공개 설정 ────────────────────────────────────────────────────
-        await client.query(`
+    // ── 공개/비공개 설정 ────────────────────────────────────────────────────
+    await client.query(`
             ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
             ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP NULL;
             ALTER TABLE study_rooms ADD COLUMN IF NOT EXISTS deleted_by INTEGER NULL REFERENCES users(id) ON DELETE SET NULL;
             CREATE INDEX IF NOT EXISTS idx_study_rooms_public ON study_rooms(is_public) WHERE is_public = TRUE;
         `);
 
-        // ── 방 역할 백필(owner/manager/member) ─────────────────────────────────────
-        await client.query(`
+    // ── 방 역할 백필(owner/manager/member) ─────────────────────────────────────
+    await client.query(`
             INSERT INTO study_room_member_roles (room_id, user_id, role)
             SELECT r.id, r.creator_id, 'owner'
             FROM study_rooms r
@@ -647,9 +647,8 @@ async function initSchema() {
             DO NOTHING;
         `);
 
-
-        // ── 관리자 감사 로그 (append-only: 수정/삭제 금지) ─────────────────────────
-        await client.query(`
+    // ── 관리자 감사 로그 (append-only: 수정/삭제 금지) ─────────────────────────
+    await client.query(`
             CREATE TABLE IF NOT EXISTS admin_audit_logs (
                 id              BIGSERIAL PRIMARY KEY,
                 action          VARCHAR(80) NOT NULL,
@@ -680,10 +679,10 @@ async function initSchema() {
             FOR EACH ROW EXECUTE FUNCTION prevent_admin_audit_logs_mutation();
         `);
 
-        // ── 입시 지원 시스템 ───────────────────────────────────────────────────
+    // ── 입시 지원 시스템 ───────────────────────────────────────────────────
 
-        // 과목별 점수 (유저당 1행, UPSERT로 업데이트)
-        await client.query(`
+    // 과목별 점수 (유저당 1행, UPSERT로 업데이트)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS exam_scores (
                 id                      SERIAL PRIMARY KEY,
                 user_id                 INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -729,15 +728,15 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_exam_scores_verified ON exam_scores(verified_status);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS english_std INTEGER;
             ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS english_percentile NUMERIC(5,2);
             ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS history_std INTEGER;
             ALTER TABLE exam_scores ADD COLUMN IF NOT EXISTS history_percentile NUMERIC(5,2);
         `);
 
-        // 입시 회차
-        await client.query(`
+    // 입시 회차
+    await client.query(`
             CREATE TABLE IF NOT EXISTS admission_rounds (
                 id              SERIAL PRIMARY KEY,
                 name            VARCHAR(100) NOT NULL,
@@ -756,8 +755,8 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_admission_rounds_status ON admission_rounds(status);
         `);
 
-        // 원서
-        await client.query(`
+    // 원서
+    await client.query(`
             CREATE TABLE IF NOT EXISTS applications (
                 id              SERIAL PRIMARY KEY,
                 round_id        INTEGER NOT NULL REFERENCES admission_rounds(id) ON DELETE CASCADE,
@@ -781,12 +780,12 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_applications_user ON applications(user_id);
         `);
 
-        await client.query(`
+    await client.query(`
             ALTER TABLE applications
                 ADD COLUMN IF NOT EXISTS track VARCHAR(10) DEFAULT '인문';
         `);
 
-        await client.query(`
+    await client.query(`
             UPDATE applications a
                SET track = CASE
                    WHEN COALESCE(es.math_subject, '') IN ('미적분', '기하') THEN '자연'
@@ -797,8 +796,8 @@ async function initSchema() {
                AND (a.track IS NULL OR a.track NOT IN ('인문', '자연'));
         `);
 
-        // 회차별 대학 통계 (A 추정에 사용)
-        await client.query(`
+    // 회차별 대학 통계 (A 추정에 사용)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS admission_stats (
                 id              SERIAL PRIMARY KEY,
                 round_id        INTEGER NOT NULL REFERENCES admission_rounds(id) ON DELETE CASCADE,
@@ -814,8 +813,8 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_admission_stats_uni ON admission_stats(university, department);
         `);
 
-        // 추합 라운드 (1~3차)
-        await client.query(`
+    // 추합 라운드 (1~3차)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS supplementary_rounds (
                 id              SERIAL PRIMARY KEY,
                 round_id        INTEGER NOT NULL REFERENCES admission_rounds(id) ON DELETE CASCADE,
@@ -831,13 +830,13 @@ async function initSchema() {
             CREATE INDEX IF NOT EXISTS idx_supplementary_rounds_round ON supplementary_rounds(round_id);
         `);
 
-        console.log('DB 스키마 초기화 완료');
-    } catch (err) {
-        console.error('DB 스키마 초기화 오류:', err.message);
-        throw err;
-    } finally {
-        client.release();
-    }
+    console.log('DB 스키마 초기화 완료');
+  } catch (err) {
+    console.error('DB 스키마 초기화 오류:', err.message);
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 module.exports = { initSchema };

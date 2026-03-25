@@ -22,69 +22,87 @@ const isProduction = process.env.NODE_ENV === 'production';
 const forceHttps = false;
 
 if (isProduction && !process.env.SESSION_SECRET) {
-    console.error('[FATAL] SESSION_SECRET 환경변수가 설정되지 않았습니다. 프로덕션 환경에서는 필수입니다.');
-    process.exit(1);
+  console.error(
+    '[FATAL] SESSION_SECRET 환경변수가 설정되지 않았습니다. 프로덕션 환경에서는 필수입니다.',
+  );
+  process.exit(1);
 }
 
 if (isProduction && !process.env.USE_CLOUD_STORAGE) {
-    console.warn('[WARNING] 파일 업로드가 로컬 디스크에 저장됩니다.');
-    console.warn('[WARNING] Render 등 에페머럴 환경에서는 재배포 시 uploads/ 디렉토리의 모든 파일이 삭제됩니다.');
-    console.warn('[WARNING] 프로덕션에서는 S3, Cloudinary 등 외부 오브젝트 스토리지 사용을 강력히 권장합니다.');
+  console.warn('[WARNING] 파일 업로드가 로컬 디스크에 저장됩니다.');
+  console.warn(
+    '[WARNING] Render 등 에페머럴 환경에서는 재배포 시 uploads/ 디렉토리의 모든 파일이 삭제됩니다.',
+  );
+  console.warn(
+    '[WARNING] 프로덕션에서는 S3, Cloudinary 등 외부 오브젝트 스토리지 사용을 강력히 권장합니다.',
+  );
 }
 
 const projectRoot = path.join(__dirname, '..');
 const brandAssetMap = Object.freeze({
-    'app-icon-master-1024.png': path.join(projectRoot, 'icons', 'IMG_0219.png'),
-    'app-icon-alt-square-1024.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116611_20260310203802.png'),
-    'splash-landscape-a-1408x768.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116612_20260310204735.png'),
-    'splash-landscape-b-1408x768.png': path.join(projectRoot, 'icons', '\u1106\u116e\u110c\u116612_20260310204810.png'),
-    'promo-preview.mp4': path.join(projectRoot, 'icons', 'gemini_generated_video_29ABE2A4.mp4'),
+  'app-icon-master-1024.png': path.join(projectRoot, 'icons', 'IMG_0219.png'),
+  'app-icon-alt-square-1024.png': path.join(
+    projectRoot,
+    'icons',
+    '\u1106\u116e\u110c\u116611_20260310203802.png',
+  ),
+  'splash-landscape-a-1408x768.png': path.join(
+    projectRoot,
+    'icons',
+    '\u1106\u116e\u110c\u116612_20260310204735.png',
+  ),
+  'splash-landscape-b-1408x768.png': path.join(
+    projectRoot,
+    'icons',
+    '\u1106\u116e\u110c\u116612_20260310204810.png',
+  ),
+  'promo-preview.mp4': path.join(projectRoot, 'icons', 'gemini_generated_video_29ABE2A4.mp4'),
 });
 const appIconSourcePath = brandAssetMap['app-icon-master-1024.png'];
 
 function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function escapeXml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 function jsonLdSafe(value) {
-    return JSON.stringify(value).replace(/</g, '\\u003c');
+  return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
 function getSiteBaseUrl(req) {
-    return (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+  return (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
 }
 
 function safeExternalUrl(value) {
-    if (!value || typeof value !== 'string') return '';
-    try {
-        const parsed = new URL(value);
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
-        return parsed.toString();
-    } catch (_) {
-        return '';
-    }
+  if (!value || typeof value !== 'string') return '';
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.toString();
+  } catch (_) {
+    return '';
+  }
 }
 
 function safeCommunityImageUrl(value) {
-    if (!value || typeof value !== 'string') return '';
-    const trimmed = value.trim();
-    if (!trimmed) return '';
-    if (/^\/uploads\/community\/[a-zA-Z0-9._-]+$/.test(trimmed)) return trimmed;
-    return safeExternalUrl(trimmed);
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^\/uploads\/community\/[a-zA-Z0-9._-]+$/.test(trimmed)) return trimmed;
+  return safeExternalUrl(trimmed);
 }
 
 function truncateText(value, maxLength) {
@@ -102,7 +120,9 @@ function getTextUnit(char) {
 }
 
 function wrapTextForSvg(value, maxUnits, maxLines) {
-  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  const text = String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ');
   if (!text) return [];
 
   const normalizedChars = [...text];
@@ -132,7 +152,10 @@ function wrapTextForSvg(value, maxUnits, maxLines) {
 
   const hasOverflow = consumedChars < normalizedChars.length;
   if (hasOverflow && lines.length) {
-    lines[lines.length - 1] = truncateText(lines[lines.length - 1], Math.max(4, lines[lines.length - 1].length - 1));
+    lines[lines.length - 1] = truncateText(
+      lines[lines.length - 1],
+      Math.max(4, lines[lines.length - 1].length - 1),
+    );
   }
   return lines.slice(0, maxLines);
 }
@@ -150,7 +173,10 @@ function formatDurationKorean(totalSeconds) {
 
 function renderSvgTextLines(lines, x, y, lineHeight, className) {
   return lines
-    .map((line, index) => `<text class="${className}" x="${x}" y="${y + index * lineHeight}">${escapeXml(line)}</text>`)
+    .map(
+      (line, index) =>
+        `<text class="${className}" x="${x}" y="${y + index * lineHeight}">${escapeXml(line)}</text>`,
+    )
     .join('');
 }
 
@@ -166,7 +192,7 @@ async function getRoomInvitePreviewData(code) {
      JOIN users u ON u.id = r.creator_id
      WHERE r.invite_code = $1 AND r.is_active = TRUE
      LIMIT 1`,
-    [code]
+    [code],
   );
 
   if (!result.rows.length) return null;
@@ -185,7 +211,7 @@ async function getRoomInvitePreviewData(code) {
      GROUP BY u.id, u.nickname
      ORDER BY today_sec DESC, u.nickname ASC
      LIMIT 3`,
-    [room.id]
+    [room.id],
   );
 
   return {
@@ -210,16 +236,18 @@ function buildRoomInviteOgSvg(room) {
   const goalLines = wrapTextForSvg(
     room.goal || '목표를 향해 함께 공부하는 P.A.T.H 그룹 타이머 방',
     33,
-    room.goal ? 2 : 1
+    room.goal ? 2 : 1,
   );
   const leader = room.leaders[0] || null;
   const leaderName = leader ? truncateText(leader.nickname, 14) : '아직 1위 없음';
-  const leaderTime = leader && leader.todaySec > 0
-    ? `오늘 ${formatDurationKorean(leader.todaySec)}`
-    : '오늘 첫 기록을 기다리는 중';
-  const statusLabel = room.activeCount > 0
-    ? `지금 ${room.activeCount}명이 공부 중`
-    : '지금 합류해서 첫 기록을 만들어보세요';
+  const leaderTime =
+    leader && leader.todaySec > 0
+      ? `오늘 ${formatDurationKorean(leader.todaySec)}`
+      : '오늘 첫 기록을 기다리는 중';
+  const statusLabel =
+    room.activeCount > 0
+      ? `지금 ${room.activeCount}명이 공부 중`
+      : '지금 합류해서 첫 기록을 만들어보세요';
   const activeLabel = room.activeCount > 0 ? 'LIVE' : 'READY';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -317,21 +345,23 @@ async function renderRoomInviteOgPng(room) {
 app.set('trust proxy', true);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 if (isProduction && allowedOrigins.length === 0) {
-    console.warn('[WARNING] CORS_ORIGIN 환경변수가 설정되지 않았습니다. 프로덕션에서 모든 cross-origin 요청이 차단됩니다.');
-    console.warn('[WARNING] 예시: CORS_ORIGIN=https://path.sdij.cloud,https://www.path.sdij.cloud');
+  console.warn(
+    '[WARNING] CORS_ORIGIN 환경변수가 설정되지 않았습니다. 프로덕션에서 모든 cross-origin 요청이 차단됩니다.',
+  );
+  console.warn('[WARNING] 예시: CORS_ORIGIN=https://path.sdij.cloud,https://www.path.sdij.cloud');
 }
 
 function corsOriginHandler(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.length === 0) {
-        return callback(null, !isProduction);
-    }
-    return callback(null, allowedOrigins.includes(origin));
+  if (!origin) return callback(null, true);
+  if (allowedOrigins.length === 0) {
+    return callback(null, !isProduction);
+  }
+  return callback(null, allowedOrigins.includes(origin));
 }
 
 function isSecureRequest(req) {
@@ -353,7 +383,8 @@ function isSecureRequest(req) {
   if (typeof forwardedSsl === 'string' && forwardedSsl.toLowerCase() === 'on') return true;
 
   const forwardedPort = req.headers['x-forwarded-port'];
-  if (typeof forwardedPort === 'string' && forwardedPort.split(',').some((p) => p.trim() === '443')) return true;
+  if (typeof forwardedPort === 'string' && forwardedPort.split(',').some((p) => p.trim() === '443'))
+    return true;
 
   const forwardedProto = req.headers['x-forwarded-proto'];
   if (!forwardedProto || typeof forwardedProto !== 'string') return false;
@@ -367,37 +398,52 @@ const cspConnectSrc = isProduction
   ? ["'self'", 'wss:', 'https:']
   : ["'self'", 'wss:', 'ws:', 'https:'];
 
-app.use(helmet({
+app.use(
+  helmet({
     contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.socket.io", "https://unpkg.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-      connectSrc: cspConnectSrc,
-            workerSrc: ["'self'"],
-            frameSrc: ["'none'"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: isProduction ? [] : null,
-        },
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net',
+          'https://cdn.socket.io',
+          'https://unpkg.com',
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net',
+          'https://fonts.googleapis.com',
+        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
+        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        connectSrc: cspConnectSrc,
+        workerSrc: ["'self'"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: isProduction ? [] : null,
+      },
     },
     crossOriginEmbedderPolicy: false,
-      hsts: isProduction
-        ? {
+    hsts: isProduction
+      ? {
           maxAge: 31536000,
           includeSubDomains: true,
           preload: true,
         }
-        : false,
-}));
+      : false,
+  }),
+);
 app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({
+app.use(
+  cors({
     origin: corsOriginHandler,
-    credentials: true
-}));
+    credentials: true,
+  }),
+);
 
 // 프로덕션에서는 HTTPS 전송만 허용한다.
 app.use((req, res, next) => {
@@ -412,63 +458,67 @@ app.use((req, res, next) => {
   return res.status(400).json({ error: 'HTTPS 요청만 허용됩니다.' });
 });
 
-app.use(session({
+app.use(
+  session({
     store: new pgSession({ pool, tableName: 'sessions' }),
-    secret: process.env.SESSION_SECRET || (isProduction ? undefined : crypto.randomBytes(32).toString('hex')),
+    secret:
+      process.env.SESSION_SECRET ||
+      (isProduction ? undefined : crypto.randomBytes(32).toString('hex')),
     resave: false,
     saveUninitialized: false,
     cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: process.env.SESSION_SAME_SITE || 'lax',
-        domain: process.env.SESSION_COOKIE_DOMAIN || undefined
-    }
-}));
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: process.env.SESSION_SAME_SITE || 'lax',
+      domain: process.env.SESSION_COOKIE_DOMAIN || undefined,
+    },
+  }),
+);
 
 // CSRF 보호: 상태 변경 요청(POST/PUT/DELETE)에 대해 Origin/Referer 헤더 검사
 app.use((req, res, next) => {
-    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
-    // API가 아닌 경로는 건너뜀
-    if (!req.path.startsWith('/api/')) return next();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  // API가 아닌 경로는 건너뜀
+  if (!req.path.startsWith('/api/')) return next();
   // Apple OAuth는 response_mode=form_post로 콜백되므로 예외 허용
   if (req.path === '/api/auth/apple/callback') return next();
 
-    const origin = req.headers['origin'];
-    const referer = req.headers['referer'];
-    const host = req.get('host');
+  const origin = req.headers['origin'];
+  const referer = req.headers['referer'];
+  const host = req.get('host');
 
-    // 같은 호스트 또는 허가된 Origin이면 통과
-    if (origin) {
-        try {
-            const originHost = new URL(origin).host;
-            if (originHost === host || allowedOrigins.some(o => new URL(o).host === originHost)) {
-                return next();
-            }
-        } catch (_) {}
-        // 개발 환경에서는 localhost 허용
-        if (!isProduction) return next();
-        return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
-    }
-
-    if (referer) {
-        try {
-            const refHost = new URL(referer).host;
-            if (refHost === host || allowedOrigins.some(o => new URL(o).host === refHost)) {
-                return next();
-            }
-        } catch (_) {}
-        if (!isProduction) return next();
-        return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
-    }
-
-    // Origin/Referer 없는 요청: 개발에서는 허용, 프로덕션에서는 차단
+  // 같은 호스트 또는 허가된 Origin이면 통과
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      if (originHost === host || allowedOrigins.some((o) => new URL(o).host === originHost)) {
+        return next();
+      }
+    } catch (_) {}
+    // 개발 환경에서는 localhost 허용
     if (!isProduction) return next();
     return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
+  }
+
+  if (referer) {
+    try {
+      const refHost = new URL(referer).host;
+      if (refHost === host || allowedOrigins.some((o) => new URL(o).host === refHost)) {
+        return next();
+      }
+    } catch (_) {}
+    if (!isProduction) return next();
+    return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
+  }
+
+  // Origin/Referer 없는 요청: 개발에서는 허용, 프로덕션에서는 차단
+  if (!isProduction) return next();
+  return res.status(403).json({ error: '잘못된 요청 출처입니다.' });
 });
 
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, service: 'path-api' });
+  res.json({ ok: true, service: 'path-api' });
 });
 
 app.use('/api/auth', require('./routes/auth'));
@@ -487,115 +537,121 @@ app.use('/api/rooms', require('./routes/rooms'));
 app.use('/api/apply', require('./routes/apply'));
 
 app.use('/uploads/scores/:filename', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.redirect(`/api/auth/score-image/${req.params.filename}`);
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(`/api/auth/score-image/${req.params.filename}`);
 });
 app.use('/uploads/gpa/:filename', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.redirect(`/api/auth/gpa-image/${req.params.filename}`);
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(`/api/auth/gpa-image/${req.params.filename}`);
 });
 app.use('/uploads/profiles/:filename', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.redirect(`/api/auth/profile-image/${req.params.filename}`);
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(`/api/auth/profile-image/${req.params.filename}`);
 });
 app.use('/uploads/messages/:filename', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.redirect(`/api/messages/file/${req.params.filename}`);
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(`/api/messages/file/${req.params.filename}`);
 });
 app.use('/uploads/study-proofs/:filename', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.redirect(`/api/study/proof-image/${req.params.filename}`);
+  res.setHeader('Cache-Control', 'no-store, private, max-age=0, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(`/api/study/proof-image/${req.params.filename}`);
 });
-app.use('/uploads/community', express.static(getUploadDir('community'), {
+app.use(
+  '/uploads/community',
+  express.static(getUploadDir('community'), {
     maxAge: '30d',
     etag: true,
-}));
+  }),
+);
 
 const staticOptions = {
-    maxAge: '1d',
-    etag: true,
-    index: 'index.html'
+  maxAge: '1d',
+  etag: true,
+  index: 'index.html',
 };
 
 // Safari/edge CDN combinations can keep stale app-shell files despite query params.
 // For route entrypoints and their JS/CSS, disable caching completely.
 const noCacheStaticOptions = {
-    maxAge: 0,
-    etag: false,
-    index: 'index.html',
-    setHeaders(res) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
-        res.setHeader('Surrogate-Control', 'no-store');
-    }
+  maxAge: 0,
+  etag: false,
+  index: 'index.html',
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  },
 };
 
 // ── PWA: Service Worker (must be at root scope, no-cache) ──────────────────
 app.get('/sw.js', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Service-Worker-Allowed', '/');
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(path.join(projectRoot, 'P.A.T.H', 'sw.js'));
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.join(projectRoot, 'P.A.T.H', 'sw.js'));
 });
 
 // ── PWA: Manifest (short-lived cache) ──────────────────────────────────────
 app.get('/manifest.json', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('Content-Type', 'application/manifest+json');
-    res.sendFile(path.join(projectRoot, 'P.A.T.H', 'manifest.json'));
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.sendFile(path.join(projectRoot, 'P.A.T.H', 'manifest.json'));
 });
 
 // Use a single master image for PWA icon aliases.
 app.get('/app-icon.png', (req, res) => {
-    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
-    res.type('png');
-    res.sendFile(appIconSourcePath);
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  res.type('png');
+  res.sendFile(appIconSourcePath);
 });
 
 app.get('/icons/:filename', (req, res, next) => {
-    const filename = String(req.params.filename || '');
-    if (!/^icon-(72|96|128|144|152|192|384|512)\.png$/.test(filename)) {
-        return next();
-    }
+  const filename = String(req.params.filename || '');
+  if (!/^icon-(72|96|128|144|152|192|384|512)\.png$/.test(filename)) {
+    return next();
+  }
 
-    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
-    res.type('png');
-    return res.sendFile(appIconSourcePath);
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  res.type('png');
+  return res.sendFile(appIconSourcePath);
 });
 
 // Clean aliases for brand assets kept under /icons.
 app.get('/brand/:filename', (req, res, next) => {
-    const filename = String(req.params.filename || '');
-    const sourcePath = brandAssetMap[filename];
+  const filename = String(req.params.filename || '');
+  const sourcePath = brandAssetMap[filename];
 
-    if (!sourcePath) return next();
+  if (!sourcePath) return next();
 
-    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
-    return res.sendFile(sourcePath);
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  return res.sendFile(sourcePath);
 });
 
 // ── PWA: Icons (long-lived cache) ──────────────────────────────────────────
-app.use('/icons', express.static(path.join(projectRoot, 'P.A.T.H', 'icons'), {
+app.use(
+  '/icons',
+  express.static(path.join(projectRoot, 'P.A.T.H', 'icons'), {
     maxAge: '30d',
     etag: true,
-}));
+  }),
+);
 
 // ── PWA: Install helper script (no-cache) ──────────────────────────────────
 app.get('/pwa-install.js', (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Content-Type', 'application/javascript');
-    res.sendFile(path.join(projectRoot, 'P.A.T.H', 'pwa-install.js'));
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.join(projectRoot, 'P.A.T.H', 'pwa-install.js'));
 });
 
 // Public URL mounts (hide internal folder structure from browser address bar)
@@ -610,16 +666,28 @@ app.get('/study-hub', (req, res, next) => {
   const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
   return res.redirect(301, `/study-hub/${query}`);
 });
-app.use('/study-hub', express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'), noCacheStaticOptions));
+app.use(
+  '/study-hub',
+  express.static(path.join(projectRoot, 'P.A.T.H', 'mainPageDev'), noCacheStaticOptions),
+);
 app.use('/timer', (req, res) => {
   const queryIndex = req.url.indexOf('?');
   const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
   const targetPath = req.path === '/' ? '/study-hub/' : `/study-hub${req.path}`;
   return res.redirect(301, `${targetPath}${query}`);
 });
-app.use('/community', express.static(path.join(projectRoot, 'P.A.T.H', 'community'), noCacheStaticOptions));
-app.use('/messages', express.static(path.join(projectRoot, 'P.A.T.H', 'messages'), noCacheStaticOptions));
-app.use('/setup-profile', express.static(path.join(projectRoot, 'P.A.T.H', 'setup-profile'), noCacheStaticOptions));
+app.use(
+  '/community',
+  express.static(path.join(projectRoot, 'P.A.T.H', 'community'), noCacheStaticOptions),
+);
+app.use(
+  '/messages',
+  express.static(path.join(projectRoot, 'P.A.T.H', 'messages'), noCacheStaticOptions),
+);
+app.use(
+  '/setup-profile',
+  express.static(path.join(projectRoot, 'P.A.T.H', 'setup-profile'), noCacheStaticOptions),
+);
 app.use('/admin', express.static(path.join(projectRoot, 'P.A.T.H', 'admin'), noCacheStaticOptions));
 app.use('/apply', express.static(path.join(projectRoot, 'P.A.T.H', 'apply'), noCacheStaticOptions));
 app.use('/legal', express.static(path.join(projectRoot, 'P.A.T.H', 'legal'), staticOptions));
@@ -631,16 +699,17 @@ app.use('/study-hub/messages', (req, res) => {
 });
 
 app.get('/community/post/:id', async (req, res) => {
-    const postId = parseInt(req.params.id, 10);
+  const postId = parseInt(req.params.id, 10);
   const targetCommentId = Math.max(0, parseInt(req.query.cmt, 10) || 0);
-    if (!postId) {
-        return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
-    }
+  if (!postId) {
+    return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
+  }
 
-    try {
-    const [updateResult, commentsResult, targetCommentResult, otherPostsResult] = await Promise.all([
-            pool.query(
-                `WITH updated AS (
+  try {
+    const [updateResult, commentsResult, targetCommentResult, otherPostsResult] = await Promise.all(
+      [
+        pool.query(
+          `WITH updated AS (
                    UPDATE community_posts SET views = views + 1 WHERE id = $1
                    RETURNING id, user_id, category, title, body, image_url, link_url, nickname, ip_prefix, views, likes, comments_count, created_at
                  )
@@ -650,10 +719,10 @@ app.get('/community/post/:id', async (req, res) => {
                         (u_cp.user_id IS NOT NULL AND u.nickname IS NOT NULL AND u_cp.nickname = u.nickname) AS is_verified_nickname
                  FROM updated u_cp
                  LEFT JOIN users u ON u.id = u_cp.user_id`,
-                [postId]
-            ),
-            pool.query(
-                `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
+          [postId],
+        ),
+        pool.query(
+          `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
                         u.profile_image_url,
                         (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
                  FROM community_comments c
@@ -661,22 +730,22 @@ app.get('/community/post/:id', async (req, res) => {
                  WHERE c.post_id = $1
                  ORDER BY c.created_at DESC
                  LIMIT 5`,
-                [postId]
-            ),
-              targetCommentId
-                ? pool.query(
-                  `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
+          [postId],
+        ),
+        targetCommentId
+          ? pool.query(
+              `SELECT c.id, c.nickname, c.ip_prefix, c.body, c.created_at,
                       u.profile_image_url,
                       (c.user_id IS NOT NULL AND u.nickname IS NOT NULL AND c.nickname = u.nickname) AS is_verified_nickname
                    FROM community_comments c
                    LEFT JOIN users u ON u.id = c.user_id
                    WHERE c.post_id = $1 AND c.id = $2
                    LIMIT 1`,
-                  [postId, targetCommentId]
-                )
-                : Promise.resolve({ rows: [] }),
-            pool.query(
-                `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix, p.likes, p.comments_count, p.views, p.created_at,
+              [postId, targetCommentId],
+            )
+          : Promise.resolve({ rows: [] }),
+        pool.query(
+          `SELECT p.id, p.category, p.title, p.nickname, p.ip_prefix, p.likes, p.comments_count, p.views, p.created_at,
                         u.profile_image_url,
                         (p.user_id IS NOT NULL AND u.nickname IS NOT NULL AND p.nickname = u.nickname) AS is_verified_nickname
                  FROM community_posts p
@@ -684,114 +753,123 @@ app.get('/community/post/:id', async (req, res) => {
                  WHERE p.id != $1
                  ORDER BY p.created_at DESC
                  LIMIT 10`,
-                [postId]
-            )
-        ]);
+          [postId],
+        ),
+      ],
+    );
 
-        if (!updateResult.rows.length) {
-            return res.status(404).type('text/html').send('<h1>게시글을 찾을 수 없습니다.</h1>');
-        }
+    if (!updateResult.rows.length) {
+      return res.status(404).type('text/html').send('<h1>게시글을 찾을 수 없습니다.</h1>');
+    }
 
-        const post = updateResult.rows[0];
-        // 프로필 이미지 URL 정규화
-        if (post.profile_image_url && /^\/uploads\/profiles\/[a-zA-Z0-9._-]+$/.test(post.profile_image_url.trim())) {
-            post.profile_image_url = post.profile_image_url.trim();
-        } else {
-            post.profile_image_url = '';
-        }
-        // 표시용 닉네임
-        post.display_nickname = post.active_title
-            ? `${post.nickname} [${post.active_title}]`
-            : (post.nickname || '익명');
-        const comments = commentsResult.rows;
-        if (targetCommentResult.rows.length) {
-          const target = targetCommentResult.rows[0];
-          if (!comments.some((c) => Number(c.id) === Number(target.id))) {
-            comments.unshift(target);
-          }
-        }
-        const highlightedCommentId = targetCommentResult.rows[0]?.id || null;
-        // 댓글 프로필 정규화
-        comments.forEach((c) => {
-            if (c.profile_image_url && /^\/uploads\/profiles\/[a-zA-Z0-9._-]+$/.test(c.profile_image_url.trim())) {
-                c.profile_image_url = c.profile_image_url.trim();
-            } else {
-                c.profile_image_url = '';
-            }
-        });
-        const otherPosts = otherPostsResult.rows;
-        const baseUrl = getSiteBaseUrl(req);
-        const canonical = `${baseUrl}/community/post/${post.id}`;
-        const safeImageUrl = safeCommunityImageUrl(post.image_url);
-        const safeLinkUrl = safeExternalUrl(post.link_url);
-        const ogImageUrl = safeImageUrl.startsWith('/') ? `${baseUrl}${safeImageUrl}` : safeImageUrl;
-        const title = `${post.title} | 입시 커뮤니티 - P.A.T.H`;
-        const bodyPreview = (post.body || '').trim().replace(/\s+/g, ' ').slice(0, 150);
-        const description = bodyPreview
-            ? `${bodyPreview}...`
-            : `${post.category} 카테고리의 수험생 커뮤니티 게시글`;
-        const publishedIso = new Date(post.created_at).toISOString();
+    const post = updateResult.rows[0];
+    // 프로필 이미지 URL 정규화
+    if (
+      post.profile_image_url &&
+      /^\/uploads\/profiles\/[a-zA-Z0-9._-]+$/.test(post.profile_image_url.trim())
+    ) {
+      post.profile_image_url = post.profile_image_url.trim();
+    } else {
+      post.profile_image_url = '';
+    }
+    // 표시용 닉네임
+    post.display_nickname = post.active_title
+      ? `${post.nickname} [${post.active_title}]`
+      : post.nickname || '익명';
+    const comments = commentsResult.rows;
+    if (targetCommentResult.rows.length) {
+      const target = targetCommentResult.rows[0];
+      if (!comments.some((c) => Number(c.id) === Number(target.id))) {
+        comments.unshift(target);
+      }
+    }
+    const highlightedCommentId = targetCommentResult.rows[0]?.id || null;
+    // 댓글 프로필 정규화
+    comments.forEach((c) => {
+      if (
+        c.profile_image_url &&
+        /^\/uploads\/profiles\/[a-zA-Z0-9._-]+$/.test(c.profile_image_url.trim())
+      ) {
+        c.profile_image_url = c.profile_image_url.trim();
+      } else {
+        c.profile_image_url = '';
+      }
+    });
+    const otherPosts = otherPostsResult.rows;
+    const baseUrl = getSiteBaseUrl(req);
+    const canonical = `${baseUrl}/community/post/${post.id}`;
+    const safeImageUrl = safeCommunityImageUrl(post.image_url);
+    const safeLinkUrl = safeExternalUrl(post.link_url);
+    const ogImageUrl = safeImageUrl.startsWith('/') ? `${baseUrl}${safeImageUrl}` : safeImageUrl;
+    const title = `${post.title} | 입시 커뮤니티 - P.A.T.H`;
+    const bodyPreview = (post.body || '').trim().replace(/\s+/g, ' ').slice(0, 150);
+    const description = bodyPreview
+      ? `${bodyPreview}...`
+      : `${post.category} 카테고리의 수험생 커뮤니티 게시글`;
+    const publishedIso = new Date(post.created_at).toISOString();
 
-        const postSchema = {
-            '@context': 'https://schema.org',
-            '@type': 'DiscussionForumPosting',
-            mainEntityOfPage: canonical,
-            headline: post.title,
-            articleBody: post.body || '',
-            inLanguage: 'ko',
-            datePublished: publishedIso,
-            dateModified: publishedIso,
-            author: {
-                '@type': 'Person',
-                name: post.nickname || '익명'
-            },
-            publisher: {
-                '@type': 'Organization',
-                name: 'P.A.T.H'
-            },
-            interactionStatistic: [
-                {
-                    '@type': 'InteractionCounter',
-                    interactionType: { '@type': 'ViewAction' },
-                    userInteractionCount: post.views || 0
-                },
-                {
-                    '@type': 'InteractionCounter',
-                    interactionType: { '@type': 'LikeAction' },
-                    userInteractionCount: post.likes || 0
-                },
-                {
-                    '@type': 'InteractionCounter',
-                    interactionType: { '@type': 'CommentAction' },
-                    userInteractionCount: post.comments_count || 0
-                }
-            ]
-        };
+    const postSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'DiscussionForumPosting',
+      mainEntityOfPage: canonical,
+      headline: post.title,
+      articleBody: post.body || '',
+      inLanguage: 'ko',
+      datePublished: publishedIso,
+      dateModified: publishedIso,
+      author: {
+        '@type': 'Person',
+        name: post.nickname || '익명',
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'P.A.T.H',
+      },
+      interactionStatistic: [
+        {
+          '@type': 'InteractionCounter',
+          interactionType: { '@type': 'ViewAction' },
+          userInteractionCount: post.views || 0,
+        },
+        {
+          '@type': 'InteractionCounter',
+          interactionType: { '@type': 'LikeAction' },
+          userInteractionCount: post.likes || 0,
+        },
+        {
+          '@type': 'InteractionCounter',
+          interactionType: { '@type': 'CommentAction' },
+          userInteractionCount: post.comments_count || 0,
+        },
+      ],
+    };
 
-        const commentSchema = comments.map((comment) => ({
-            '@type': 'Comment',
-            text: comment.body || '',
-            dateCreated: new Date(comment.created_at).toISOString(),
-            author: {
-                '@type': 'Person',
-                name: comment.nickname || '익명'
-            }
-        }));
-        if (commentSchema.length) {
-            postSchema.comment = commentSchema;
-        }
+    const commentSchema = comments.map((comment) => ({
+      '@type': 'Comment',
+      text: comment.body || '',
+      dateCreated: new Date(comment.created_at).toISOString(),
+      author: {
+        '@type': 'Person',
+        name: comment.nickname || '익명',
+      },
+    }));
+    if (commentSchema.length) {
+      postSchema.comment = commentSchema;
+    }
 
-        // 댓글 HTML (프로필 포함)
-        function renderCommentAvatar(c) {
-            if (c.profile_image_url && c.is_verified_nickname) {
-                return `<img class="cmt-avatar" src="${escapeHtml(c.profile_image_url)}" alt="" loading="lazy">`;
-            }
-            const initial = escapeHtml((c.nickname || '익').charAt(0).toUpperCase());
-            return `<span class="cmt-avatar cmt-avatar--empty">${initial}</span>`;
-        }
+    // 댓글 HTML (프로필 포함)
+    function renderCommentAvatar(c) {
+      if (c.profile_image_url && c.is_verified_nickname) {
+        return `<img class="cmt-avatar" src="${escapeHtml(c.profile_image_url)}" alt="" loading="lazy">`;
+      }
+      const initial = escapeHtml((c.nickname || '익').charAt(0).toUpperCase());
+      return `<span class="cmt-avatar cmt-avatar--empty">${initial}</span>`;
+    }
 
-        const commentsHtml = comments.length
-            ? comments.map((comment) => `
+    const commentsHtml = comments.length
+      ? comments
+          .map(
+            (comment) => `
       <li class="comment-item${Number(highlightedCommentId) === Number(comment.id) ? ' comment-item--target' : ''}" id="comment-${comment.id}">
         <div class="comment-meta">
           ${renderCommentAvatar(comment)}
@@ -800,22 +878,33 @@ app.get('/community/post/:id', async (req, res) => {
           <span class="cmt-date">${escapeHtml(new Date(comment.created_at).toLocaleString('ko-KR'))}</span>
         </div>
         <p class="comment-body">${escapeHtml(comment.body || '')}</p>
-      </li>`).join('')
-            : '<li class="comment-empty">아직 댓글이 없습니다.</li>';
+      </li>`,
+          )
+          .join('')
+      : '<li class="comment-empty">아직 댓글이 없습니다.</li>';
 
-        // 다른 게시글 HTML (메인 페이지와 동일한 카드 스타일)
-        const CATEGORY_COLORS = { '정보': 'cat-info', '질문': 'cat-qa', '잡담': 'cat-chat', '념글': 'cat-best', '전체': 'cat-all' };
-        function fmtRelDet(dateStr) {
-            const diff = Date.now() - new Date(dateStr).getTime();
-            if (diff < 60000) return '방금';
-            if (diff < 3600000) return `${Math.floor(diff/60000)}분 전`;
-            if (diff < 86400000) return `${Math.floor(diff/3600000)}시간 전`;
-            if (diff < 2592000000) return `${Math.floor(diff/86400000)}일 전`;
-            return new Date(dateStr).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-        }
-        const otherPostsHtml = otherPosts.length ? otherPosts.map((p) => {
+    // 다른 게시글 HTML (메인 페이지와 동일한 카드 스타일)
+    const CATEGORY_COLORS = {
+      정보: 'cat-info',
+      질문: 'cat-qa',
+      잡담: 'cat-chat',
+      념글: 'cat-best',
+      전체: 'cat-all',
+    };
+    function fmtRelDet(dateStr) {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      if (diff < 60000) return '방금';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}시간 전`;
+      if (diff < 2592000000) return `${Math.floor(diff / 86400000)}일 전`;
+      return new Date(dateStr).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    }
+    const otherPostsHtml = otherPosts.length
+      ? otherPosts
+          .map((p) => {
             const catCls = CATEGORY_COLORS[p.category] || 'cat-all';
-            const avatarHtml = (p.profile_image_url && p.is_verified_nickname)
+            const avatarHtml =
+              p.profile_image_url && p.is_verified_nickname
                 ? `<img class="post-row-avatar" src="${escapeHtml(p.profile_image_url)}" alt="" loading="lazy">`
                 : `<span class="post-row-avatar post-row-avatar--empty">${escapeHtml((p.nickname || '익').charAt(0))}</span>`;
             return `<a class="post-row" href="/community/post/${p.id}">
@@ -836,14 +925,17 @@ app.get('/community/post/:id', async (req, res) => {
                 </div>
               </div>
             </a>`;
-        }).join('') : '<p class="other-empty">다른 게시글이 없습니다.</p>';
+          })
+          .join('')
+      : '<p class="other-empty">다른 게시글이 없습니다.</p>';
 
-        // 작성자 프로필 렌더링
-        const authorAvatarHtml = (post.profile_image_url && post.is_verified_nickname)
-            ? `<img class="author-avatar" src="${escapeHtml(post.profile_image_url)}" alt="${escapeHtml(post.display_nickname)}" loading="lazy">`
-            : `<span class="author-avatar author-avatar--empty">${escapeHtml((post.display_nickname || '익').charAt(0).toUpperCase())}</span>`;
+    // 작성자 프로필 렌더링
+    const authorAvatarHtml =
+      post.profile_image_url && post.is_verified_nickname
+        ? `<img class="author-avatar" src="${escapeHtml(post.profile_image_url)}" alt="${escapeHtml(post.display_nickname)}" loading="lazy">`
+        : `<span class="author-avatar author-avatar--empty">${escapeHtml((post.display_nickname || '익').charAt(0).toUpperCase())}</span>`;
 
-        const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -1137,77 +1229,89 @@ app.get('/community/post/:id', async (req, res) => {
 </body>
 </html>`;
 
-        return res.type('text/html').send(html);
-    } catch (err) {
-        console.error('[seo] GET /community/post/:id', err.message);
-        return res.status(500).type('text/html').send('<h1>서버 오류</h1>');
-    }
+    return res.type('text/html').send(html);
+  } catch (err) {
+    console.error('[seo] GET /community/post/:id', err.message);
+    return res.status(500).type('text/html').send('<h1>서버 오류</h1>');
+  }
 });
 
 // ── Group timer room invite page with OG tags ────────────────────────────────
 const roomInviteLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.get('/og/room/:code.png', roomInviteLimiter, async (req, res) => {
-    const code = String(req.params.code || '').trim().toLowerCase().slice(0, 12);
-    if (!code) return res.status(400).type('text/plain').send('bad-request');
+  const code = String(req.params.code || '')
+    .trim()
+    .toLowerCase()
+    .slice(0, 12);
+  if (!code) return res.status(400).type('text/plain').send('bad-request');
 
-    try {
-        const room = await getRoomInvitePreviewData(code);
-        if (!room) return res.status(404).type('text/plain').send('not-found');
+  try {
+    const room = await getRoomInvitePreviewData(code);
+    if (!room) return res.status(404).type('text/plain').send('not-found');
 
-        const png = await renderRoomInviteOgPng(room);
-        res.set('Content-Type', 'image/png');
-        res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
-        return res.send(png);
-    } catch (err) {
-        console.error('room og image error:', err);
-        return res.status(500).type('text/plain').send('image-generation-failed');
-    }
+    const png = await renderRoomInviteOgPng(room);
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=300, s-maxage=300');
+    return res.send(png);
+  } catch (err) {
+    console.error('room og image error:', err);
+    return res.status(500).type('text/plain').send('image-generation-failed');
+  }
 });
 
 app.get('/room/:code', roomInviteLimiter, async (req, res) => {
-    const code = String(req.params.code || '').trim().toLowerCase().slice(0, 12);
-    if (!code) return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
+  const code = String(req.params.code || '')
+    .trim()
+    .toLowerCase()
+    .slice(0, 12);
+  if (!code) return res.status(400).type('text/html').send('<h1>잘못된 요청</h1>');
 
-    try {
-        const baseUrl = getSiteBaseUrl(req);
-        const canonical = `${baseUrl}/room/${code}`;
-        const room = await getRoomInvitePreviewData(code);
+  try {
+    const baseUrl = getSiteBaseUrl(req);
+    const canonical = `${baseUrl}/room/${code}`;
+    const room = await getRoomInvitePreviewData(code);
 
-        if (!room) {
-            const html = `<!DOCTYPE html><html lang="ko"><head>
+    if (!room) {
+      const html = `<!DOCTYPE html><html lang="ko"><head>
 <meta charset="UTF-8"><title>방을 찾을 수 없습니다 - P.A.T.H</title>
 <meta name="robots" content="noindex">
 <style>body{font-family:sans-serif;text-align:center;padding:60px 20px;background:#0d0d0d;color:#fff}</style>
 </head><body><h1>방을 찾을 수 없습니다</h1><p>초대 링크가 만료되었거나 잘못된 링크입니다.</p>
 <a href="/study-hub/" style="color:#d4af37">스터디 허브로 이동 →</a></body></html>`;
-            return res.status(404).type('text/html').send(html);
-        }
+      return res.status(404).type('text/html').send(html);
+    }
 
     const memberCount = room.memberCount;
     const activeCount = room.activeCount;
     const maxMembers = room.maxMembers;
     const roomName = room.name;
-        const goal = room.goal || '';
+    const goal = room.goal || '';
     const topLeader = room.leaders[0] || null;
 
     const ogTitle = `${activeCount > 0 ? '🔥' : '📚'} ${roomName} (${memberCount}/${maxMembers}명)`;
     const ogDescriptionParts = [];
     if (goal) ogDescriptionParts.push(goal);
-    ogDescriptionParts.push(activeCount > 0 ? `지금 ${activeCount}명이 실시간으로 공부 중입니다.` : '지금 바로 함께 공부를 시작해보세요.');
+    ogDescriptionParts.push(
+      activeCount > 0
+        ? `지금 ${activeCount}명이 실시간으로 공부 중입니다.`
+        : '지금 바로 함께 공부를 시작해보세요.',
+    );
     if (topLeader && topLeader.todaySec > 0) {
-      ogDescriptionParts.push(`오늘 1위 ${topLeader.nickname} ${formatDurationKorean(topLeader.todaySec)}`);
+      ogDescriptionParts.push(
+        `오늘 1위 ${topLeader.nickname} ${formatDurationKorean(topLeader.todaySec)}`,
+      );
     }
     const ogDescription = ogDescriptionParts.join(' · ');
     const ogImageVersion = [memberCount, activeCount, topLeader ? topLeader.todaySec : 0].join('-');
     const ogImage = `${baseUrl}/og/room/${encodeURIComponent(code)}.png?v=${encodeURIComponent(ogImageVersion)}`;
     const ogImageAlt = `${roomName} 그룹 타이머 공유 이미지`;
 
-        const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -1272,51 +1376,55 @@ app.get('/room/:code', roomInviteLimiter, async (req, res) => {
 </body>
 </html>`;
 
-        return res.type('text/html').send(html);
-    } catch (err) {
-        console.error('[room] GET /room/:code', err.message);
-        return res.status(500).type('text/html').send('<h1>서버 오류</h1>');
-    }
+    return res.type('text/html').send(html);
+  } catch (err) {
+    console.error('[room] GET /room/:code', err.message);
+    return res.status(500).type('text/html').send('<h1>서버 오류</h1>');
+  }
 });
 
 app.get('/robots.txt', (req, res) => {
-    const baseUrl = getSiteBaseUrl(req);
+  const baseUrl = getSiteBaseUrl(req);
 
-        res.type('text/plain').send([
-                'User-agent: *',
-                'Allow: /',
-                'Disallow: /api/',
-                `Sitemap: ${baseUrl}/sitemap.xml`,
-                ''
-        ].join('\n'));
+  res
+    .type('text/plain')
+    .send(
+      ['User-agent: *', 'Allow: /', 'Disallow: /api/', `Sitemap: ${baseUrl}/sitemap.xml`, ''].join(
+        '\n',
+      ),
+    );
 });
 
 app.get('/sitemap.xml', async (req, res) => {
-    const baseUrl = getSiteBaseUrl(req);
-        const now = new Date().toISOString();
+  const baseUrl = getSiteBaseUrl(req);
+  const now = new Date().toISOString();
 
-        let postRows = [];
-        try {
-            const posts = await pool.query(
-                `SELECT id, created_at
+  let postRows = [];
+  try {
+    const posts = await pool.query(
+      `SELECT id, created_at
                  FROM community_posts
                  ORDER BY created_at DESC
-                 LIMIT 500`
-            );
-            postRows = posts.rows;
-        } catch (err) {
-            console.error('[seo] sitemap community posts', err.message);
-        }
+                 LIMIT 500`,
+    );
+    postRows = posts.rows;
+  } catch (err) {
+    console.error('[seo] sitemap community posts', err.message);
+  }
 
-        const postUrls = postRows.map((row) => `
+  const postUrls = postRows
+    .map(
+      (row) => `
     <url>
         <loc>${escapeXml(`${baseUrl}/community/post/${row.id}`)}</loc>
         <lastmod>${escapeXml(new Date(row.created_at).toISOString())}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
-    </url>`).join('');
+    </url>`,
+    )
+    .join('');
 
-        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>${baseUrl}/community/</loc>
@@ -1333,7 +1441,7 @@ app.get('/sitemap.xml', async (req, res) => {
     ${postUrls}
 </urlset>`;
 
-        res.type('application/xml').send(xml);
+  res.type('application/xml').send(xml);
 });
 
 // Legacy URL compatibility: redirect old internal paths to clean public paths
@@ -1362,34 +1470,34 @@ app.get('/P.A.T.H/admin/', (_req, res) => res.redirect(301, '/admin/'));
 app.get('/P.A.T.H/admin/index.html', (_req, res) => res.redirect(301, '/admin/'));
 
 app.get('/', (_req, res) => {
-    res.sendFile(path.join(projectRoot, 'P.A.T.H', 'login', 'index.html'), {
-        headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Surrogate-Control': 'no-store',
-        },
-    });
+  res.sendFile(path.join(projectRoot, 'P.A.T.H', 'login', 'index.html'), {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'Surrogate-Control': 'no-store',
+    },
+  });
 });
 
 initSchema()
-    .then(() => {
-        const httpServer = createServer(app);
+  .then(() => {
+    const httpServer = createServer(app);
 
-        const io = new SocketServer(httpServer, {
-            cors: {
-                origin: corsOriginHandler,
-                credentials: true,
-            },
-            transports: ['websocket', 'polling'],
-        });
-        app.set('io', io);
-
-        httpServer.listen(PORT, '0.0.0.0', () => {
-            console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
-        });
-    })
-    .catch(err => {
-        console.error('서버 시작 실패 (DB 초기화 오류):', err.message);
-        process.exit(1);
+    const io = new SocketServer(httpServer, {
+      cors: {
+        origin: corsOriginHandler,
+        credentials: true,
+      },
+      transports: ['websocket', 'polling'],
     });
+    app.set('io', io);
+
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      console.log(`P.A.T.H 서버 실행 중 - http://0.0.0.0:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('서버 시작 실패 (DB 초기화 오류):', err.message);
+    process.exit(1);
+  });

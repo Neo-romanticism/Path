@@ -41,6 +41,7 @@ package.json
 ## 핵심 경제 시스템
 
 ### 골드 획득
+
 - **공부 골드**: 모든 유저 동일 **10G/hr** (성공 시)
 - **세금(패시브)**: `-log₁₀((100 - 합격백분위) / 100)` G/hr (최대 24hr 축적)
   - 50% 백분위 → 0.3G/hr
@@ -50,15 +51,18 @@ package.json
 - **N수생 전적대 보너스**: 전적 대학 세금률의 +15% 추가
 
 ### 토너먼트권
+
 - 가격: **140G** (공부 10G/hr × 14시간)
 - 침략 시 1장 소모
 
 ### 침략
+
 - **평가원 모의고사 점수** 비교 (0~600 표준점수 합산)
 - 승리 시 상대방 대학(영지)으로 이전
 - 침략 알림 없음
 
 ### 대학별 영지
+
 - University/Department 클래스 기반 (server/data/universities.js)
 - 52개 대학, 학과별 입결/전형 데이터 포함
 - 전형: 학생부교과(내신), 학생부종합(내신참고), 논술(경쟁률), 정시(백분위, 표준점수합, 환산컷)
@@ -68,6 +72,7 @@ package.json
 - API: /api/university/list, /api/university/info?name=, /api/university/search?q=&region=&category=
 
 ### 정시 환산점수 시스템
+
 - University.scoreFormula: 인문/자연 계열별 환산 공식 (국어/수학/탐구 배점, 영어·한국사 등급별 환산표)
 - University.calcConvertedScore(scores, track): 유저 원점수 → 해당 대학 환산점수 계산
 - 각 학과 정시 데이터에 `환산컷` 포함 (합격 최저 환산점수)
@@ -91,35 +96,35 @@ package.json
 
 ## API 엔드포인트
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | /api/auth/register | 회원가입 (실명, 개인정보동의 필수) |
-| POST | /api/auth/login | 로그인 |
-| POST | /api/auth/logout | 로그아웃 |
-| GET  | /api/auth/me | 현재 유저 정보 (score_status 포함) |
-| POST | /api/auth/upload-score | 성적 이미지 업로드 (multipart) |
-| POST | /api/auth/upload-gpa | 내신 이미지 업로드 (multipart) |
-| POST | /api/auth/toggle-gpa-public | 내신 공개 여부 토글 |
-| POST | /api/study/start | 공부 시작 (is_studying=true) |
-| POST | /api/study/complete | 공부 완료 및 보상 저장 |
-| GET  | /api/study/stats | 내 공부 통계 |
-| GET  | /api/ranking | 누적 공부 시간 기준 Top 50 |
-| GET  | /api/ranking/today | 오늘 공부 시간 기준 |
-| GET  | /api/ranking/me | 내 순위 및 상위 % |
-| GET  | /api/estate/tax | 세금 현황 (N수 보너스 포함) |
-| POST | /api/estate/collect-tax | 세금 수령 |
-| POST | /api/estate/buy-ticket | 토너먼트권 구매 (140G) |
-| POST | /api/invasion/attack | 침략 (점수 비교, 승리 시 대학 이전) |
-| GET  | /api/invasion/logs | 침략 기록 |
-| GET  | /api/notifications | 알림 목록 |
-| POST | /api/notifications/read-all | 전체 읽음 처리 |
-| GET  | /api/admin/pending | 성적 심사 대기 목록 |
-| GET  | /api/admin/all-users | 전체 유저 목록 |
-| POST | /api/admin/approve-score | 성적 승인 (점수 입력) |
-| POST | /api/admin/reject-score | 성적 반려 |
-| POST | /api/admin/approve-gpa | 내신 승인 (등급 입력) |
-| POST | /api/admin/reject-gpa | 내신 반려 |
-| GET  | /api/university/compare-gpa | 내신 합격 가능성 비교 |
+| Method | Path                        | 설명                                |
+| ------ | --------------------------- | ----------------------------------- |
+| POST   | /api/auth/register          | 회원가입 (실명, 개인정보동의 필수)  |
+| POST   | /api/auth/login             | 로그인                              |
+| POST   | /api/auth/logout            | 로그아웃                            |
+| GET    | /api/auth/me                | 현재 유저 정보 (score_status 포함)  |
+| POST   | /api/auth/upload-score      | 성적 이미지 업로드 (multipart)      |
+| POST   | /api/auth/upload-gpa        | 내신 이미지 업로드 (multipart)      |
+| POST   | /api/auth/toggle-gpa-public | 내신 공개 여부 토글                 |
+| POST   | /api/study/start            | 공부 시작 (is_studying=true)        |
+| POST   | /api/study/complete         | 공부 완료 및 보상 저장              |
+| GET    | /api/study/stats            | 내 공부 통계                        |
+| GET    | /api/ranking                | 누적 공부 시간 기준 Top 50          |
+| GET    | /api/ranking/today          | 오늘 공부 시간 기준                 |
+| GET    | /api/ranking/me             | 내 순위 및 상위 %                   |
+| GET    | /api/estate/tax             | 세금 현황 (N수 보너스 포함)         |
+| POST   | /api/estate/collect-tax     | 세금 수령                           |
+| POST   | /api/estate/buy-ticket      | 토너먼트권 구매 (140G)              |
+| POST   | /api/invasion/attack        | 침략 (점수 비교, 승리 시 대학 이전) |
+| GET    | /api/invasion/logs          | 침략 기록                           |
+| GET    | /api/notifications          | 알림 목록                           |
+| POST   | /api/notifications/read-all | 전체 읽음 처리                      |
+| GET    | /api/admin/pending          | 성적 심사 대기 목록                 |
+| GET    | /api/admin/all-users        | 전체 유저 목록                      |
+| POST   | /api/admin/approve-score    | 성적 승인 (점수 입력)               |
+| POST   | /api/admin/reject-score     | 성적 반려                           |
+| POST   | /api/admin/approve-gpa      | 내신 승인 (등급 입력)               |
+| POST   | /api/admin/reject-gpa       | 내신 반려                           |
+| GET    | /api/university/compare-gpa | 내신 합격 가능성 비교               |
 
 ## DB 스키마
 
@@ -132,8 +137,8 @@ package.json
 ## 페이지 흐름
 
 `/` → 로그인 → `/P.A.T.H/mainHub/` → 내 성채 클릭 → 성 내부 (풀스크린)
-                                    → `[ PATH 진입 ]` → `/P.A.T.H/mainPageDev/`
-                                    → 관리자: `/P.A.T.H/admin/`
+→ `[ PATH 진입 ]` → `/P.A.T.H/mainPageDev/`
+→ 관리자: `/P.A.T.H/admin/`
 
 ## 테스트 계정
 

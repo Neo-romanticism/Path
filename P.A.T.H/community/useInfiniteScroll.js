@@ -21,7 +21,7 @@ export function useInfiniteScroll({ onLoadMore, hasMore, sentinel, rootMargin = 
       await onLoadMore();
       isLoading = false;
     },
-    { rootMargin: `0px 0px ${rootMargin}px 0px`, threshold: 0 }
+    { rootMargin: `0px 0px ${rootMargin}px 0px`, threshold: 0 },
   );
 
   observer.observe(sentinel);

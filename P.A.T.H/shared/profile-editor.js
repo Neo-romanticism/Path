@@ -1,15 +1,23 @@
 (function () {
   function getInitial(value) {
-    return String(value || '?').trim().charAt(0).toUpperCase() || '?';
+    return (
+      String(value || '?')
+        .trim()
+        .charAt(0)
+        .toUpperCase() || '?'
+    );
   }
 
   function createProfileEditor(options) {
-    var opts = options || {};
-    var elements = opts.elements || {};
-    var pendingImageFile = null;
-    var searchTimer = null;
-    var isBound = false;
-    var saveButtonDefaultText = opts.saveButtonText || (elements.saveButton ? String(elements.saveButton.textContent || '').trim() : '') || '저장';
+    const opts = options || {};
+    const elements = opts.elements || {};
+    let pendingImageFile = null;
+    let searchTimer = null;
+    let isBound = false;
+    const saveButtonDefaultText =
+      opts.saveButtonText ||
+      (elements.saveButton ? String(elements.saveButton.textContent || '').trim() : '') ||
+      '저장';
 
     function getUser() {
       return typeof opts.getUser === 'function' ? opts.getUser() : null;
@@ -47,9 +55,9 @@
       if (!elements.avatarPreview) return;
       elements.avatarPreview.innerHTML = '';
 
-      var safeUrl = String(imageUrl || '').trim();
+      const safeUrl = String(imageUrl || '').trim();
       if (safeUrl) {
-        var image = document.createElement('img');
+        const image = document.createElement('img');
         image.src = safeUrl;
         image.alt = opts.avatarAlt || '프로필';
         if (opts.avatarImageClass) image.className = opts.avatarImageClass;
@@ -64,18 +72,18 @@
       if (!resultsEl || !targetInput) return;
       resultsEl.innerHTML = '';
 
-      var list = Array.isArray(items) ? items : [];
+      const list = Array.isArray(items) ? items : [];
       if (!list.length) {
         resultsEl.classList.add('hidden');
         return;
       }
 
       list.forEach(function (item) {
-        var button = document.createElement('button');
-        var name = String((item && item.name) || '');
-        var region = String((item && item.region) || '');
-        var nameSpan = document.createElement('span');
-        var regionSpan = document.createElement('span');
+        const button = document.createElement('button');
+        const name = String((item && item.name) || '');
+        const region = String((item && item.region) || '');
+        const nameSpan = document.createElement('span');
+        const regionSpan = document.createElement('span');
 
         button.type = 'button';
         if (opts.universityItemClass) button.className = opts.universityItemClass;
@@ -98,7 +106,7 @@
     }
 
     function searchUniversity(keyword, targetInput, resultsEl) {
-      var query = String(keyword || '').trim();
+      const query = String(keyword || '').trim();
       if (searchTimer) window.clearTimeout(searchTimer);
 
       if (!query) {
@@ -106,23 +114,34 @@
         return;
       }
 
-      searchTimer = window.setTimeout(function () {
-        fetch('/api/university/search?q=' + encodeURIComponent(query), { credentials: 'include' })
-          .then(function (response) {
-            return response.ok ? response.json().catch(function () { return {}; }) : {};
-          })
-          .then(function (data) {
-            renderUniversityResults(data && data.results ? data.results : [], targetInput, resultsEl);
-          })
-          .catch(function () {
-            if (resultsEl) resultsEl.classList.add('hidden');
-          });
-      }, typeof opts.searchDelay === 'number' ? opts.searchDelay : 180);
+      searchTimer = window.setTimeout(
+        function () {
+          fetch('/api/university/search?q=' + encodeURIComponent(query), { credentials: 'include' })
+            .then(function (response) {
+              return response.ok
+                ? response.json().catch(function () {
+                    return {};
+                  })
+                : {};
+            })
+            .then(function (data) {
+              renderUniversityResults(
+                data && data.results ? data.results : [],
+                targetInput,
+                resultsEl,
+              );
+            })
+            .catch(function () {
+              if (resultsEl) resultsEl.classList.add('hidden');
+            });
+        },
+        typeof opts.searchDelay === 'number' ? opts.searchDelay : 180,
+      );
     }
 
     function syncFromUser() {
-      var user = getUser();
-      var isLoggedIn = !!user;
+      const user = getUser();
+      const isLoggedIn = !!user;
 
       setLoggedInState(isLoggedIn);
 
@@ -139,9 +158,11 @@
 
       if (elements.nicknameInput) elements.nicknameInput.value = String(user.nickname || '');
       if (elements.universityInput) elements.universityInput.value = String(user.university || '');
-      if (elements.prevUniversityInput) elements.prevUniversityInput.value = String(user.prev_university || '');
+      if (elements.prevUniversityInput)
+        elements.prevUniversityInput.value = String(user.prev_university || '');
       if (elements.nsuInput) elements.nsuInput.checked = !!user.is_n_su;
-      if (elements.allowFriendInput) elements.allowFriendInput.checked = !(user.allow_friend_requests === false);
+      if (elements.allowFriendInput)
+        elements.allowFriendInput.checked = !(user.allow_friend_requests === false);
 
       setPrevVisibility();
       hideUniversityResults();
@@ -150,17 +171,25 @@
     }
 
     async function save() {
-      var user = getUser();
+      const user = getUser();
       if (!user) {
         setError(opts.loginRequiredMessage || '로그인 후 프로필을 수정할 수 있어요.');
         return false;
       }
 
-      var nickname = String(elements.nicknameInput && elements.nicknameInput.value || '').trim();
-      var university = String(elements.universityInput && elements.universityInput.value || '').trim();
-      var isNsu = !!(elements.nsuInput && elements.nsuInput.checked);
-      var prevUniversity = String(elements.prevUniversityInput && elements.prevUniversityInput.value || '').trim();
-      var allowFriendRequests = !!(elements.allowFriendInput && elements.allowFriendInput.checked);
+      const nickname = String(
+        (elements.nicknameInput && elements.nicknameInput.value) || '',
+      ).trim();
+      const university = String(
+        (elements.universityInput && elements.universityInput.value) || '',
+      ).trim();
+      const isNsu = !!(elements.nsuInput && elements.nsuInput.checked);
+      const prevUniversity = String(
+        (elements.prevUniversityInput && elements.prevUniversityInput.value) || '',
+      ).trim();
+      const allowFriendRequests = !!(
+        elements.allowFriendInput && elements.allowFriendInput.checked
+      );
 
       if (!nickname) {
         setError(opts.nicknameRequiredMessage || '닉네임을 입력해 주세요.');
@@ -175,14 +204,14 @@
         return false;
       }
 
-      var hasProfileUpdate = (
+      const hasProfileUpdate =
         nickname !== String(user.nickname || '').trim() ||
         university !== String(user.university || '').trim() ||
         isNsu !== !!user.is_n_su ||
         prevUniversity !== String(user.prev_university || '').trim() ||
-        !!pendingImageFile
-      );
-      var hasFriendSettingUpdate = allowFriendRequests !== !(user.allow_friend_requests === false);
+        !!pendingImageFile;
+      const hasFriendSettingUpdate =
+        allowFriendRequests !== !(user.allow_friend_requests === false);
 
       if (!hasProfileUpdate && !hasFriendSettingUpdate) {
         setError('');
@@ -199,40 +228,54 @@
       }
 
       try {
-        var nextUser = user;
+        let nextUser = user;
 
         if (hasProfileUpdate) {
-          var formData = new FormData();
+          const formData = new FormData();
           formData.append('nickname', nickname);
           formData.append('university', university);
           formData.append('is_n_su', String(isNsu));
           if (isNsu && prevUniversity) formData.append('prev_university', prevUniversity);
           if (pendingImageFile) formData.append('profileImage', pendingImageFile);
 
-          var profileResponse = await fetch('/api/auth/profile-custom', {
+          const profileResponse = await fetch('/api/auth/profile-custom', {
             method: 'POST',
             credentials: 'include',
             body: formData,
           });
-          var profileData = await profileResponse.json().catch(function () { return {}; });
+          const profileData = await profileResponse.json().catch(function () {
+            return {};
+          });
           if (!profileResponse.ok || !profileData || !profileData.ok) {
-            throw new Error(profileData && profileData.error || (opts.profileSaveErrorMessage || '프로필 저장에 실패했어요.'));
+            throw new Error(
+              (profileData && profileData.error) ||
+                opts.profileSaveErrorMessage ||
+                '프로필 저장에 실패했어요.',
+            );
           }
           nextUser = profileData.user || nextUser;
         }
 
         if (hasFriendSettingUpdate) {
-          var friendResponse = await fetch('/api/auth/friend-request-setting', {
+          const friendResponse = await fetch('/api/auth/friend-request-setting', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ allow_friend_requests: allowFriendRequests }),
           });
-          var friendData = await friendResponse.json().catch(function () { return {}; });
+          const friendData = await friendResponse.json().catch(function () {
+            return {};
+          });
           if (!friendResponse.ok || !friendData || !friendData.ok) {
-            throw new Error(friendData && friendData.error || (opts.friendSettingErrorMessage || '동맹 신청 수신 설정 저장에 실패했어요.'));
+            throw new Error(
+              (friendData && friendData.error) ||
+                opts.friendSettingErrorMessage ||
+                '동맹 신청 수신 설정 저장에 실패했어요.',
+            );
           }
-          nextUser = Object.assign({}, nextUser || {}, { allow_friend_requests: allowFriendRequests });
+          nextUser = Object.assign({}, nextUser || {}, {
+            allow_friend_requests: allowFriendRequests,
+          });
         }
 
         applyUser(nextUser);
@@ -248,7 +291,11 @@
 
         return true;
       } catch (error) {
-        setError(error && error.message ? error.message : (opts.genericSaveErrorMessage || '저장 중 오류가 발생했어요.'));
+        setError(
+          error && error.message
+            ? error.message
+            : opts.genericSaveErrorMessage || '저장 중 오류가 발생했어요.',
+        );
         if (typeof opts.onSaveError === 'function') {
           await opts.onSaveError(error);
         }
@@ -267,15 +314,20 @@
 
       if (elements.photoInput) {
         elements.photoInput.addEventListener('change', function () {
-          var file = elements.photoInput.files && elements.photoInput.files[0];
+          const file = elements.photoInput.files && elements.photoInput.files[0];
           if (!file) return;
           pendingImageFile = file;
 
-          var reader = new FileReader();
+          const reader = new FileReader();
           reader.onload = function (event) {
-            var previewSrc = String(event && event.target && event.target.result || '');
+            const previewSrc = String((event && event.target && event.target.result) || '');
             if (!previewSrc) return;
-            setAvatarPreview(previewSrc, elements.nicknameInput && elements.nicknameInput.value || getUser() && getUser().nickname || '?');
+            setAvatarPreview(
+              previewSrc,
+              (elements.nicknameInput && elements.nicknameInput.value) ||
+                (getUser() && getUser().nickname) ||
+                '?',
+            );
           };
           reader.readAsDataURL(file);
         });
@@ -290,19 +342,30 @@
       if (elements.nicknameInput) {
         elements.nicknameInput.addEventListener('input', function () {
           if (pendingImageFile) return;
-          setAvatarPreview('', elements.nicknameInput.value || getUser() && getUser().nickname || '?');
+          setAvatarPreview(
+            '',
+            elements.nicknameInput.value || (getUser() && getUser().nickname) || '?',
+          );
         });
       }
 
       if (elements.universityInput && elements.univResults) {
         elements.universityInput.addEventListener('input', function () {
-          searchUniversity(elements.universityInput.value, elements.universityInput, elements.univResults);
+          searchUniversity(
+            elements.universityInput.value,
+            elements.universityInput,
+            elements.univResults,
+          );
         });
       }
 
       if (elements.prevUniversityInput && elements.prevUnivResults) {
         elements.prevUniversityInput.addEventListener('input', function () {
-          searchUniversity(elements.prevUniversityInput.value, elements.prevUniversityInput, elements.prevUnivResults);
+          searchUniversity(
+            elements.prevUniversityInput.value,
+            elements.prevUniversityInput,
+            elements.prevUnivResults,
+          );
         });
       }
 

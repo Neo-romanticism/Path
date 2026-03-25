@@ -15,7 +15,8 @@ if (typeof globalThis.FileReader === 'undefined') {
     }
 
     readAsArrayBuffer(blob) {
-      blob.arrayBuffer()
+      blob
+        .arrayBuffer()
         .then((buf) => {
           this.result = buf;
           if (typeof this.onload === 'function') this.onload({ target: this });
@@ -29,7 +30,8 @@ if (typeof globalThis.FileReader === 'undefined') {
     }
 
     readAsDataURL(blob) {
-      blob.arrayBuffer()
+      blob
+        .arrayBuffer()
         .then((buf) => {
           const b64 = Buffer.from(buf).toString('base64');
           const mime = blob.type || 'application/octet-stream';
@@ -50,11 +52,33 @@ if (typeof globalThis.FileReader === 'undefined') {
 
 const OUT_DIR = path.resolve('P.A.T.H/mainHub/assets/landmarks');
 
-const MAT_STONE = new THREE.MeshStandardMaterial({ color: 0x8f96a3, roughness: 0.88, metalness: 0.05 });
-const MAT_ROOF = new THREE.MeshStandardMaterial({ color: 0x6a4a38, roughness: 0.9, metalness: 0.02 });
-const MAT_GLASS = new THREE.MeshStandardMaterial({ color: 0x77acd8, roughness: 0.25, metalness: 0.18, transparent: true, opacity: 0.9 });
-const MAT_ACCENT = new THREE.MeshStandardMaterial({ color: 0x355ea8, roughness: 0.5, metalness: 0.16 });
-const MAT_BRONZE = new THREE.MeshStandardMaterial({ color: 0xb08962, roughness: 0.6, metalness: 0.25 });
+const MAT_STONE = new THREE.MeshStandardMaterial({
+  color: 0x8f96a3,
+  roughness: 0.88,
+  metalness: 0.05,
+});
+const MAT_ROOF = new THREE.MeshStandardMaterial({
+  color: 0x6a4a38,
+  roughness: 0.9,
+  metalness: 0.02,
+});
+const MAT_GLASS = new THREE.MeshStandardMaterial({
+  color: 0x77acd8,
+  roughness: 0.25,
+  metalness: 0.18,
+  transparent: true,
+  opacity: 0.9,
+});
+const MAT_ACCENT = new THREE.MeshStandardMaterial({
+  color: 0x355ea8,
+  roughness: 0.5,
+  metalness: 0.16,
+});
+const MAT_BRONZE = new THREE.MeshStandardMaterial({
+  color: 0xb08962,
+  roughness: 0.6,
+  metalness: 0.25,
+});
 
 function add(group, geo, mat, x, y, z) {
   const m = new THREE.Mesh(geo, mat);
@@ -88,10 +112,26 @@ function addWindowGrid(group, cx, cy, cz, cols, rows, dx, dy, color = 0x9eb9e4) 
 function buildSnu() {
   const g = new THREE.Group();
 
-  const graniteMat = new THREE.MeshStandardMaterial({ color: 0x848e9c, roughness: 0.9, metalness: 0.04 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: 0xc2c8d1, roughness: 0.72, metalness: 0.08 });
-  const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x596170, roughness: 0.88, metalness: 0.05 });
-  const logoMat = new THREE.MeshStandardMaterial({ color: 0x2f63b3, roughness: 0.4, metalness: 0.2 });
+  const graniteMat = new THREE.MeshStandardMaterial({
+    color: 0x848e9c,
+    roughness: 0.9,
+    metalness: 0.04,
+  });
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0xc2c8d1,
+    roughness: 0.72,
+    metalness: 0.08,
+  });
+  const darkStoneMat = new THREE.MeshStandardMaterial({
+    color: 0x596170,
+    roughness: 0.88,
+    metalness: 0.05,
+  });
+  const logoMat = new THREE.MeshStandardMaterial({
+    color: 0x2f63b3,
+    roughness: 0.4,
+    metalness: 0.2,
+  });
 
   // Terraced podium and front stair - adds a strong campus gateway silhouette.
   add(g, new THREE.BoxGeometry(13.5, 1.2, 8.8), graniteMat, 0, 0.6, 0.4);
@@ -100,7 +140,14 @@ function buildSnu() {
   add(g, new THREE.BoxGeometry(8.2, 0.55, 4.8), trimMat, 0, 2.95, 1.45);
 
   for (let i = 0; i < 6; i += 1) {
-    add(g, new THREE.BoxGeometry(8.4 - i * 0.7, 0.22, 0.62), trimMat, 0, 0.14 + i * 0.22, 4.85 + i * 0.18);
+    add(
+      g,
+      new THREE.BoxGeometry(8.4 - i * 0.7, 0.22, 0.62),
+      trimMat,
+      0,
+      0.14 + i * 0.22,
+      4.85 + i * 0.18,
+    );
   }
 
   // SNU gate style front beam with pylons.
@@ -150,10 +197,26 @@ function buildSnu() {
 
 function buildYonsei() {
   const g = new THREE.Group();
-  const gothicStone = new THREE.MeshStandardMaterial({ color: 0x7f8793, roughness: 0.9, metalness: 0.04 });
-  const limestone = new THREE.MeshStandardMaterial({ color: 0xc4c9d1, roughness: 0.74, metalness: 0.06 });
-  const slateRoof = new THREE.MeshStandardMaterial({ color: 0x4a4f59, roughness: 0.88, metalness: 0.03 });
-  const bronzeCross = new THREE.MeshStandardMaterial({ color: 0xa7865f, roughness: 0.5, metalness: 0.32 });
+  const gothicStone = new THREE.MeshStandardMaterial({
+    color: 0x7f8793,
+    roughness: 0.9,
+    metalness: 0.04,
+  });
+  const limestone = new THREE.MeshStandardMaterial({
+    color: 0xc4c9d1,
+    roughness: 0.74,
+    metalness: 0.06,
+  });
+  const slateRoof = new THREE.MeshStandardMaterial({
+    color: 0x4a4f59,
+    roughness: 0.88,
+    metalness: 0.03,
+  });
+  const bronzeCross = new THREE.MeshStandardMaterial({
+    color: 0xa7865f,
+    roughness: 0.5,
+    metalness: 0.32,
+  });
 
   // Base terrace and front apron.
   add(g, new THREE.BoxGeometry(13.2, 1.1, 7.4), gothicStone, 0, 0.55, 0.5);
@@ -174,9 +237,23 @@ function buildYonsei() {
   add(g, new THREE.BoxGeometry(4.2, 0.2, 0.25), limestone, 0, 9.75, 1.35);
 
   // Gothic arch portal (layered arches).
-  const archOuter = add(g, new THREE.TorusGeometry(1.85, 0.22, 10, 28, Math.PI), limestone, 0, 4.2, 2.18);
+  const archOuter = add(
+    g,
+    new THREE.TorusGeometry(1.85, 0.22, 10, 28, Math.PI),
+    limestone,
+    0,
+    4.2,
+    2.18,
+  );
   archOuter.rotation.x = Math.PI / 2;
-  const archInner = add(g, new THREE.TorusGeometry(1.35, 0.16, 10, 24, Math.PI), gothicStone, 0, 4.2, 2.3);
+  const archInner = add(
+    g,
+    new THREE.TorusGeometry(1.35, 0.16, 10, 24, Math.PI),
+    gothicStone,
+    0,
+    4.2,
+    2.3,
+  );
   archInner.rotation.x = Math.PI / 2;
   add(g, new THREE.BoxGeometry(3.8, 2.6, 0.35), gothicStone, 0, 2.9, 2.22);
   add(g, new THREE.BoxGeometry(0.38, 2.9, 0.35), limestone, -1.72, 3.12, 2.24);
@@ -201,7 +278,14 @@ function buildYonsei() {
 
   // Front steps.
   for (let s = 0; s < 5; s += 1) {
-    add(g, new THREE.BoxGeometry(4.8 - s * 0.42, 0.18, 0.45), limestone, 0, 0.22 + s * 0.18, 3.15 + s * 0.12);
+    add(
+      g,
+      new THREE.BoxGeometry(4.8 - s * 0.42, 0.18, 0.45),
+      limestone,
+      0,
+      0.22 + s * 0.18,
+      3.15 + s * 0.12,
+    );
   }
 
   return g;
@@ -209,17 +293,44 @@ function buildYonsei() {
 
 function buildKorea() {
   const g = new THREE.Group();
-  const granite = new THREE.MeshStandardMaterial({ color: 0x807a77, roughness: 0.9, metalness: 0.04 });
-  const limestone = new THREE.MeshStandardMaterial({ color: 0xc4b7b0, roughness: 0.75, metalness: 0.06 });
-  const crimsonRoof = new THREE.MeshStandardMaterial({ color: 0x772a33, roughness: 0.86, metalness: 0.04 });
-  const darkRoof = new THREE.MeshStandardMaterial({ color: 0x5f1f28, roughness: 0.88, metalness: 0.03 });
-  const crestMat = new THREE.MeshStandardMaterial({ color: 0x8a1f2d, roughness: 0.45, metalness: 0.22 });
+  const granite = new THREE.MeshStandardMaterial({
+    color: 0x807a77,
+    roughness: 0.9,
+    metalness: 0.04,
+  });
+  const limestone = new THREE.MeshStandardMaterial({
+    color: 0xc4b7b0,
+    roughness: 0.75,
+    metalness: 0.06,
+  });
+  const crimsonRoof = new THREE.MeshStandardMaterial({
+    color: 0x772a33,
+    roughness: 0.86,
+    metalness: 0.04,
+  });
+  const darkRoof = new THREE.MeshStandardMaterial({
+    color: 0x5f1f28,
+    roughness: 0.88,
+    metalness: 0.03,
+  });
+  const crestMat = new THREE.MeshStandardMaterial({
+    color: 0x8a1f2d,
+    roughness: 0.45,
+    metalness: 0.22,
+  });
 
   // Podium and stairs.
   add(g, new THREE.BoxGeometry(14.0, 1.2, 8.0), granite, 0, 0.6, 0.5);
   add(g, new THREE.BoxGeometry(12.0, 0.75, 6.5), limestone, 0, 1.55, 0.95);
   for (let s = 0; s < 6; s += 1) {
-    add(g, new THREE.BoxGeometry(6.0 - s * 0.48, 0.2, 0.5), limestone, 0, 0.2 + s * 0.2, 3.45 + s * 0.12);
+    add(
+      g,
+      new THREE.BoxGeometry(6.0 - s * 0.48, 0.2, 0.5),
+      limestone,
+      0,
+      0.2 + s * 0.2,
+      3.45 + s * 0.12,
+    );
   }
 
   // Symmetric wing blocks.
@@ -232,13 +343,24 @@ function buildKorea() {
   add(g, new THREE.BoxGeometry(3.1, 2.2, 2.6), granite, 0, 11.7, -0.55);
 
   // Characteristic red roof hierarchy.
-  add(g, new THREE.ConeGeometry(2.8, 2.6, 4), crimsonRoof, 0, 12.9, -0.45).rotation.y = Math.PI * 0.25;
-  add(g, new THREE.ConeGeometry(1.85, 1.8, 4), darkRoof, 0, 14.8, -0.45).rotation.y = Math.PI * 0.25;
-  add(g, new THREE.ConeGeometry(1.55, 1.5, 4), crimsonRoof, -3.7, 6.0, 0.25).rotation.y = Math.PI * 0.25;
-  add(g, new THREE.ConeGeometry(1.55, 1.5, 4), crimsonRoof, 3.7, 6.0, 0.25).rotation.y = Math.PI * 0.25;
+  add(g, new THREE.ConeGeometry(2.8, 2.6, 4), crimsonRoof, 0, 12.9, -0.45).rotation.y =
+    Math.PI * 0.25;
+  add(g, new THREE.ConeGeometry(1.85, 1.8, 4), darkRoof, 0, 14.8, -0.45).rotation.y =
+    Math.PI * 0.25;
+  add(g, new THREE.ConeGeometry(1.55, 1.5, 4), crimsonRoof, -3.7, 6.0, 0.25).rotation.y =
+    Math.PI * 0.25;
+  add(g, new THREE.ConeGeometry(1.55, 1.5, 4), crimsonRoof, 3.7, 6.0, 0.25).rotation.y =
+    Math.PI * 0.25;
 
   // Portico + arch entry.
-  const archOuter = add(g, new THREE.TorusGeometry(1.7, 0.2, 10, 28, Math.PI), limestone, 0, 4.2, 2.05);
+  const archOuter = add(
+    g,
+    new THREE.TorusGeometry(1.7, 0.2, 10, 28, Math.PI),
+    limestone,
+    0,
+    4.2,
+    2.05,
+  );
   archOuter.rotation.x = Math.PI / 2;
   add(g, new THREE.BoxGeometry(3.6, 2.6, 0.32), granite, 0, 2.9, 2.03);
   add(g, new THREE.BoxGeometry(0.32, 2.7, 0.3), limestone, -1.65, 3.0, 2.06);
@@ -262,10 +384,28 @@ function buildKorea() {
 
 function buildKaist() {
   const g = new THREE.Group();
-  const steelMat = new THREE.MeshStandardMaterial({ color: 0x667485, roughness: 0.38, metalness: 0.72 });
-  const darkSteel = new THREE.MeshStandardMaterial({ color: 0x4f5966, roughness: 0.45, metalness: 0.68 });
-  const atriumGlass = new THREE.MeshStandardMaterial({ color: 0x71b8e8, roughness: 0.16, metalness: 0.2, transparent: true, opacity: 0.86 });
-  const accentCyan = new THREE.MeshStandardMaterial({ color: 0x00a9d6, roughness: 0.35, metalness: 0.28 });
+  const steelMat = new THREE.MeshStandardMaterial({
+    color: 0x667485,
+    roughness: 0.38,
+    metalness: 0.72,
+  });
+  const darkSteel = new THREE.MeshStandardMaterial({
+    color: 0x4f5966,
+    roughness: 0.45,
+    metalness: 0.68,
+  });
+  const atriumGlass = new THREE.MeshStandardMaterial({
+    color: 0x71b8e8,
+    roughness: 0.16,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.86,
+  });
+  const accentCyan = new THREE.MeshStandardMaterial({
+    color: 0x00a9d6,
+    roughness: 0.35,
+    metalness: 0.28,
+  });
 
   // Platform and stepped plinth.
   add(g, new THREE.BoxGeometry(13.0, 0.95, 7.6), darkSteel, 0, 0.48, 0.35);
@@ -295,7 +435,14 @@ function buildKaist() {
   add(g, new THREE.CylinderGeometry(0.16, 0.2, 2.2, 8), accentCyan, 0, 11.95, 0.25);
   add(g, new THREE.CylinderGeometry(0.1, 0.12, 1.2, 8), accentCyan, -0.65, 11.45, 0.25);
   add(g, new THREE.CylinderGeometry(0.1, 0.12, 1.2, 8), accentCyan, 0.65, 11.45, 0.25);
-  const dish = add(g, new THREE.TorusGeometry(2.25, 0.28, 10, 38, Math.PI), accentCyan, 0, 11.2, -0.15);
+  const dish = add(
+    g,
+    new THREE.TorusGeometry(2.25, 0.28, 10, 38, Math.PI),
+    accentCyan,
+    0,
+    11.2,
+    -0.15,
+  );
   dish.rotation.y = Math.PI / 4;
   dish.rotation.z = Math.PI / 6;
 
@@ -314,10 +461,28 @@ function buildKaist() {
 
 function buildPostech() {
   const g = new THREE.Group();
-  const labStone = new THREE.MeshStandardMaterial({ color: 0x6e7b7f, roughness: 0.88, metalness: 0.08 });
-  const techSteel = new THREE.MeshStandardMaterial({ color: 0x5e696f, roughness: 0.42, metalness: 0.7 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x75c2d1, roughness: 0.2, metalness: 0.18, transparent: true, opacity: 0.88 });
-  const orangeAccent = new THREE.MeshStandardMaterial({ color: 0xd85b2a, roughness: 0.4, metalness: 0.24 });
+  const labStone = new THREE.MeshStandardMaterial({
+    color: 0x6e7b7f,
+    roughness: 0.88,
+    metalness: 0.08,
+  });
+  const techSteel = new THREE.MeshStandardMaterial({
+    color: 0x5e696f,
+    roughness: 0.42,
+    metalness: 0.7,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x75c2d1,
+    roughness: 0.2,
+    metalness: 0.18,
+    transparent: true,
+    opacity: 0.88,
+  });
+  const orangeAccent = new THREE.MeshStandardMaterial({
+    color: 0xd85b2a,
+    roughness: 0.4,
+    metalness: 0.24,
+  });
 
   // Base and stepped plinth.
   add(g, new THREE.BoxGeometry(13.2, 1.0, 8.0), techSteel, 0, 0.5, 0.4);
@@ -339,7 +504,7 @@ function buildPostech() {
     [-4.2, 3.1, 0],
     [4.2, 3.1, 0],
     [0, 3.1, -3.1],
-    [0, 3.1, 3.1]
+    [0, 3.1, 3.1],
   ];
   wingPos.forEach(([x, y, z], idx) => {
     const horizontal = Math.abs(x) > 0;
@@ -349,7 +514,7 @@ function buildPostech() {
       labStone,
       x,
       y,
-      z
+      z,
     );
     add(
       g,
@@ -357,7 +522,7 @@ function buildPostech() {
       glass,
       x,
       y + 1.3,
-      z + (idx === 2 ? -0.25 : idx === 3 ? 0.25 : 0)
+      z + (idx === 2 ? -0.25 : idx === 3 ? 0.25 : 0),
     );
   });
 
@@ -392,18 +557,49 @@ function buildPostech() {
 
 function buildSkku() {
   const g = new THREE.Group();
-  const stonePodium = new THREE.MeshStandardMaterial({ color: 0x8e8a80, roughness: 0.9, metalness: 0.02 });
-  const woodDark = new THREE.MeshStandardMaterial({ color: 0x5a3e2a, roughness: 0.86, metalness: 0.02 });
-  const woodMid = new THREE.MeshStandardMaterial({ color: 0x7a5637, roughness: 0.82, metalness: 0.03 });
-  const roofTile = new THREE.MeshStandardMaterial({ color: 0x3f444a, roughness: 0.9, metalness: 0.04 });
-  const trimGreen = new THREE.MeshStandardMaterial({ color: 0x2f6a4d, roughness: 0.7, metalness: 0.06 });
-  const boardGold = new THREE.MeshStandardMaterial({ color: 0xb58d4b, roughness: 0.45, metalness: 0.28 });
+  const stonePodium = new THREE.MeshStandardMaterial({
+    color: 0x8e8a80,
+    roughness: 0.9,
+    metalness: 0.02,
+  });
+  const woodDark = new THREE.MeshStandardMaterial({
+    color: 0x5a3e2a,
+    roughness: 0.86,
+    metalness: 0.02,
+  });
+  const woodMid = new THREE.MeshStandardMaterial({
+    color: 0x7a5637,
+    roughness: 0.82,
+    metalness: 0.03,
+  });
+  const roofTile = new THREE.MeshStandardMaterial({
+    color: 0x3f444a,
+    roughness: 0.9,
+    metalness: 0.04,
+  });
+  const trimGreen = new THREE.MeshStandardMaterial({
+    color: 0x2f6a4d,
+    roughness: 0.7,
+    metalness: 0.06,
+  });
+  const boardGold = new THREE.MeshStandardMaterial({
+    color: 0xb58d4b,
+    roughness: 0.45,
+    metalness: 0.28,
+  });
 
   // Stone podium + stair.
   add(g, new THREE.BoxGeometry(13.0, 1.0, 7.8), stonePodium, 0, 0.5, 0.4);
   add(g, new THREE.BoxGeometry(10.8, 0.6, 6.4), stonePodium, 0, 1.3, 0.8);
   for (let s = 0; s < 5; s += 1) {
-    add(g, new THREE.BoxGeometry(4.6 - s * 0.38, 0.16, 0.48), stonePodium, 0, 0.17 + s * 0.16, 3.35 + s * 0.11);
+    add(
+      g,
+      new THREE.BoxGeometry(4.6 - s * 0.38, 0.16, 0.48),
+      stonePodium,
+      0,
+      0.17 + s * 0.16,
+      3.35 + s * 0.11,
+    );
   }
 
   // Main timber hall body.
@@ -462,17 +658,46 @@ function buildSkku() {
 
 function buildHanyang() {
   const g = new THREE.Group();
-  const concrete = new THREE.MeshStandardMaterial({ color: 0x787f89, roughness: 0.9, metalness: 0.06 });
-  const darkConcrete = new THREE.MeshStandardMaterial({ color: 0x5f6670, roughness: 0.86, metalness: 0.08 });
-  const steelBlue = new THREE.MeshStandardMaterial({ color: 0x1f5cae, roughness: 0.42, metalness: 0.26 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x7bb6df, roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.88 });
-  const bronze = new THREE.MeshStandardMaterial({ color: 0xa68460, roughness: 0.55, metalness: 0.3 });
+  const concrete = new THREE.MeshStandardMaterial({
+    color: 0x787f89,
+    roughness: 0.9,
+    metalness: 0.06,
+  });
+  const darkConcrete = new THREE.MeshStandardMaterial({
+    color: 0x5f6670,
+    roughness: 0.86,
+    metalness: 0.08,
+  });
+  const steelBlue = new THREE.MeshStandardMaterial({
+    color: 0x1f5cae,
+    roughness: 0.42,
+    metalness: 0.26,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x7bb6df,
+    roughness: 0.2,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.88,
+  });
+  const bronze = new THREE.MeshStandardMaterial({
+    color: 0xa68460,
+    roughness: 0.55,
+    metalness: 0.3,
+  });
 
   // Base plinth with stepped approach.
   add(g, new THREE.BoxGeometry(13.2, 1.0, 7.6), darkConcrete, 0, 0.5, 0.35);
   add(g, new THREE.BoxGeometry(10.8, 0.6, 6.0), concrete, 0, 1.3, 0.75);
   for (let s = 0; s < 4; s += 1) {
-    add(g, new THREE.BoxGeometry(5.4 - s * 0.45, 0.18, 0.48), concrete, 0, 0.2 + s * 0.18, 3.2 + s * 0.1);
+    add(
+      g,
+      new THREE.BoxGeometry(5.4 - s * 0.45, 0.18, 0.48),
+      concrete,
+      0,
+      0.2 + s * 0.18,
+      3.2 + s * 0.1,
+    );
   }
 
   // Core masses.
@@ -514,17 +739,46 @@ function buildHanyang() {
 
 function buildChungang() {
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: 0x7d848f, roughness: 0.9, metalness: 0.06 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0x636b77, roughness: 0.88, metalness: 0.08 });
-  const blueAccent = new THREE.MeshStandardMaterial({ color: 0x1f4f9b, roughness: 0.42, metalness: 0.24 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x83b5de, roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.88 });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x8e96a3, roughness: 0.35, metalness: 0.72 });
+  const stone = new THREE.MeshStandardMaterial({
+    color: 0x7d848f,
+    roughness: 0.9,
+    metalness: 0.06,
+  });
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x636b77,
+    roughness: 0.88,
+    metalness: 0.08,
+  });
+  const blueAccent = new THREE.MeshStandardMaterial({
+    color: 0x1f4f9b,
+    roughness: 0.42,
+    metalness: 0.24,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x83b5de,
+    roughness: 0.2,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.88,
+  });
+  const metal = new THREE.MeshStandardMaterial({
+    color: 0x8e96a3,
+    roughness: 0.35,
+    metalness: 0.72,
+  });
 
   // Circular podium and approach.
   add(g, new THREE.CylinderGeometry(6.0, 6.3, 1.0, 24), darkStone, 0, 0.5, 0.25);
   add(g, new THREE.CylinderGeometry(4.9, 5.2, 0.65, 24), stone, 0, 1.35, 0.55);
   for (let s = 0; s < 5; s += 1) {
-    add(g, new THREE.BoxGeometry(4.5 - s * 0.35, 0.16, 0.45), stone, 0, 0.18 + s * 0.16, 3.25 + s * 0.1);
+    add(
+      g,
+      new THREE.BoxGeometry(4.5 - s * 0.35, 0.16, 0.45),
+      stone,
+      0,
+      0.18 + s * 0.16,
+      3.25 + s * 0.1,
+    );
   }
 
   // Main circular core and ring gallery.
@@ -568,17 +822,46 @@ function buildChungang() {
 
 function buildKyunghee() {
   const g = new THREE.Group();
-  const limestone = new THREE.MeshStandardMaterial({ color: 0xc4b89f, roughness: 0.78, metalness: 0.05 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0x8d816e, roughness: 0.86, metalness: 0.04 });
-  const domeBronze = new THREE.MeshStandardMaterial({ color: 0xa88856, roughness: 0.6, metalness: 0.3 });
-  const trimBlue = new THREE.MeshStandardMaterial({ color: 0x35558e, roughness: 0.5, metalness: 0.2 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0xbfd7ea, roughness: 0.2, metalness: 0.15, transparent: true, opacity: 0.85 });
+  const limestone = new THREE.MeshStandardMaterial({
+    color: 0xc4b89f,
+    roughness: 0.78,
+    metalness: 0.05,
+  });
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x8d816e,
+    roughness: 0.86,
+    metalness: 0.04,
+  });
+  const domeBronze = new THREE.MeshStandardMaterial({
+    color: 0xa88856,
+    roughness: 0.6,
+    metalness: 0.3,
+  });
+  const trimBlue = new THREE.MeshStandardMaterial({
+    color: 0x35558e,
+    roughness: 0.5,
+    metalness: 0.2,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0xbfd7ea,
+    roughness: 0.2,
+    metalness: 0.15,
+    transparent: true,
+    opacity: 0.85,
+  });
 
   // Ceremonial podium and stairs.
   add(g, new THREE.BoxGeometry(14.8, 1.0, 8.8), darkStone, 0, 0.5, 0.6);
   add(g, new THREE.BoxGeometry(12.4, 0.7, 7.0), limestone, 0, 1.35, 1.0);
   for (let s = 0; s < 7; s += 1) {
-    add(g, new THREE.BoxGeometry(6.4 - s * 0.45, 0.16, 0.52), limestone, 0, 0.18 + s * 0.16, 3.75 + s * 0.11);
+    add(
+      g,
+      new THREE.BoxGeometry(6.4 - s * 0.45, 0.16, 0.52),
+      limestone,
+      0,
+      0.18 + s * 0.16,
+      3.75 + s * 0.11,
+    );
   }
 
   // Main hall + side wings.
@@ -628,17 +911,46 @@ function buildKyunghee() {
 
 function buildSogang() {
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: 0x85766e, roughness: 0.9, metalness: 0.04 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0x6a5c56, roughness: 0.88, metalness: 0.05 });
-  const crimson = new THREE.MeshStandardMaterial({ color: 0x8d2e2f, roughness: 0.52, metalness: 0.16 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xaa865b, roughness: 0.45, metalness: 0.3 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0xbfaeaa, roughness: 0.22, metalness: 0.1, transparent: true, opacity: 0.86 });
+  const stone = new THREE.MeshStandardMaterial({
+    color: 0x85766e,
+    roughness: 0.9,
+    metalness: 0.04,
+  });
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x6a5c56,
+    roughness: 0.88,
+    metalness: 0.05,
+  });
+  const crimson = new THREE.MeshStandardMaterial({
+    color: 0x8d2e2f,
+    roughness: 0.52,
+    metalness: 0.16,
+  });
+  const brass = new THREE.MeshStandardMaterial({
+    color: 0xaa865b,
+    roughness: 0.45,
+    metalness: 0.3,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0xbfaeaa,
+    roughness: 0.22,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.86,
+  });
 
   // Base podium and front steps.
   add(g, new THREE.BoxGeometry(12.2, 0.95, 7.2), darkStone, 0, 0.48, 0.45);
   add(g, new THREE.BoxGeometry(10.0, 0.6, 5.8), stone, 0, 1.25, 0.85);
   for (let s = 0; s < 5; s += 1) {
-    add(g, new THREE.BoxGeometry(4.9 - s * 0.38, 0.16, 0.45), stone, 0, 0.18 + s * 0.16, 3.25 + s * 0.1);
+    add(
+      g,
+      new THREE.BoxGeometry(4.9 - s * 0.38, 0.16, 0.45),
+      stone,
+      0,
+      0.18 + s * 0.16,
+      3.25 + s * 0.1,
+    );
   }
 
   // Main hall + side annexes.
@@ -664,7 +976,14 @@ function buildSogang() {
   // Cloister-like front arches.
   for (let i = -2; i <= 2; i += 1) {
     const x = i * 1.15;
-    const arch = add(g, new THREE.TorusGeometry(0.5, 0.08, 8, 20, Math.PI), darkStone, x, 3.35, 2.1);
+    const arch = add(
+      g,
+      new THREE.TorusGeometry(0.5, 0.08, 8, 20, Math.PI),
+      darkStone,
+      x,
+      3.35,
+      2.1,
+    );
     arch.rotation.x = Math.PI / 2;
     add(g, new THREE.BoxGeometry(0.16, 1.25, 0.16), stone, x - 0.5, 2.75, 2.12);
     add(g, new THREE.BoxGeometry(0.16, 1.25, 0.16), stone, x + 0.5, 2.75, 2.12);
@@ -691,11 +1010,35 @@ function buildSogang() {
 
 function buildEwha() {
   const g = new THREE.Group();
-  const concrete = new THREE.MeshStandardMaterial({ color: 0x8e9096, roughness: 0.86, metalness: 0.05 });
-  const darkConcrete = new THREE.MeshStandardMaterial({ color: 0x6e727c, roughness: 0.88, metalness: 0.06 });
-  const glassBlue = new THREE.MeshStandardMaterial({ color: 0x83c7d7, roughness: 0.18, metalness: 0.16, transparent: true, opacity: 0.84 });
-  const glassGreen = new THREE.MeshStandardMaterial({ color: 0x59b7a7, roughness: 0.2, metalness: 0.18, transparent: true, opacity: 0.84 });
-  const accentMint = new THREE.MeshStandardMaterial({ color: 0x2b9f87, roughness: 0.42, metalness: 0.2 });
+  const concrete = new THREE.MeshStandardMaterial({
+    color: 0x8e9096,
+    roughness: 0.86,
+    metalness: 0.05,
+  });
+  const darkConcrete = new THREE.MeshStandardMaterial({
+    color: 0x6e727c,
+    roughness: 0.88,
+    metalness: 0.06,
+  });
+  const glassBlue = new THREE.MeshStandardMaterial({
+    color: 0x83c7d7,
+    roughness: 0.18,
+    metalness: 0.16,
+    transparent: true,
+    opacity: 0.84,
+  });
+  const glassGreen = new THREE.MeshStandardMaterial({
+    color: 0x59b7a7,
+    roughness: 0.2,
+    metalness: 0.18,
+    transparent: true,
+    opacity: 0.84,
+  });
+  const accentMint = new THREE.MeshStandardMaterial({
+    color: 0x2b9f87,
+    roughness: 0.42,
+    metalness: 0.2,
+  });
 
   // Split podium (valley cut).
   add(g, new THREE.BoxGeometry(13.8, 0.95, 7.6), darkConcrete, 0, 0.48, 0.45);
@@ -704,16 +1047,44 @@ function buildEwha() {
   add(g, new THREE.BoxGeometry(1.8, 1.05, 5.4), darkConcrete, 0, 1.25, 0.85); // central valley strip
 
   // Main dual ECC arches.
-  const outerArc = add(g, new THREE.TorusGeometry(4.8, 0.58, 12, 64, Math.PI), glassBlue, 0, 4.55, 0.1);
+  const outerArc = add(
+    g,
+    new THREE.TorusGeometry(4.8, 0.58, 12, 64, Math.PI),
+    glassBlue,
+    0,
+    4.55,
+    0.1,
+  );
   outerArc.rotation.x = Math.PI / 2;
-  const innerArc = add(g, new THREE.TorusGeometry(3.55, 0.42, 12, 56, Math.PI), glassGreen, 0, 6.45, 0.15);
+  const innerArc = add(
+    g,
+    new THREE.TorusGeometry(3.55, 0.42, 12, 56, Math.PI),
+    glassGreen,
+    0,
+    6.45,
+    0.15,
+  );
   innerArc.rotation.x = Math.PI / 2;
 
   // Curved side retaining walls.
-  const leftWall = add(g, new THREE.TorusGeometry(5.6, 0.26, 8, 44, Math.PI), concrete, -0.35, 2.55, 0.95);
+  const leftWall = add(
+    g,
+    new THREE.TorusGeometry(5.6, 0.26, 8, 44, Math.PI),
+    concrete,
+    -0.35,
+    2.55,
+    0.95,
+  );
   leftWall.rotation.x = Math.PI / 2;
   leftWall.rotation.z = Math.PI * 0.08;
-  const rightWall = add(g, new THREE.TorusGeometry(5.6, 0.26, 8, 44, Math.PI), concrete, 0.35, 2.55, 0.95);
+  const rightWall = add(
+    g,
+    new THREE.TorusGeometry(5.6, 0.26, 8, 44, Math.PI),
+    concrete,
+    0.35,
+    2.55,
+    0.95,
+  );
   rightWall.rotation.x = Math.PI / 2;
   rightWall.rotation.z = -Math.PI * 0.08;
 
@@ -731,7 +1102,14 @@ function buildEwha() {
 
   // Terraced valley stairs.
   for (let s = 0; s < 6; s += 1) {
-    add(g, new THREE.BoxGeometry(2.2 - s * 0.18, 0.14, 0.42), concrete, 0, 0.2 + s * 0.14, 3.1 + s * 0.11);
+    add(
+      g,
+      new THREE.BoxGeometry(2.2 - s * 0.18, 0.14, 0.42),
+      concrete,
+      0,
+      0.2 + s * 0.14,
+      3.1 + s * 0.11,
+    );
   }
 
   // Side glazed masses to avoid simple arc-only silhouette.
@@ -751,18 +1129,51 @@ function buildEwha() {
 
 function buildPusan() {
   const g = new THREE.Group();
-  const stone = new THREE.MeshStandardMaterial({ color: 0x7f858f, roughness: 0.9, metalness: 0.05 });
-  const darkStone = new THREE.MeshStandardMaterial({ color: 0x666d78, roughness: 0.88, metalness: 0.08 });
-  const roof = new THREE.MeshStandardMaterial({ color: 0x4d5a66, roughness: 0.86, metalness: 0.06 });
-  const seaBlue = new THREE.MeshStandardMaterial({ color: 0x2e6f9f, roughness: 0.44, metalness: 0.22 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x9cc5e7, roughness: 0.2, metalness: 0.18, transparent: true, opacity: 0.86 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xb18858, roughness: 0.48, metalness: 0.3 });
+  const stone = new THREE.MeshStandardMaterial({
+    color: 0x7f858f,
+    roughness: 0.9,
+    metalness: 0.05,
+  });
+  const darkStone = new THREE.MeshStandardMaterial({
+    color: 0x666d78,
+    roughness: 0.88,
+    metalness: 0.08,
+  });
+  const roof = new THREE.MeshStandardMaterial({
+    color: 0x4d5a66,
+    roughness: 0.86,
+    metalness: 0.06,
+  });
+  const seaBlue = new THREE.MeshStandardMaterial({
+    color: 0x2e6f9f,
+    roughness: 0.44,
+    metalness: 0.22,
+  });
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x9cc5e7,
+    roughness: 0.2,
+    metalness: 0.18,
+    transparent: true,
+    opacity: 0.86,
+  });
+  const brass = new THREE.MeshStandardMaterial({
+    color: 0xb18858,
+    roughness: 0.48,
+    metalness: 0.3,
+  });
 
   // Base podium and stepped approach.
   add(g, new THREE.BoxGeometry(13.6, 0.95, 7.8), darkStone, 0, 0.48, 0.45);
   add(g, new THREE.BoxGeometry(11.0, 0.65, 6.2), stone, 0, 1.3, 0.85);
   for (let s = 0; s < 5; s += 1) {
-    add(g, new THREE.BoxGeometry(5.2 - s * 0.42, 0.16, 0.48), stone, 0, 0.18 + s * 0.16, 3.45 + s * 0.11);
+    add(
+      g,
+      new THREE.BoxGeometry(5.2 - s * 0.42, 0.16, 0.48),
+      stone,
+      0,
+      0.18 + s * 0.16,
+      3.45 + s * 0.11,
+    );
   }
 
   // Main hall and side wings.
@@ -776,7 +1187,14 @@ function buildPusan() {
   add(g, new THREE.ConeGeometry(1.55, 2.2, 12), roof, -2.2, 12.75, -0.05);
 
   // Clock face and hands.
-  const clockFace = add(g, new THREE.CylinderGeometry(0.58, 0.58, 0.1, 20), brass, -2.2, 10.6, 1.05);
+  const clockFace = add(
+    g,
+    new THREE.CylinderGeometry(0.58, 0.58, 0.1, 20),
+    brass,
+    -2.2,
+    10.6,
+    1.05,
+  );
   clockFace.rotation.x = Math.PI / 2;
   add(g, new THREE.BoxGeometry(0.06, 0.36, 0.04), darkStone, -2.2, 10.72, 1.1);
   add(g, new THREE.BoxGeometry(0.24, 0.06, 0.04), darkStone, -2.1, 10.6, 1.1);
@@ -787,9 +1205,23 @@ function buildPusan() {
   add(g, new THREE.BoxGeometry(0.28, 2.2, 0.3), stone, 1.85, 2.8, 2.28);
 
   // Maritime wave motif (double wave).
-  const waveOuter = add(g, new THREE.TorusGeometry(3.6, 0.34, 10, 42, Math.PI), seaBlue, 2.3, 4.9, -0.1);
+  const waveOuter = add(
+    g,
+    new THREE.TorusGeometry(3.6, 0.34, 10, 42, Math.PI),
+    seaBlue,
+    2.3,
+    4.9,
+    -0.1,
+  );
   waveOuter.rotation.x = Math.PI / 2;
-  const waveInner = add(g, new THREE.TorusGeometry(2.6, 0.22, 8, 36, Math.PI), seaBlue, 2.1, 5.9, -0.05);
+  const waveInner = add(
+    g,
+    new THREE.TorusGeometry(2.6, 0.22, 8, 36, Math.PI),
+    seaBlue,
+    2.1,
+    5.9,
+    -0.05,
+  );
   waveInner.rotation.x = Math.PI / 2;
 
   // Roof caps and skyline accents.

@@ -10,551 +10,628 @@ const router = express.Router();
 const MAX_HOURS = 24;
 const DEFAULT_FAIR_TAX_RATE = 1.2;
 const FAIR_TAX_RATE = (() => {
-    const parsed = Number(process.env.FAIR_TAX_RATE);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_FAIR_TAX_RATE;
+  const parsed = Number(process.env.FAIR_TAX_RATE);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_FAIR_TAX_RATE;
 })();
 
 const UI_THEMES = [
-    { id: 'default',  name: '기본 다크',    priceGold: 0,    priceDiamond: 0,  preview: ['#0F1117','#1B2130','#3182F6'], description: 'P.A.T.H 기본 다크 테마' },
-    { id: 'light',    name: '라이트',       priceGold: 0,    priceDiamond: 0,  preview: ['#F5F6FA','#FFFFFF','#3182F6'], description: '밝고 깔끔한 라이트 모드' },
-    { id: 'rose',     name: '로즈 골드',    priceGold: 500,  priceDiamond: 5,  preview: ['#120910','#1E1018','#E07B9B'], description: '따뜻한 핑크 & 골드 감성' },
-    { id: 'emerald',  name: '에메랄드',     priceGold: 800,  priceDiamond: 8,  preview: ['#0A130F','#111E17','#00C471'], description: '싱그러운 에메랄드 그린' },
-    { id: 'purple',   name: '퍼플 드림',    priceGold: 1000, priceDiamond: 10, preview: ['#0D0A1A','#171030','#9B6DFF'], description: '몽환적인 딥 퍼플' },
-    { id: 'sunset',   name: '선셋',         priceGold: 1200, priceDiamond: 12, preview: ['#140A06','#211208','#FF6B35'], description: '노을빛 따뜻한 감성' },
-    { id: 'midnight', name: '미드나잇',     priceGold: 1500, priceDiamond: 15, preview: ['#080D18','#0E1628','#4A90D9'], description: '깊고 고요한 미드나잇 블루' },
-    { id: 'sakura',   name: '사쿠라',       priceGold: 2000, priceDiamond: 20, preview: ['#150C12','#221018','#FF9EC4'], description: '벚꽃 핑크 파스텔 테마' },
+  {
+    id: 'default',
+    name: '기본 다크',
+    priceGold: 0,
+    priceDiamond: 0,
+    preview: ['#0F1117', '#1B2130', '#3182F6'],
+    description: 'P.A.T.H 기본 다크 테마',
+  },
+  {
+    id: 'light',
+    name: '라이트',
+    priceGold: 0,
+    priceDiamond: 0,
+    preview: ['#F5F6FA', '#FFFFFF', '#3182F6'],
+    description: '밝고 깔끔한 라이트 모드',
+  },
+  {
+    id: 'rose',
+    name: '로즈 골드',
+    priceGold: 500,
+    priceDiamond: 5,
+    preview: ['#120910', '#1E1018', '#E07B9B'],
+    description: '따뜻한 핑크 & 골드 감성',
+  },
+  {
+    id: 'emerald',
+    name: '에메랄드',
+    priceGold: 800,
+    priceDiamond: 8,
+    preview: ['#0A130F', '#111E17', '#00C471'],
+    description: '싱그러운 에메랄드 그린',
+  },
+  {
+    id: 'purple',
+    name: '퍼플 드림',
+    priceGold: 1000,
+    priceDiamond: 10,
+    preview: ['#0D0A1A', '#171030', '#9B6DFF'],
+    description: '몽환적인 딥 퍼플',
+  },
+  {
+    id: 'sunset',
+    name: '선셋',
+    priceGold: 1200,
+    priceDiamond: 12,
+    preview: ['#140A06', '#211208', '#FF6B35'],
+    description: '노을빛 따뜻한 감성',
+  },
+  {
+    id: 'midnight',
+    name: '미드나잇',
+    priceGold: 1500,
+    priceDiamond: 15,
+    preview: ['#080D18', '#0E1628', '#4A90D9'],
+    description: '깊고 고요한 미드나잇 블루',
+  },
+  {
+    id: 'sakura',
+    name: '사쿠라',
+    priceGold: 2000,
+    priceDiamond: 20,
+    preview: ['#150C12', '#221018', '#FF9EC4'],
+    description: '벚꽃 핑크 파스텔 테마',
+  },
 ];
 const DIAMOND_PACKAGES = [
-    { id: 'dia_30', diamonds: 30, priceKrw: 3900 },
-    { id: 'dia_80', diamonds: 80, priceKrw: 8900 },
-    { id: 'dia_180', diamonds: 180, priceKrw: 17900 },
-    { id: 'dia_400', diamonds: 400, priceKrw: 34900 }
+  { id: 'dia_30', diamonds: 30, priceKrw: 3900 },
+  { id: 'dia_80', diamonds: 80, priceKrw: 8900 },
+  { id: 'dia_180', diamonds: 180, priceKrw: 17900 },
+  { id: 'dia_400', diamonds: 400, priceKrw: 34900 },
 ];
 const DIAMOND_PROVIDER_BY_PLATFORM = {
-    web: ['toss'],
-    app: ['googleplay', 'appstore']
+  web: ['toss'],
+  app: ['googleplay', 'appstore'],
 };
 
 function findDiamondPackage(packageId) {
-    return DIAMOND_PACKAGES.find((pkg) => pkg.id === packageId) || null;
+  return DIAMOND_PACKAGES.find((pkg) => pkg.id === packageId) || null;
 }
 
 function getPaymentSecretByProvider(provider) {
-    if (provider === 'toss') return process.env.DIAMOND_PAYMENT_SECRET_TOSS || process.env.DIAMOND_PAYMENT_SECRET || '';
-    if (provider === 'googleplay') return process.env.DIAMOND_PAYMENT_SECRET_GOOGLEPLAY || process.env.DIAMOND_PAYMENT_SECRET || '';
-    if (provider === 'appstore') return process.env.DIAMOND_PAYMENT_SECRET_APPSTORE || process.env.DIAMOND_PAYMENT_SECRET || '';
-    return '';
+  if (provider === 'toss')
+    return process.env.DIAMOND_PAYMENT_SECRET_TOSS || process.env.DIAMOND_PAYMENT_SECRET || '';
+  if (provider === 'googleplay')
+    return (
+      process.env.DIAMOND_PAYMENT_SECRET_GOOGLEPLAY || process.env.DIAMOND_PAYMENT_SECRET || ''
+    );
+  if (provider === 'appstore')
+    return process.env.DIAMOND_PAYMENT_SECRET_APPSTORE || process.env.DIAMOND_PAYMENT_SECRET || '';
+  return '';
 }
 
-function createExpectedPaymentSignature(userId, platform, provider, packageId, paidAmountKrw, providerTxId) {
-    const secret = getPaymentSecretByProvider(provider);
-    if (!secret) return null;
+function createExpectedPaymentSignature(
+  userId,
+  platform,
+  provider,
+  packageId,
+  paidAmountKrw,
+  providerTxId,
+) {
+  const secret = getPaymentSecretByProvider(provider);
+  if (!secret) return null;
 
-    const payload = [
-        String(userId),
-        String(platform),
-        String(provider),
-        String(packageId),
-        String(paidAmountKrw),
-        String(providerTxId)
-    ].join('|');
-    return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  const payload = [
+    String(userId),
+    String(platform),
+    String(provider),
+    String(packageId),
+    String(paidAmountKrw),
+    String(providerTxId),
+  ].join('|');
+  return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
 function resolveClientPlatform(req) {
-    const raw = String(req.headers['x-path-client-platform'] || req.body?.client_platform || '').toLowerCase().trim();
-    return raw === 'app' ? 'app' : 'web';
+  const raw = String(req.headers['x-path-client-platform'] || req.body?.client_platform || '')
+    .toLowerCase()
+    .trim();
+  return raw === 'app' ? 'app' : 'web';
 }
 
 function makeDiamondOrderId(userId) {
-    const rand = crypto.randomBytes(6).toString('hex');
-    return `dia_${userId}_${Date.now()}_${rand}`;
+  const rand = crypto.randomBytes(6).toString('hex');
+  return `dia_${userId}_${Date.now()}_${rand}`;
 }
 
 function timingSafeHexEqual(a, b) {
-    if (typeof a !== 'string' || typeof b !== 'string') return false;
-    const aa = a.trim();
-    const bb = b.trim();
-    if (!aa || !bb || aa.length !== bb.length) return false;
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aa = a.trim();
+  const bb = b.trim();
+  if (!aa || !bb || aa.length !== bb.length) return false;
 
-    try {
-        return crypto.timingSafeEqual(Buffer.from(aa, 'hex'), Buffer.from(bb, 'hex'));
-    } catch (_) {
-        return false;
-    }
+  try {
+    return crypto.timingSafeEqual(Buffer.from(aa, 'hex'), Buffer.from(bb, 'hex'));
+  } catch (_) {
+    return false;
+  }
 }
 
 function calcTotalRate() {
-    return FAIR_TAX_RATE;
+  return FAIR_TAX_RATE;
 }
 
 router.get('/tax', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    try {
-        const result = await pool.query(
-            'SELECT university, last_tax_collected_at, gold, diamond, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1',
-            [req.session.userId]
-        );
-        const user = result.rows[0];
-        const baseRate = calcTotalRate();
-        const activeStreak = getActiveStreakFromUser(user);
-        const rate = baseRate;
-        const percentile = getPercentile(user.university);
-        const hoursPassed = Math.min(
-            (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
-            MAX_HOURS
-        );
-        const pending = Math.floor(hoursPassed * rate * 100) / 100;
-        const ticketPrice = getTicketPrice(user.university);
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  try {
+    const result = await pool.query(
+      'SELECT university, last_tax_collected_at, gold, diamond, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1',
+      [req.session.userId],
+    );
+    const user = result.rows[0];
+    const baseRate = calcTotalRate();
+    const activeStreak = getActiveStreakFromUser(user);
+    const rate = baseRate;
+    const percentile = getPercentile(user.university);
+    const hoursPassed = Math.min(
+      (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
+      MAX_HOURS,
+    );
+    const pending = Math.floor(hoursPassed * rate * 100) / 100;
+    const ticketPrice = getTicketPrice(user.university);
 
-        const resp = {
-            rate: Math.round(rate * 100) / 100,
-            pending: Math.floor(pending),
-            percentile,
-            gold: user.gold,
-            diamond: user.diamond || 0,
-            university: user.university,
-            ticketPrice,
-            is_n_su: user.is_n_su,
-            prev_university: user.prev_university,
-            active_streak: activeStreak,
-            streak_bonus_rate: 0,
-            streak_multiplier: 1
-        };
+    const resp = {
+      rate: Math.round(rate * 100) / 100,
+      pending: Math.floor(pending),
+      percentile,
+      gold: user.gold,
+      diamond: user.diamond || 0,
+      university: user.university,
+      ticketPrice,
+      is_n_su: user.is_n_su,
+      prev_university: user.prev_university,
+      active_streak: activeStreak,
+      streak_bonus_rate: 0,
+      streak_multiplier: 1,
+    };
 
-        res.json(resp);
-    } catch (err) {
-        console.error('tax get error:', err);
-        res.status(500).json({ error: '서버 오류' });
-    }
+    res.json(resp);
+  } catch (err) {
+    console.error('tax get error:', err);
+    res.status(500).json({ error: '서버 오류' });
+  }
 });
 
 router.post('/collect-tax', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const userRes = await client.query(
-            'SELECT university, last_tax_collected_at, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1 FOR UPDATE',
-            [req.session.userId]
-        );
-        const user = userRes.rows[0];
-        const rate = calcTotalRate();
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const userRes = await client.query(
+      'SELECT university, last_tax_collected_at, is_n_su, prev_university, gpa_score, gpa_status, streak_count, streak_last_date FROM users WHERE id = $1 FOR UPDATE',
+      [req.session.userId],
+    );
+    const user = userRes.rows[0];
+    const rate = calcTotalRate();
 
-        const hoursPassed = Math.min(
-            (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
-            MAX_HOURS
-        );
-        const collected = Math.floor(hoursPassed * rate);
+    const hoursPassed = Math.min(
+      (Date.now() - new Date(user.last_tax_collected_at).getTime()) / 3600000,
+      MAX_HOURS,
+    );
+    const collected = Math.floor(hoursPassed * rate);
 
-        if (collected < 1) {
-            await client.query('ROLLBACK');
-            return res.json({ ok: true, collected: 0, message: '아직 수령할 세금이 없습니다.' });
-        }
+    if (collected < 1) {
+      await client.query('ROLLBACK');
+      return res.json({ ok: true, collected: 0, message: '아직 수령할 세금이 없습니다.' });
+    }
 
-        const final = await client.query(
-            `UPDATE users SET gold = gold + $1, last_tax_collected_at = NOW()
+    const final = await client.query(
+      `UPDATE users SET gold = gold + $1, last_tax_collected_at = NOW()
              WHERE id = $2
              RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
-            [collected, req.session.userId]
-        );
+      [collected, req.session.userId],
+    );
 
-        await client.query('COMMIT');
-        res.json({ ok: true, collected, user: final.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('collect-tax error:', err);
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
-    }
+    await client.query('COMMIT');
+    res.json({ ok: true, collected, user: final.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('collect-tax error:', err);
+    res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/buy-ticket', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { quantity = 1, target_university } = req.body;
-    const qty = Math.max(1, Math.min(10, parseInt(quantity) || 1));
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  const { quantity = 1, target_university } = req.body;
+  const qty = Math.max(1, Math.min(10, parseInt(quantity) || 1));
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const userRes = await client.query(
-            'SELECT university, gold, tickets FROM users WHERE id = $1 FOR UPDATE',
-            [req.session.userId]
-        );
-        const user = userRes.rows[0];
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const userRes = await client.query(
+      'SELECT university, gold, tickets FROM users WHERE id = $1 FOR UPDATE',
+      [req.session.userId],
+    );
+    const user = userRes.rows[0];
 
-        const priceUniversity = target_university || user.university;
-        const unitPrice = getTicketPrice(priceUniversity);
-        const price = unitPrice * qty;
+    const priceUniversity = target_university || user.university;
+    const unitPrice = getTicketPrice(priceUniversity);
+    const price = unitPrice * qty;
 
-        if (user.gold < price) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: `골드가 부족합니다. 필요: ${price.toLocaleString()}G` });
-        }
+    if (user.gold < price) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `골드가 부족합니다. 필요: ${price.toLocaleString()}G` });
+    }
 
-        const final = await client.query(
-            `UPDATE users SET gold = gold - $1, tickets = tickets + $2
+    const final = await client.query(
+      `UPDATE users SET gold = gold - $1, tickets = tickets + $2
              WHERE id = $3
              RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
-            [price, qty, req.session.userId]
-        );
+      [price, qty, req.session.userId],
+    );
 
-        await client.query('COMMIT');
-        res.json({ ok: true, spent: price, unitPrice, university: priceUniversity, user: final.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('buy-ticket error:', err);
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
-    }
+    await client.query('COMMIT');
+    res.json({
+      ok: true,
+      spent: price,
+      unitPrice,
+      university: priceUniversity,
+      user: final.rows[0],
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('buy-ticket error:', err);
+    res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 router.get('/diamond/packages', (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    res.json({
-        packages: DIAMOND_PACKAGES,
-        note: '다이아는 유료 결제로만 충전할 수 있습니다.'
-    });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  res.json({
+    packages: DIAMOND_PACKAGES,
+    note: '다이아는 유료 결제로만 충전할 수 있습니다.',
+  });
 });
 
 router.post('/diamond/web/prepare', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-    const packageId = String(req.body?.package_id || '');
-    const pkg = findDiamondPackage(packageId);
-    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+  const packageId = String(req.body?.package_id || '');
+  const pkg = findDiamondPackage(packageId);
+  if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
 
-    const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
-    if (!tossClientKey) {
-        return res.status(503).json({ error: '웹 결제 키 설정이 누락되었습니다.' });
-    }
+  const tossClientKey = process.env.TOSS_PAYMENTS_CLIENT_KEY || '';
+  if (!tossClientKey) {
+    return res.status(503).json({ error: '웹 결제 키 설정이 누락되었습니다.' });
+  }
 
-    const orderId = makeDiamondOrderId(req.session.userId);
-    try {
-        await pool.query(
-            `INSERT INTO diamond_payment_orders (order_id, user_id, package_id, provider, amount_krw, status)
+  const orderId = makeDiamondOrderId(req.session.userId);
+  try {
+    await pool.query(
+      `INSERT INTO diamond_payment_orders (order_id, user_id, package_id, provider, amount_krw, status)
              VALUES ($1, $2, $3, 'toss', $4, 'pending')`,
-            [orderId, req.session.userId, pkg.id, pkg.priceKrw]
-        );
-        return res.json({
-            ok: true,
-            provider: 'toss',
-            clientKey: tossClientKey,
-            orderId,
-            amount: pkg.priceKrw,
-            orderName: `${pkg.diamonds} 다이아`
-        });
-    } catch (err) {
-        console.error('diamond/web/prepare error:', err);
-        return res.status(500).json({ error: '서버 오류' });
-    }
+      [orderId, req.session.userId, pkg.id, pkg.priceKrw],
+    );
+    return res.json({
+      ok: true,
+      provider: 'toss',
+      clientKey: tossClientKey,
+      orderId,
+      amount: pkg.priceKrw,
+      orderName: `${pkg.diamonds} 다이아`,
+    });
+  } catch (err) {
+    console.error('diamond/web/prepare error:', err);
+    return res.status(500).json({ error: '서버 오류' });
+  }
 });
 
 router.post('/diamond/web/confirm', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-    const paymentKey = String(req.body?.paymentKey || '').trim();
-    const orderId = String(req.body?.orderId || '').trim();
-    const amount = parseInt(req.body?.amount, 10);
+  const paymentKey = String(req.body?.paymentKey || '').trim();
+  const orderId = String(req.body?.orderId || '').trim();
+  const amount = parseInt(req.body?.amount, 10);
 
-    if (!paymentKey || !orderId || !Number.isInteger(amount)) {
-        return res.status(400).json({ error: '결제 확인 정보가 올바르지 않습니다.' });
-    }
+  if (!paymentKey || !orderId || !Number.isInteger(amount)) {
+    return res.status(400).json({ error: '결제 확인 정보가 올바르지 않습니다.' });
+  }
 
-    const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
-    if (!tossSecret) {
-        return res.status(503).json({ error: '웹 결제 시크릿 키 설정이 누락되었습니다.' });
-    }
+  const tossSecret = process.env.TOSS_PAYMENTS_SECRET_KEY || '';
+  if (!tossSecret) {
+    return res.status(503).json({ error: '웹 결제 시크릿 키 설정이 누락되었습니다.' });
+  }
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        const orderRes = await client.query(
-            `SELECT order_id, user_id, package_id, amount_krw, status
+    const orderRes = await client.query(
+      `SELECT order_id, user_id, package_id, amount_krw, status
              FROM diamond_payment_orders
              WHERE order_id = $1
              FOR UPDATE`,
-            [orderId]
-        );
-        const order = orderRes.rows[0];
-        if (!order) {
-            await client.query('ROLLBACK');
-            return res.status(404).json({ error: '결제 주문을 찾을 수 없습니다.' });
-        }
-        if (Number(order.user_id) !== Number(req.session.userId)) {
-            await client.query('ROLLBACK');
-            return res.status(403).json({ error: '결제 주문 접근 권한이 없습니다.' });
-        }
-        if (order.status === 'paid') {
-            await client.query('ROLLBACK');
-            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
-        }
-        if (Number(order.amount_krw) !== amount) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: '결제 금액이 주문 금액과 일치하지 않습니다.' });
-        }
+      [orderId],
+    );
+    const order = orderRes.rows[0];
+    if (!order) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '결제 주문을 찾을 수 없습니다.' });
+    }
+    if (Number(order.user_id) !== Number(req.session.userId)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: '결제 주문 접근 권한이 없습니다.' });
+    }
+    if (order.status === 'paid') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: '이미 처리된 결제입니다.' });
+    }
+    if (Number(order.amount_krw) !== amount) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '결제 금액이 주문 금액과 일치하지 않습니다.' });
+    }
 
-        let tossResult;
-        try {
-            tossResult = await axios.post(
-                'https://api.tosspayments.com/v1/payments/confirm',
-                { paymentKey, orderId, amount },
-                {
-                    headers: {
-                        Authorization: `Basic ${Buffer.from(`${tossSecret}:`).toString('base64')}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 12000
-                }
-            );
-        } catch (apiErr) {
-            await client.query('ROLLBACK');
-            const status = apiErr?.response?.status || 400;
-            const msg = apiErr?.response?.data?.message || '웹 결제 검증에 실패했습니다.';
-            return res.status(status).json({ error: msg });
-        }
+    let tossResult;
+    try {
+      tossResult = await axios.post(
+        'https://api.tosspayments.com/v1/payments/confirm',
+        { paymentKey, orderId, amount },
+        {
+          headers: {
+            Authorization: `Basic ${Buffer.from(`${tossSecret}:`).toString('base64')}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 12000,
+        },
+      );
+    } catch (apiErr) {
+      await client.query('ROLLBACK');
+      const status = apiErr?.response?.status || 400;
+      const msg = apiErr?.response?.data?.message || '웹 결제 검증에 실패했습니다.';
+      return res.status(status).json({ error: msg });
+    }
 
-        const confirmData = tossResult.data || {};
-        if (confirmData.status !== 'DONE') {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: '완료되지 않은 결제입니다.' });
-        }
+    const confirmData = tossResult.data || {};
+    if (confirmData.status !== 'DONE') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '완료되지 않은 결제입니다.' });
+    }
 
-        const pkg = findDiamondPackage(order.package_id);
-        if (!pkg) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: '상품 정보가 올바르지 않습니다.' });
-        }
+    const pkg = findDiamondPackage(order.package_id);
+    if (!pkg) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '상품 정보가 올바르지 않습니다.' });
+    }
 
-        await client.query(
-            `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
+    await client.query(
+      `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
              VALUES ($1, $2, $3, $4, 'toss', $5)`,
-            [req.session.userId, pkg.id, pkg.diamonds, order.amount_krw, paymentKey]
-        );
+      [req.session.userId, pkg.id, pkg.diamonds, order.amount_krw, paymentKey],
+    );
 
-        await client.query(
-            `UPDATE diamond_payment_orders
+    await client.query(
+      `UPDATE diamond_payment_orders
              SET status = 'paid', paid_at = NOW()
              WHERE order_id = $1`,
-            [orderId]
-        );
+      [orderId],
+    );
 
-        const userRes = await client.query(
-            `UPDATE users
+    const userRes = await client.query(
+      `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
              RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
-            [pkg.diamonds, req.session.userId]
-        );
+      [pkg.diamonds, req.session.userId],
+    );
 
-        await client.query('COMMIT');
-        return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        if (err?.code === '23505') {
-            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
-        }
-        console.error('diamond/web/confirm error:', err);
-        return res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
+    await client.query('COMMIT');
+    return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: '이미 처리된 결제입니다.' });
     }
+    console.error('diamond/web/confirm error:', err);
+    return res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/diamond/app/complete', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-    const {
-        package_id,
-        provider,
-        provider_tx_id,
-        paid_amount_krw,
-        payment_signature
-    } = req.body || {};
+  const { package_id, provider, provider_tx_id, paid_amount_krw, payment_signature } =
+    req.body || {};
 
-    const providerName = String(provider || '').trim().toLowerCase();
-    if (!['googleplay', 'appstore'].includes(providerName)) {
-        return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
-    }
+  const providerName = String(provider || '')
+    .trim()
+    .toLowerCase();
+  if (!['googleplay', 'appstore'].includes(providerName)) {
+    return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
+  }
 
-    const pkg = findDiamondPackage(String(package_id || ''));
-    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+  const pkg = findDiamondPackage(String(package_id || ''));
+  if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
 
-    const paidAmount = parseInt(paid_amount_krw, 10);
-    if (!Number.isInteger(paidAmount) || paidAmount !== pkg.priceKrw) {
-        return res.status(400).json({ error: '결제 금액 검증에 실패했습니다.' });
-    }
+  const paidAmount = parseInt(paid_amount_krw, 10);
+  if (!Number.isInteger(paidAmount) || paidAmount !== pkg.priceKrw) {
+    return res.status(400).json({ error: '결제 금액 검증에 실패했습니다.' });
+  }
 
-    const txId = String(provider_tx_id || '').trim();
-    if (!txId || txId.length < 6 || txId.length > 120) {
-        return res.status(400).json({ error: '유효하지 않은 결제 거래번호입니다.' });
-    }
+  const txId = String(provider_tx_id || '').trim();
+  if (!txId || txId.length < 6 || txId.length > 120) {
+    return res.status(400).json({ error: '유효하지 않은 결제 거래번호입니다.' });
+  }
 
-    // 앱 결제도 서버 서명 검증을 통해 자동 반영.
-    const expectedSig = createExpectedPaymentSignature(
-        req.session.userId,
-        'app',
-        providerName,
-        pkg.id,
-        paidAmount,
-        txId
-    );
-    if (!expectedSig) {
-        return res.status(503).json({ error: '앱 결제 검증 시크릿이 누락되어 결제를 처리할 수 없습니다.' });
-    }
-    if (!timingSafeHexEqual(expectedSig, String(payment_signature || ''))) {
-        return res.status(403).json({ error: '앱 결제 검증에 실패했습니다.' });
-    }
+  // 앱 결제도 서버 서명 검증을 통해 자동 반영.
+  const expectedSig = createExpectedPaymentSignature(
+    req.session.userId,
+    'app',
+    providerName,
+    pkg.id,
+    paidAmount,
+    txId,
+  );
+  if (!expectedSig) {
+    return res
+      .status(503)
+      .json({ error: '앱 결제 검증 시크릿이 누락되어 결제를 처리할 수 없습니다.' });
+  }
+  if (!timingSafeHexEqual(expectedSig, String(payment_signature || ''))) {
+    return res.status(403).json({ error: '앱 결제 검증에 실패했습니다.' });
+  }
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-        await client.query(
-            `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
+    await client.query(
+      `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
              VALUES ($1, $2, $3, $4, $5, $6)`,
-            [req.session.userId, pkg.id, pkg.diamonds, pkg.priceKrw, providerName, txId]
-        );
+      [req.session.userId, pkg.id, pkg.diamonds, pkg.priceKrw, providerName, txId],
+    );
 
-        const userRes = await client.query(
-            `UPDATE users
+    const userRes = await client.query(
+      `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
              RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
-            [pkg.diamonds, req.session.userId]
-        );
+      [pkg.diamonds, req.session.userId],
+    );
 
-        await client.query('COMMIT');
-        return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        if (err?.code === '23505') {
-            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
-        }
-        console.error('diamond/app/complete error:', err);
-        return res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
+    await client.query('COMMIT');
+    return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: '이미 처리된 결제입니다.' });
     }
+    console.error('diamond/app/complete error:', err);
+    return res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/diamond/purchase', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
 
-    const {
-        package_id,
-        provider,
-        provider_tx_id,
-        paid_amount_krw,
-        payment_signature
-    } = req.body || {};
-    const clientPlatform = resolveClientPlatform(req);
+  const { package_id, provider, provider_tx_id, paid_amount_krw, payment_signature } =
+    req.body || {};
+  const clientPlatform = resolveClientPlatform(req);
 
-    const pkg = findDiamondPackage(String(package_id || ''));
-    if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
+  const pkg = findDiamondPackage(String(package_id || ''));
+  if (!pkg) return res.status(400).json({ error: '존재하지 않는 다이아 상품입니다.' });
 
-    const paidAmount = parseInt(paid_amount_krw, 10);
-    if (!Number.isInteger(paidAmount) || paidAmount !== pkg.priceKrw) {
-        return res.status(400).json({ error: '결제 금액 검증에 실패했습니다.' });
+  const paidAmount = parseInt(paid_amount_krw, 10);
+  if (!Number.isInteger(paidAmount) || paidAmount !== pkg.priceKrw) {
+    return res.status(400).json({ error: '결제 금액 검증에 실패했습니다.' });
+  }
+
+  const txId = String(provider_tx_id || '').trim();
+  if (!txId || txId.length < 6 || txId.length > 120) {
+    return res.status(400).json({ error: '유효하지 않은 결제 거래번호입니다.' });
+  }
+
+  const providerName = String(provider || '')
+    .trim()
+    .toLowerCase();
+  if (!providerName) {
+    return res.status(400).json({ error: '결제 수단 정보가 필요합니다.' });
+  }
+  const allowedProviders = DIAMOND_PROVIDER_BY_PLATFORM[clientPlatform] || [];
+  if (!allowedProviders.includes(providerName)) {
+    if (clientPlatform === 'web') {
+      return res.status(400).json({ error: '웹 결제는 지정된 결제 수단만 지원합니다.' });
     }
+    return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
+  }
 
-    const txId = String(provider_tx_id || '').trim();
-    if (!txId || txId.length < 6 || txId.length > 120) {
-        return res.status(400).json({ error: '유효하지 않은 결제 거래번호입니다.' });
-    }
+  const expectedSig = createExpectedPaymentSignature(
+    req.session.userId,
+    clientPlatform,
+    providerName,
+    pkg.id,
+    paidAmount,
+    txId,
+  );
+  if (!expectedSig) {
+    return res
+      .status(503)
+      .json({ error: '결제 검증 시크릿이 누락되어 다이아 결제를 처리할 수 없습니다.' });
+  }
 
-    const providerName = String(provider || '').trim().toLowerCase();
-    if (!providerName) {
-        return res.status(400).json({ error: '결제 수단 정보가 필요합니다.' });
-    }
-    const allowedProviders = DIAMOND_PROVIDER_BY_PLATFORM[clientPlatform] || [];
-    if (!allowedProviders.includes(providerName)) {
-        if (clientPlatform === 'web') {
-            return res.status(400).json({ error: '웹 결제는 지정된 결제 수단만 지원합니다.' });
-        }
-        return res.status(400).json({ error: '앱 결제는 구글플레이/앱스토어만 지원합니다.' });
-    }
+  if (!timingSafeHexEqual(expectedSig, String(payment_signature || ''))) {
+    return res.status(403).json({ error: '결제 검증에 실패했습니다.' });
+  }
 
-    const expectedSig = createExpectedPaymentSignature(
-        req.session.userId,
-        clientPlatform,
-        providerName,
-        pkg.id,
-        paidAmount,
-        txId
-    );
-    if (!expectedSig) {
-        return res.status(503).json({ error: '결제 검증 시크릿이 누락되어 다이아 결제를 처리할 수 없습니다.' });
-    }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-    if (!timingSafeHexEqual(expectedSig, String(payment_signature || ''))) {
-        return res.status(403).json({ error: '결제 검증에 실패했습니다.' });
-    }
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        await client.query(
-            `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
+    await client.query(
+      `INSERT INTO diamond_purchases (user_id, package_id, diamonds, paid_amount_krw, provider, provider_tx_id)
              VALUES ($1, $2, $3, $4, $5, $6)`,
-            [req.session.userId, pkg.id, pkg.diamonds, pkg.priceKrw, providerName, txId]
-        );
+      [req.session.userId, pkg.id, pkg.diamonds, pkg.priceKrw, providerName, txId],
+    );
 
-        const userRes = await client.query(
-            `UPDATE users
+    const userRes = await client.query(
+      `UPDATE users
              SET diamond = COALESCE(diamond, 0) + $1
              WHERE id = $2
              RETURNING id, nickname, university, gold, diamond, exp, tier, tickets`,
-            [pkg.diamonds, req.session.userId]
-        );
+      [pkg.diamonds, req.session.userId],
+    );
 
-        await client.query('COMMIT');
-        return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        if (err?.code === '23505') {
-            return res.status(409).json({ error: '이미 처리된 결제입니다.' });
-        }
-        console.error('diamond/purchase error:', err);
-        return res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
+    await client.query('COMMIT');
+    return res.json({ ok: true, addedDiamond: pkg.diamonds, user: userRes.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: '이미 처리된 결제입니다.' });
     }
+    console.error('diamond/purchase error:', err);
+    return res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 // ── UI 테마 ────────────────────────────────────────────────────────────
 router.get('/themes', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    try {
-        const { rows } = await pool.query(
-            'SELECT ui_theme, owned_themes FROM users WHERE id=$1',
-            [req.session.userId]
-        );
-        const row = rows[0] || {};
-        const equipped = row.ui_theme || 'default';
-        const owned = (row.owned_themes || 'default').split(',').map(s => s.trim()).filter(Boolean);
-        res.json({ themes: UI_THEMES, owned, equipped });
-    } catch (err) {
-        console.error('themes error:', err);
-        res.status(500).json({ error: '서버 오류' });
-    }
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  try {
+    const { rows } = await pool.query('SELECT ui_theme, owned_themes FROM users WHERE id=$1', [
+      req.session.userId,
+    ]);
+    const row = rows[0] || {};
+    const equipped = row.ui_theme || 'default';
+    const owned = (row.owned_themes || 'default')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    res.json({ themes: UI_THEMES, owned, equipped });
+  } catch (err) {
+    console.error('themes error:', err);
+    res.status(500).json({ error: '서버 오류' });
+  }
 });
 
 router.post('/buy-theme', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { themeId, currency = 'gold' } = req.body || {};
-    const theme = UI_THEMES.find(t => t.id === themeId);
-    if (!theme) return res.status(400).json({ error: '존재하지 않는 테마입니다.' });
-    if (!['gold', 'diamond'].includes(currency)) return res.status(400).json({ error: '유효하지 않은 통화입니다.' });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  const { themeId, currency = 'gold' } = req.body || {};
+  const theme = UI_THEMES.find((t) => t.id === themeId);
+  if (!theme) return res.status(400).json({ error: '존재하지 않는 테마입니다.' });
+  if (!['gold', 'diamond'].includes(currency))
+    return res.status(400).json({ error: '유효하지 않은 통화입니다.' });
 
-    const price = currency === 'diamond' ? theme.priceDiamond : theme.priceGold;
-    if (price === 0) {
-        await pool.query(
-            `UPDATE users
+  const price = currency === 'diamond' ? theme.priceDiamond : theme.priceGold;
+  if (price === 0) {
+    await pool.query(
+      `UPDATE users
              SET owned_themes = CASE
                WHEN owned_themes IS NULL OR owned_themes = '' THEN $1
                WHEN owned_themes LIKE '%' || $1 || '%' THEN owned_themes
@@ -562,60 +639,66 @@ router.post('/buy-theme', async (req, res) => {
              END,
              ui_theme = $1
              WHERE id = $2`,
-            [themeId, req.session.userId]
-        );
-        return res.json({ ok: true, equipped: themeId });
-    }
+      [themeId, req.session.userId],
+    );
+    return res.json({ ok: true, equipped: themeId });
+  }
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const { rows } = await client.query(
-            'SELECT gold, diamond, owned_themes FROM users WHERE id=$1 FOR UPDATE',
-            [req.session.userId]
-        );
-        const row = rows[0];
-        if (!row) { await client.query('ROLLBACK'); return res.status(404).json({ error: '유저 없음' }); }
-        const owned = (row.owned_themes || 'default').split(',').map(s => s.trim());
-        if (owned.includes(themeId)) {
-            await client.query('ROLLBACK');
-            return res.status(409).json({ error: '이미 보유한 테마입니다.' });
-        }
-        if (currency === 'diamond' && (row.diamond || 0) < price) {
-            await client.query('ROLLBACK');
-            return res.status(402).json({ error: `다이아가 부족합니다. (필요: ${price}D)` });
-        }
-        if (currency === 'gold' && (row.gold || 0) < price) {
-            await client.query('ROLLBACK');
-            return res.status(402).json({ error: `골드가 부족합니다. (필요: ${price}G)` });
-        }
-        const newOwned = [...owned, themeId].join(',');
-        const col = currency === 'diamond' ? 'diamond' : 'gold';
-        const { rows: updated } = await client.query(
-            `UPDATE users SET ${col} = ${col} - $1, owned_themes = $2, ui_theme = $3 WHERE id = $4
-             RETURNING id, nickname, gold, diamond, ui_theme, owned_themes`,
-            [price, newOwned, themeId, req.session.userId]
-        );
-        await client.query('COMMIT');
-        res.json({ ok: true, user: updated[0], equipped: themeId });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('buy-theme error:', err);
-        res.status(500).json({ error: '서버 오류' });
-    } finally {
-        client.release();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      'SELECT gold, diamond, owned_themes FROM users WHERE id=$1 FOR UPDATE',
+      [req.session.userId],
+    );
+    const row = rows[0];
+    if (!row) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '유저 없음' });
     }
+    const owned = (row.owned_themes || 'default').split(',').map((s) => s.trim());
+    if (owned.includes(themeId)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: '이미 보유한 테마입니다.' });
+    }
+    if (currency === 'diamond' && (row.diamond || 0) < price) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ error: `다이아가 부족합니다. (필요: ${price}D)` });
+    }
+    if (currency === 'gold' && (row.gold || 0) < price) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ error: `골드가 부족합니다. (필요: ${price}G)` });
+    }
+    const newOwned = [...owned, themeId].join(',');
+    const col = currency === 'diamond' ? 'diamond' : 'gold';
+    const { rows: updated } = await client.query(
+      `UPDATE users SET ${col} = ${col} - $1, owned_themes = $2, ui_theme = $3 WHERE id = $4
+             RETURNING id, nickname, gold, diamond, ui_theme, owned_themes`,
+      [price, newOwned, themeId, req.session.userId],
+    );
+    await client.query('COMMIT');
+    res.json({ ok: true, user: updated[0], equipped: themeId });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('buy-theme error:', err);
+    res.status(500).json({ error: '서버 오류' });
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/equip-theme', async (req, res) => {
-    if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
-    const { themeId } = req.body || {};
-    if (!UI_THEMES.find(t => t.id === themeId)) return res.status(400).json({ error: '존재하지 않는 테마입니다.' });
-    const { rows } = await pool.query('SELECT owned_themes FROM users WHERE id=$1', [req.session.userId]);
-    const owned = (rows[0]?.owned_themes || 'default').split(',').map(s => s.trim());
-    if (!owned.includes(themeId)) return res.status(403).json({ error: '보유하지 않은 테마입니다.' });
-    await pool.query('UPDATE users SET ui_theme=$1 WHERE id=$2', [themeId, req.session.userId]);
-    res.json({ ok: true, equipped: themeId });
+  if (!req.session.userId) return res.status(401).json({ error: '로그인이 필요합니다.' });
+  const { themeId } = req.body || {};
+  if (!UI_THEMES.find((t) => t.id === themeId))
+    return res.status(400).json({ error: '존재하지 않는 테마입니다.' });
+  const { rows } = await pool.query('SELECT owned_themes FROM users WHERE id=$1', [
+    req.session.userId,
+  ]);
+  const owned = (rows[0]?.owned_themes || 'default').split(',').map((s) => s.trim());
+  if (!owned.includes(themeId)) return res.status(403).json({ error: '보유하지 않은 테마입니다.' });
+  await pool.query('UPDATE users SET ui_theme=$1 WHERE id=$2', [themeId, req.session.userId]);
+  res.json({ ok: true, equipped: themeId });
 });
 
 module.exports = router;
