@@ -19,3 +19,6 @@ uploads/
 
 # Misc
 *.log
+.replit
+.agents/
+skills-lock.json
