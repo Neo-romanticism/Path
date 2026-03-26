@@ -291,7 +291,9 @@ router.post('/approve-score', requireAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     res.status(500).json({ error: '서버 오류' });
   } finally {
     client.release();
@@ -343,7 +345,9 @@ router.post('/reject-score', requireAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     res.status(500).json({ error: '서버 오류' });
   } finally {
     client.release();
@@ -390,7 +394,9 @@ router.post('/approve-gpa', requireAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     res.status(500).json({ error: '서버 오류' });
   } finally {
     client.release();
@@ -434,7 +440,9 @@ router.post('/reject-gpa', requireAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     res.status(500).json({ error: '서버 오류' });
   } finally {
     client.release();

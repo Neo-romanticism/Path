@@ -287,7 +287,9 @@ router.post('/update-user', requireAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     console.error('admin update-user error:', err.message);
     return res.status(500).json({ error: '서버 오류' });
   } finally {
@@ -392,7 +394,9 @@ router.post('/set-role', requireMainAdmin, async (req, res) => {
   } catch (err) {
     try {
       await client.query('ROLLBACK');
-    } catch (_) {}
+    } catch {
+      /* rollback best-effort */
+    }
     console.error('admin set-role error:', err.message);
     res.status(500).json({ error: '서버 오류' });
   } finally {

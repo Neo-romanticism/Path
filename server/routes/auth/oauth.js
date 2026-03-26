@@ -3,13 +3,7 @@ const bcrypt = require('bcryptjs');
 const axios = require('axios');
 const crypto = require('crypto');
 const router = express.Router();
-const {
-  pool,
-  USER_FIELDS,
-  addPercentile,
-  enforceAlwaysMainAdminByNickname,
-  ensureUserCode,
-} = require('./_helpers');
+const { pool, USER_FIELDS } = require('./_helpers');
 
 function makeOAuthState() {
   return crypto.randomBytes(24).toString('hex');

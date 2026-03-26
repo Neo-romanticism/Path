@@ -5,7 +5,6 @@ const router = express.Router();
 const {
   pool,
   requireAuth,
-  validateNickname,
   USER_FIELDS,
   EULA_VERSION,
   addPercentile,

@@ -1,9 +1,5 @@
 const router = require('express').Router();
-const {
-  pool,
-  requireAuth,
-  VALID_CATS,
-} = require('./_helpers');
+const { pool, requireAuth, VALID_CATS } = require('./_helpers');
 
 function parseActivityFilters(req) {
   const rawCategory = String(req.query.category || '').trim();

@@ -1,11 +1,6 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
-const {
-  pool,
-  requireAuth,
-  requireLatestEula,
-  GOLD_LIKE_COST,
-} = require('./_helpers');
+const { pool, requireAuth, requireLatestEula, GOLD_LIKE_COST } = require('./_helpers');
 
 /* ════════════════════════════════════════════════════════════ */
 /* POST /posts/:id/view — 조회수 +1                             */
