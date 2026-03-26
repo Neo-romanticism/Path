@@ -51,137 +51,134 @@ router.post('/approve-score', requireAdmin, async (req, res) => {
 
   const scorePayload =
     req.body?.scores && typeof req.body.scores === 'object' ? req.body.scores : null;
-  let approvedExamScores = null;
-
-  if (scorePayload) {
-    const koreanStd = parseAdminScoreField(scorePayload.korean_std, {
-      label: '국어 표준점수',
-      min: 0,
-      max: 200,
-    });
-    if (!koreanStd.ok) return res.status(400).json({ error: koreanStd.error });
-    const koreanPercentile = parseAdminScoreField(scorePayload.korean_percentile, {
-      label: '국어 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!koreanPercentile.ok) return res.status(400).json({ error: koreanPercentile.error });
-
-    const mathStd = parseAdminScoreField(scorePayload.math_std, {
-      label: '수학 표준점수',
-      min: 0,
-      max: 200,
-    });
-    if (!mathStd.ok) return res.status(400).json({ error: mathStd.error });
-    const mathPercentile = parseAdminScoreField(scorePayload.math_percentile, {
-      label: '수학 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!mathPercentile.ok) return res.status(400).json({ error: mathPercentile.error });
-
-    const englishStd = parseAdminScoreField(scorePayload.english_std, {
-      label: '영어 표준점수',
-      min: 0,
-      max: 200,
-    });
-    if (!englishStd.ok) return res.status(400).json({ error: englishStd.error });
-    const englishPercentile = parseAdminScoreField(scorePayload.english_percentile, {
-      label: '영어 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!englishPercentile.ok) return res.status(400).json({ error: englishPercentile.error });
-
-    const explore1Std = parseAdminScoreField(scorePayload.explore1_std, {
-      label: '탐구1 표준점수',
-      min: 0,
-      max: 100,
-    });
-    if (!explore1Std.ok) return res.status(400).json({ error: explore1Std.error });
-    const explore1Percentile = parseAdminScoreField(scorePayload.explore1_percentile, {
-      label: '탐구1 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!explore1Percentile.ok) return res.status(400).json({ error: explore1Percentile.error });
-
-    const explore2Std = parseAdminScoreField(scorePayload.explore2_std, {
-      label: '탐구2 표준점수',
-      min: 0,
-      max: 100,
-    });
-    if (!explore2Std.ok) return res.status(400).json({ error: explore2Std.error });
-    const explore2Percentile = parseAdminScoreField(scorePayload.explore2_percentile, {
-      label: '탐구2 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!explore2Percentile.ok) return res.status(400).json({ error: explore2Percentile.error });
-
-    const historyStd = parseAdminScoreField(scorePayload.history_std, {
-      label: '한국사 표준점수',
-      min: 0,
-      max: 100,
-    });
-    if (!historyStd.ok) return res.status(400).json({ error: historyStd.error });
-    const historyPercentile = parseAdminScoreField(scorePayload.history_percentile, {
-      label: '한국사 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-    });
-    if (!historyPercentile.ok) return res.status(400).json({ error: historyPercentile.error });
-
-    const secondLangStd = parseAdminScoreField(scorePayload.second_lang_std, {
-      label: '제2외국어 표준점수',
-      min: 0,
-      max: 100,
-      required: false,
-    });
-    if (!secondLangStd.ok) return res.status(400).json({ error: secondLangStd.error });
-    const secondLangPercentile = parseAdminScoreField(scorePayload.second_lang_percentile, {
-      label: '제2외국어 백분위',
-      min: 0,
-      max: 100,
-      allowDecimal: true,
-      required: false,
-    });
-    if (!secondLangPercentile.ok)
-      return res.status(400).json({ error: secondLangPercentile.error });
-
-    const hasSecondLangStd = secondLangStd.value !== null;
-    const hasSecondLangPercentile = secondLangPercentile.value !== null;
-    if (hasSecondLangStd !== hasSecondLangPercentile) {
-      return res.status(400).json({ error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' });
-    }
-
-    approvedExamScores = {
-      korean_std: koreanStd.value,
-      korean_percentile: koreanPercentile.value,
-      math_std: mathStd.value,
-      math_percentile: mathPercentile.value,
-      english_std: englishStd.value,
-      english_percentile: englishPercentile.value,
-      english_grade: percentileToGrade(englishPercentile.value),
-      explore1_std: explore1Std.value,
-      explore1_percentile: explore1Percentile.value,
-      explore2_std: explore2Std.value,
-      explore2_percentile: explore2Percentile.value,
-      history_std: historyStd.value,
-      history_percentile: historyPercentile.value,
-      history_grade: percentileToGrade(historyPercentile.value),
-      second_lang_std: secondLangStd.value,
-      second_lang_percentile: secondLangPercentile.value,
-    };
-  } else {
+  if (!scorePayload) {
     return res.status(400).json({ error: '과목별 점수 payload(scores)가 필요합니다.' });
   }
+
+  const koreanStd = parseAdminScoreField(scorePayload.korean_std, {
+    label: '국어 표준점수',
+    min: 0,
+    max: 200,
+  });
+  if (!koreanStd.ok) return res.status(400).json({ error: koreanStd.error });
+  const koreanPercentile = parseAdminScoreField(scorePayload.korean_percentile, {
+    label: '국어 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!koreanPercentile.ok) return res.status(400).json({ error: koreanPercentile.error });
+
+  const mathStd = parseAdminScoreField(scorePayload.math_std, {
+    label: '수학 표준점수',
+    min: 0,
+    max: 200,
+  });
+  if (!mathStd.ok) return res.status(400).json({ error: mathStd.error });
+  const mathPercentile = parseAdminScoreField(scorePayload.math_percentile, {
+    label: '수학 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!mathPercentile.ok) return res.status(400).json({ error: mathPercentile.error });
+
+  const englishStd = parseAdminScoreField(scorePayload.english_std, {
+    label: '영어 표준점수',
+    min: 0,
+    max: 200,
+  });
+  if (!englishStd.ok) return res.status(400).json({ error: englishStd.error });
+  const englishPercentile = parseAdminScoreField(scorePayload.english_percentile, {
+    label: '영어 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!englishPercentile.ok) return res.status(400).json({ error: englishPercentile.error });
+
+  const explore1Std = parseAdminScoreField(scorePayload.explore1_std, {
+    label: '탐구1 표준점수',
+    min: 0,
+    max: 100,
+  });
+  if (!explore1Std.ok) return res.status(400).json({ error: explore1Std.error });
+  const explore1Percentile = parseAdminScoreField(scorePayload.explore1_percentile, {
+    label: '탐구1 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!explore1Percentile.ok) return res.status(400).json({ error: explore1Percentile.error });
+
+  const explore2Std = parseAdminScoreField(scorePayload.explore2_std, {
+    label: '탐구2 표준점수',
+    min: 0,
+    max: 100,
+  });
+  if (!explore2Std.ok) return res.status(400).json({ error: explore2Std.error });
+  const explore2Percentile = parseAdminScoreField(scorePayload.explore2_percentile, {
+    label: '탐구2 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!explore2Percentile.ok) return res.status(400).json({ error: explore2Percentile.error });
+
+  const historyStd = parseAdminScoreField(scorePayload.history_std, {
+    label: '한국사 표준점수',
+    min: 0,
+    max: 100,
+  });
+  if (!historyStd.ok) return res.status(400).json({ error: historyStd.error });
+  const historyPercentile = parseAdminScoreField(scorePayload.history_percentile, {
+    label: '한국사 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+  });
+  if (!historyPercentile.ok) return res.status(400).json({ error: historyPercentile.error });
+
+  const secondLangStd = parseAdminScoreField(scorePayload.second_lang_std, {
+    label: '제2외국어 표준점수',
+    min: 0,
+    max: 100,
+    required: false,
+  });
+  if (!secondLangStd.ok) return res.status(400).json({ error: secondLangStd.error });
+  const secondLangPercentile = parseAdminScoreField(scorePayload.second_lang_percentile, {
+    label: '제2외국어 백분위',
+    min: 0,
+    max: 100,
+    allowDecimal: true,
+    required: false,
+  });
+  if (!secondLangPercentile.ok) return res.status(400).json({ error: secondLangPercentile.error });
+
+  const hasSecondLangStd = secondLangStd.value !== null;
+  const hasSecondLangPercentile = secondLangPercentile.value !== null;
+  if (hasSecondLangStd !== hasSecondLangPercentile) {
+    return res.status(400).json({ error: '제2외국어는 표준점수와 백분위를 함께 입력해주세요.' });
+  }
+
+  const approvedExamScores = {
+    korean_std: koreanStd.value,
+    korean_percentile: koreanPercentile.value,
+    math_std: mathStd.value,
+    math_percentile: mathPercentile.value,
+    english_std: englishStd.value,
+    english_percentile: englishPercentile.value,
+    english_grade: percentileToGrade(englishPercentile.value),
+    explore1_std: explore1Std.value,
+    explore1_percentile: explore1Percentile.value,
+    explore2_std: explore2Std.value,
+    explore2_percentile: explore2Percentile.value,
+    history_std: historyStd.value,
+    history_percentile: historyPercentile.value,
+    history_grade: percentileToGrade(historyPercentile.value),
+    second_lang_std: secondLangStd.value,
+    second_lang_percentile: secondLangPercentile.value,
+  };
 
   const client = await pool.connect();
   try {
@@ -197,9 +194,8 @@ router.post('/approve-score', requireAdmin, async (req, res) => {
 
     await client.query(`UPDATE users SET score_status = 'approved' WHERE id = $1`, [userId]);
 
-    if (approvedExamScores) {
-      await client.query(
-        `INSERT INTO exam_scores (
+    await client.query(
+      `INSERT INTO exam_scores (
                     user_id,
                     korean_std, korean_percentile,
                     math_std, math_percentile,
@@ -241,37 +237,26 @@ router.post('/approve-score', requireAdmin, async (req, res) => {
                     verified_status = 'approved',
                     verified_at = NOW(),
                     updated_at = NOW()`,
-        [
-          userId,
-          approvedExamScores.korean_std,
-          approvedExamScores.korean_percentile,
-          approvedExamScores.math_std,
-          approvedExamScores.math_percentile,
-          approvedExamScores.english_std,
-          approvedExamScores.english_percentile,
-          approvedExamScores.english_grade,
-          approvedExamScores.explore1_std,
-          approvedExamScores.explore1_percentile,
-          approvedExamScores.explore2_std,
-          approvedExamScores.explore2_percentile,
-          approvedExamScores.history_std,
-          approvedExamScores.history_percentile,
-          approvedExamScores.history_grade,
-          approvedExamScores.second_lang_std,
-          approvedExamScores.second_lang_percentile,
-        ],
-      );
-    } else {
-      await client.query(
-        `INSERT INTO exam_scores (user_id, verified_status, verified_at, updated_at)
-                 VALUES ($1, 'approved', NOW(), NOW())
-                 ON CONFLICT (user_id) DO UPDATE
-                 SET verified_status = 'approved',
-                     verified_at = COALESCE(exam_scores.verified_at, NOW()),
-                     updated_at = NOW()`,
-        [userId],
-      );
-    }
+      [
+        userId,
+        approvedExamScores.korean_std,
+        approvedExamScores.korean_percentile,
+        approvedExamScores.math_std,
+        approvedExamScores.math_percentile,
+        approvedExamScores.english_std,
+        approvedExamScores.english_percentile,
+        approvedExamScores.english_grade,
+        approvedExamScores.explore1_std,
+        approvedExamScores.explore1_percentile,
+        approvedExamScores.explore2_std,
+        approvedExamScores.explore2_percentile,
+        approvedExamScores.history_std,
+        approvedExamScores.history_percentile,
+        approvedExamScores.history_grade,
+        approvedExamScores.second_lang_std,
+        approvedExamScores.second_lang_percentile,
+      ],
+    );
 
     await writeAdminAuditLog(client, {
       action: 'admin.approve_score',
